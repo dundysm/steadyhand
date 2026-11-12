@@ -1,0 +1,40 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "drybench"
+version = "0.0.1"
+description = "Rehearse a lab-robot protocol in a physics scene before it touches a real bench."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Dundy Pasupuleti" }]
+keywords = ["lab automation", "liquid handling", "simulation", "mujoco", "pylabrobot"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Science/Research",
+  "Programming Language :: Python :: 3",
+  "Topic :: Scientific/Engineering",
+]
+dependencies = [
+  # The 0.2 line is the current stable PyLabRobot API. 1.0 is in beta and moves
+  # the liquid-handling classes; support for it is tracked in the README.
+  "pylabrobot>=0.2.2,<0.3",
+  "mujoco>=3.2",
+  "numpy>=1.26",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[project.scripts]
+drybench = "drybench.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/drybench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
