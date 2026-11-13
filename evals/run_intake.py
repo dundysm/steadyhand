@@ -16,7 +16,7 @@ import time
 from pathlib import Path
 
 from drybench.intake import ModelError, anthropic_model, command_model, draft, openai_model
-from drybench.planner import plan, rehearse_plan
+from drybench.planner import RunRefused, plan, rehearse_plan
 
 HERE = Path(__file__).parent
 
@@ -44,6 +44,8 @@ def one(note: Path, model, rounds: int, out: Path) -> dict:
       if planned.ok:
         rehearsal = asyncio.run(rehearse_plan(planned))
         row["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
+    except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
+      row["rehearse"] = f"fail ({refused})"
     except Exception as error:  # a crash here is a drybench bug, and worth recording as one
       row["rehearse"] = f"crash ({type(error).__name__}: {error})"
   row["seconds"] = round(time.time() - started, 1)

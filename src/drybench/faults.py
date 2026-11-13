@@ -25,7 +25,7 @@ import warnings
 from dataclasses import dataclass, replace
 from typing import Callable, Dict, List, Optional, Sequence
 
-from .planner import PLATE_CARRIER, Plan, build_deck, plan, record_plan
+from .planner import PLATE_CARRIER, Plan, RunRefused, build_deck, plan, record_plan
 from .protocol import ProtocolError, check, loads
 from .record import Step
 from .replay import rehearse, volumes
@@ -100,8 +100,8 @@ def _motion(
   """Record the plan, optionally change the steps or the deck, and replay it."""
   try:
     deck, steps = asyncio.run(record_plan(planned, prepare=prepare))
-  except Exception as error:  # PyLabRobot's own trackers and checks refused a command
-    return Outcome(True, "run", f"PyLabRobot refused: {type(error).__name__}: {str(error)[:90]}")
+  except RunRefused as refused:  # PyLabRobot's own trackers and checks refused a command
+    return Outcome(True, "run", str(refused)[:150])
   if mutate is not None:
     steps = mutate(list(steps))
   start = None

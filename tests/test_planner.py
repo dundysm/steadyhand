@@ -314,3 +314,66 @@ steps:
   assert checked.ok
   planned = plan(checked)
   assert not planned.ok and "skirted" in str(planned.problems[0]) and planned.problems[0].where == "labware.pcr"
+
+
+LIDDED = """
+drybench: 0.1
+name: reagent into a plate that ships with a lid
+labware:
+  plate:  {type: PerkinElmer_96_wellplate_400ul_Fb}
+  trough: {type: nest_1_troughplate_195000uL_Vb}
+liquids:
+  reagent: {in: trough/A1, volume: 20 mL}
+steps:
+  - transfer: {from: trough/A1, to: plate/A1:H2, volume: 100 uL, tips: reuse}
+"""
+
+
+def test_a_plate_that_comes_with_a_lid_is_planned_with_the_lid_off_and_says_so():
+  from drybench.protocol import check, loads
+
+  planned = plan(check(loads(LIDDED)))
+  assert planned.ok and planned.assumptions == ["the lid is off plate (PerkinElmer_96_wellplate_400ul_Fb comes with one)"]
+  assert "assumes: the lid is off plate" in planned.report()
+  assert asyncio.run(rehearse_plan(planned)).ok
+  script = emit(planned)
+  assert 'lid_off(PerkinElmer_96_wellplate_400ul_Fb(name="plate"))' in script
+  namespace: dict = {}
+  exec(compile(script, "emitted.py", "exec"), namespace)  # the emitted script builds its own deck and runs
+  from pylabrobot.resources import set_volume_tracking
+
+  set_volume_tracking(False)  # the script does not fill its own deck; PyLabRobot's default is off too
+  try:
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore")
+      asyncio.run(namespace["main"]())
+  finally:
+    set_volume_tracking(True)
+
+
+def test_a_command_pylabrobot_refuses_is_a_clean_failure(tmp_path, capsys):
+  from drybench.planner import RunRefused, record_plan
+  from drybench.protocol import check, loads
+
+  planned = plan(check(loads(LIDDED)))
+
+  def empty_the_rack(deck):
+    for spot in deck.get_resource("tips_300_1").get_all_items():
+      spot.tracker.remove_tip()
+
+  with pytest.raises(RunRefused) as caught:
+    asyncio.run(record_plan(planned, prepare=empty_the_rack))
+  assert caught.value.number == 1 and "command 1 (pick_up at tips_300_1)" in str(caught.value)
+
+
+def test_running_out_of_deck_is_explained_in_tips():
+  from drybench.protocol import check, loads
+
+  steps = "".join(
+    "  - transfer: {from: trough/A1, to: plate/A1:H12, volume: 50 uL}\n  - transfer: {from: plate/A1:H12, to: waste, volume: 50 uL}\n"
+    for _ in range(12)
+  )
+  planned = plan(check(loads(LIDDED.split("steps:")[0].replace("PerkinElmer_96_wellplate_400ul_Fb", "Cor_96_wellplate_360ul_Fb") + "steps:\n" + steps)))
+  assert not planned.ok
+  said = str(planned.problems[0])
+  assert "tip carriers" in said and "2304 tips" in said and "cannot reload tips" in said

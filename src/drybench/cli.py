@@ -157,13 +157,19 @@ def _plan(args: argparse.Namespace) -> int:
 
 
 def _rehearse(args: argparse.Namespace) -> int:
-  from .planner import emit, rehearse_plan
+  from .planner import RunRefused, emit, rehearse_plan
 
   planned = _planned(args.file, args.plan)
   if planned is None:
     return 1
   kept, keep = _keeper()
-  result = asyncio.run(rehearse_plan(planned, on_sample=None if args.no_render else keep))
+  try:
+    result = asyncio.run(rehearse_plan(planned, on_sample=None if args.no_render else keep))
+  except RunRefused as refused:
+    print("drybench rehearsal: FAIL")
+    print(f"  {refused}")
+    print("  Nothing was replayed: the run stops at the first command PyLabRobot will not accept.")
+    return 1
   print(result.report())
   out = Path(args.out)
   _write(result, out, kept, not args.no_render, planned.protocol.name)

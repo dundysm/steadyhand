@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 from drybench.intake import GUIDE, _problems_of, extract_yaml, labware_catalogue
-from drybench.planner import plan, rehearse_plan
+from drybench.planner import RunRefused, plan, rehearse_plan
 
 HERE = Path(__file__).parent
 ROUNDS = 3
@@ -73,6 +73,8 @@ def main() -> int:
       if planned.ok:
         rehearsal = asyncio.run(rehearse_plan(planned))
         state["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
+    except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
+      state["rehearse"] = f"fail ({refused})"
     except Exception as error:  # a crash here is a drybench bug, and worth recording as one
       state["rehearse"] = f"crash ({type(error).__name__}: {error})"
     state["notes"] = list(checked.protocol.notes)

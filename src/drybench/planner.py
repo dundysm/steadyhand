@@ -91,6 +91,7 @@ class Plan:
   problems: List[Problem] = field(default_factory=list)
   pipetting_height: float = 1.0  # mm above the well floor for every aspirate and dispense
   tip_types: List[Tuple[float, str]] = field(default_factory=lambda: list(TIP_TYPES))  # what it could choose from
+  assumptions: List[str] = field(default_factory=list)  # what has to be true on the bench for the plan to hold
 
   @property
   def ok(self) -> bool:
@@ -109,6 +110,7 @@ class Plan:
       f"  commands: {len(self.commands)} ({kinds.count('aspirate')} aspirates, "
       f"{kinds.count('dispense')} dispenses), up to {widest} channels at once"
     )
+    lines += [f"  assumes: {text}" for text in self.assumptions]
     if self.problems:
       lines.append(f"  problems: {len(self.problems)}")
       lines += [f"    - {p}" for p in self.problems]
@@ -165,6 +167,31 @@ class _Geometry:
 
 
 _REFUSALS: Dict[str, Optional[str]] = {}
+_LIDDED: Dict[str, bool] = {}
+
+
+class RunRefused(Exception):
+  """PyLabRobot's own checks refused one of the plan's commands."""
+
+  def __init__(self, number: int, command: "Command", reason: str):
+    self.number, self.command, self.reason = number, command, reason
+    where = f" at {command.resource}" if command.resource else ""
+    super().__init__(f"PyLabRobot refused command {number} ({command.kind}{where}): {reason}")
+
+
+def comes_with_lid(definition: str) -> bool:
+  """Whether PyLabRobot builds this plate with its lid on."""
+  if definition not in _LIDDED:
+    import pylabrobot.resources as resources
+
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore")
+      try:
+        plate = getattr(resources, definition)(name="probe")
+        _LIDDED[definition] = bool(getattr(plate, "has_lid", lambda: False)())
+      except Exception:
+        _LIDDED[definition] = False
+  return _LIDDED[definition]
 
 
 def carrier_refusal(definition: str) -> Optional[str]:
@@ -385,8 +412,14 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
         placements.append(Placement(f"{label}_{number}", carrier_type, rails, sites))
         rails += CARRIER_RAILS
     if rails - 1 > DECK_RAILS:
+      tip_carriers = sum(1 for p in placements if p.carrier_type == TIP_CARRIER)
       problems.append(
-        Problem("labware", f"{len(placements)} carriers need {rails - 1} rails; a STARlet deck has {DECK_RAILS}")
+        Problem(
+          "labware",
+          f"{tip_carriers} tip carriers ({len(tip_racks)} racks for {sum(used.values())} tips) and "
+          f"{len(placements) - tip_carriers} plate carriers need {rails - 1} rails; a STARlet deck has {DECK_RAILS}. "
+          "The planner cannot reload tips during a run",
+        )
       )
 
   return Plan(
@@ -398,6 +431,11 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
     problems=problems,
     pipetting_height=choices.pipetting_height,
     tip_types=tip_types,
+    assumptions=[
+      f"the lid is off {name} ({definition} comes with one)"
+      for name, definition in labware.items()
+      if comes_with_lid(definition)
+    ],
   )
 
 
@@ -607,7 +645,10 @@ def build_deck(planned: Plan):
       carrier = getattr(hamilton, placement.carrier_type)(name=placement.carrier)
       for site, name in enumerate(placement.sites):
         if name is not None:
-          carrier[site] = getattr(resources, planned.labware[name])(name=name)
+          item = getattr(resources, planned.labware[name])(name=name)
+          if getattr(item, "has_lid", lambda: False)():  # the plan assumes lids are off; it cannot move them
+            item.unassign_child_resource(item.lid)
+          carrier[site] = item
       deck.assign_child_resource(carrier, rails=placement.rails)
   for wells, volume in planned.protocol.liquids.values():
     for well in wells:
@@ -619,23 +660,30 @@ async def run(planned: Plan, handler) -> None:
   """Send every command in the plan to a PyLabRobot LiquidHandler."""
   deck = handler.deck
   height = planned.pipetting_height
-  for command in planned.commands:
-    channels = list(command.channels)
-    if command.kind == "discard":
-      await handler.discard_tips(use_channels=channels)
-      continue
-    resource = deck.get_resource(command.resource)
-    items = [resource.get_item(well) for well in command.wells]
-    if command.kind == "pick_up":
-      await handler.pick_up_tips(items, use_channels=channels)
-    elif command.kind == "aspirate":
-      await handler.aspirate(
-        items, vols=list(command.volumes), use_channels=channels, liquid_height=[height] * len(items)
-      )
-    else:
-      await handler.dispense(
-        items, vols=list(command.volumes), use_channels=channels, liquid_height=[height] * len(items)
-      )
+  for number, command in enumerate(planned.commands, start=1):
+    try:
+      await _send(command, handler, deck, height)
+    except Exception as error:  # a tracker or a check inside PyLabRobot said no
+      raise RunRefused(number, command, str(error)) from error
+
+
+async def _send(command: Command, handler, deck, height: float) -> None:
+  channels = list(command.channels)
+  if command.kind == "discard":
+    await handler.discard_tips(use_channels=channels)
+    return
+  resource = deck.get_resource(command.resource)
+  items = [resource.get_item(well) for well in command.wells]
+  if command.kind == "pick_up":
+    await handler.pick_up_tips(items, use_channels=channels)
+  elif command.kind == "aspirate":
+    await handler.aspirate(
+      items, vols=list(command.volumes), use_channels=channels, liquid_height=[height] * len(items)
+    )
+  else:
+    await handler.dispense(
+      items, vols=list(command.volumes), use_channels=channels, liquid_height=[height] * len(items)
+    )
 
 
 async def record_plan(planned: Plan, *, prepare=None):
@@ -695,6 +743,13 @@ def emit(planned: Plan, *, source: str = "") -> str:
     f"HEIGHT = {planned.pipetting_height!r}  # mm above the well floor for every aspirate and dispense",
     "",
     "",
+    "def lid_off(plate):",
+    "  # The plan assumes lids are off before the run; it cannot move them.",
+    "  if plate.has_lid():",
+    "    plate.unassign_child_resource(plate.lid)",
+    "  return plate",
+    "",
+    "",
     "def build_deck():",
     "  deck = STARLetDeck()",
   ]
@@ -702,7 +757,10 @@ def emit(planned: Plan, *, source: str = "") -> str:
     lines.append(f'  {placement.carrier} = {placement.carrier_type}(name="{placement.carrier}")')
     for site, name in enumerate(placement.sites):
       if name is not None:
-        lines.append(f'  {placement.carrier}[{site}] = {planned.labware[name]}(name="{name}")')
+        made = f'{planned.labware[name]}(name="{name}")'
+        if comes_with_lid(planned.labware[name]):
+          made = f"lid_off({made})"
+        lines.append(f"  {placement.carrier}[{site}] = {made}")
     lines.append(f"  deck.assign_child_resource({placement.carrier}, rails={placement.rails})")
   lines += [
     "  return deck",

@@ -46,17 +46,20 @@ RULES
   from, add to or mix, with the wells it starts in and the volume in each. Leave out liquid
   that no step touches: declaring it is an error.
   Use the volume the text gives. When it gives none for a liquid the steps draw from, supply
-  about 20% more than they use, and at least 10 uL more in each well. When it gives none for what is already in wells the steps add
+  about 20% more than they use, and at least 10 uL more in a plate well or 2 mL more in a
+  trough or reservoir, because a tip cannot reach the last of a shallow liquid. When it gives none for what is already in wells the steps add
   to or empty, treat those wells as empty and say so in `notes`.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
   the labware, choose one whose wells hold the largest volume any well reaches with room to spare.
-  For wells that hold under 50 uL, choose a V- or U-bottom plate: in a flat-bottom well that
-  little liquid is too shallow for a tip to reach.
+  For wells a tip draws from or mixes in while they hold 50 uL or less, choose a V- or
+  U-bottom plate: in a flat-bottom well that little liquid is too shallow for a tip to reach.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
 - Do not invent steps the text does not describe.
 - Leave out what a pipetting robot cannot do (vortexing, a magnet, heating, sealing, storage)
-  and say so in `notes`, one sentence each. A timed hold becomes a `wait`, even on equipment the robot lacks.
+  and say so in `notes`, one sentence each. A timed step becomes a `wait` of that length, even on
+  equipment the robot lacks (shake 30 s, incubate 2 h). For "at least" a time, use that time;
+  for "overnight", use 16 h; a step with no time at all gets no wait.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume

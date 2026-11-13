@@ -1,6 +1,6 @@
 # What drybench stops, and what it does not
 
-Written by `drybench faults`, version 0.6.0. Each row is one mistake planted in a short
+Written by `drybench faults`, version 0.7.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **22 of 24 planted mistakes stopped.** The unchanged protocol ran clean.
@@ -21,8 +21,8 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | The plate and the reservoir are on each other's carrier sites. | deck | rehearse | 24 collisions; first: the tip into plate on descend |
 | A 384-well plate is on the deck where the plan expects the 96-well plate. | deck | rehearse | 528 collisions; first: the tip into plate on descend |
 | A 2 mL deep-well plate is on the deck where the plan expects the shallow plate. | deck | **not stopped** | ran clean |
-| The plate still has its lid on. | deck | run | PyLabRobot refused: ValueError: Cannot dispense to 'plate_well_A2': its enclosing resource 'plate' has a lid. Remove the l |
-| The first column of the tip rack is empty. | deck | run | PyLabRobot refused: NoTipError: Tip spot does not have a tip. |
+| The plate still has its lid on. | deck | run | PyLabRobot refused command 3 (dispense at plate): Cannot dispense to 'plate_well_A2': its enclosing resource 'plate' has a lid. Remove the lid first. |
+| The first column of the tip rack is empty. | deck | run | PyLabRobot refused command 1 (pick_up at tips_300_1): Tip spot does not have a tip. |
 | 1000 uL tips are in the rack where the plan expects 300 uL tips; they are 35 mm longer. | deck | rehearse | 416 collisions; first: the tip into plate_carrier_1 on descend |
 | 50 uL tips are in the rack where the plan expects 300 uL tips; they are 9.5 mm shorter. | deck | rehearse | 80 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 4.31 mm above the liquid, so it draws air |
 | Every move into the plate is 4.5 mm to the right, over the wall between wells. | motion | rehearse | 176 collisions; first: the tip into plate on descend |

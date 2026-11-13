@@ -240,20 +240,22 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 
 ## What it does not do yet
 
-- **A proven intake.** `draft` has had three small real-model runs, all on 13 Nov 2026. Four
-  notes through `evals/run_intake.py` with `claude -p`: all four drafted, planned and rehearsed,
-  two after a second round. Eight notes with Claude Opus 5.5 agents driving
-  `evals/step_intake.py` by hand: seven passed first time and one made drybench crash on an
-  unskirted plate. After that crash was fixed and the guide rewritten, the same eight again with
-  fresh agents: eight of eight first time. That is one model family, eight notes, and agents
-  not a bare API call. These runs predate the tip-in-the-liquid check, which would now fail drafts that put a
-  few microlitres in flat-bottom wells. A pass means the file runs, not that it matches the notes: given a vague
-  note the model fills the gaps with guesses and lists them under `notes`. The overflow note
-  passed because the model chose a bigger plate; it now names its plate and has not been rerun.
+- **A proven intake.** `draft` has been measured four times, all on 13 Nov 2026 and all with
+  Claude models. The largest is the acceptance run: twenty notes drawn from public kit manuals,
+  drafted by Opus 5.5 agents and then checked, planned and rehearsed with no hand edits.
+  Seventeen of twenty passed every stage at the first attempt; two more pass on 0.7.0 after a
+  lid bug was fixed; the ELISA needs more tips than the deck holds. The table, the notes and
+  their sources are in [evals/acceptance](evals/acceptance). A pass means the file runs, not
+  that it matches the note (two were read against their notes and matched). It is one model
+  family, driven by agents and not a bare API call, and the guide has been edited since.
   It does not write `normalize` steps or read PDFs.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.
+- **Tip reloads, washers and lids.** The deck holds about 20 tip racks and the planner cannot
+  reload them, so a protocol that needs more (an ELISA with fifteen plate washes) cannot be
+  planned. There is no plate washer, shaker, magnet or gripper: timed steps on them become
+  waits, and a plate that ships with a lid is planned with the lid assumed off.
 - **Unskirted plates.** The planner's plate carrier holds skirted plates only, so 25 of
   PyLabRobot's plate definitions (most PCR plates among them) are refused at `plan` and are not
   offered to the model in `draft`. They need an adapter the planner does not place yet.
