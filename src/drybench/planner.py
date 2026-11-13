@@ -47,6 +47,7 @@ SITES = 5
 TIP_CARRIER = "TIP_CAR_480_A00"
 PLATE_CARRIER = "PLT_CAR_L5AC_A00"
 WASTE_TYPE = "nest_1_troughplate_195000uL_Vb"
+PLATE_ADAPTER = "thermo_AB_96_plateadapter_MicroAmp"  # a base that holds PCR plates with no skirt
 
 # Working volume in uL and the PyLabRobot definition, smallest first.
 TIP_TYPES: List[Tuple[float, str]] = [
@@ -173,6 +174,7 @@ class _Geometry:
 
 _REFUSALS: Dict[str, Optional[str]] = {}
 _LIDDED: Dict[str, bool] = {}
+_ADAPTED: Dict[str, bool] = {}
 
 
 class RunRefused(Exception):
@@ -200,20 +202,34 @@ def comes_with_lid(definition: str) -> bool:
 
 
 def carrier_refusal(definition: str) -> Optional[str]:
-  """Why the plate carrier cannot hold this PyLabRobot plate, or None when it can."""
+  """Why this PyLabRobot plate cannot go on the plate carrier, even on an adapter; None when it can."""
   if definition not in _REFUSALS:
     import pylabrobot.resources as resources
     from pylabrobot.resources import hamilton
 
     with warnings.catch_warnings():
       warnings.simplefilter("ignore")
+      _ADAPTED[definition] = False
       try:
         carrier = getattr(hamilton, PLATE_CARRIER)(name="probe_carrier")
         carrier[0] = getattr(resources, definition)(name="probe")
         _REFUSALS[definition] = None
       except Exception as error:  # PyLabRobot says why in the message
         _REFUSALS[definition] = str(error)
+        try:  # a plate with no skirt can still stand in an adapter that sits on the carrier
+          adapter = getattr(resources, PLATE_ADAPTER)(name="probe_adapter")
+          adapter.assign_child_resource(getattr(resources, definition)(name="probe"))
+          getattr(hamilton, PLATE_CARRIER)(name="probe_carrier")[0] = adapter
+          _REFUSALS[definition], _ADAPTED[definition] = None, True
+        except Exception:
+          pass
   return _REFUSALS[definition]
+
+
+def needs_adapter(definition: str) -> bool:
+  """Whether this plate goes on the carrier in a plate adapter because it has no skirt to stand on."""
+  carrier_refusal(definition)
+  return _ADAPTED[definition]
 
 
 def _waste_capacity() -> float:
@@ -274,6 +290,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
   if any(u.destination == WASTE for u in units):
     if any(name == "waste" or name.startswith("waste_") for name in labware):
       problems.append(Problem("labware.waste", "names starting with 'waste' are kept for the planner's waste reservoirs"))
+      return Plan(protocol=protocol, labware=labware, placements=[], commands=[], tips={}, problems=problems)
     # Discarded liquid fills one reservoir after another; each takes 90% of what it holds.
     room = 0.9 * _waste_capacity()
     name, filled = "waste", 0.0
@@ -495,6 +512,11 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
       f"the lid is off {name} ({definition} comes with one)"
       for name, definition in labware.items()
       if comes_with_lid(definition)
+    ]
+    + [
+      f"{name} stands in a {PLATE_ADAPTER} ({definition} has no skirt)"
+      for name, definition in labware.items()
+      if needs_adapter(definition)
     ],
   )
 
@@ -708,6 +730,10 @@ def build_deck(planned: Plan):
           item = getattr(resources, planned.labware[name])(name=name)
           if getattr(item, "has_lid", lambda: False)():  # the plan assumes lids are off; it cannot move them
             item.unassign_child_resource(item.lid)
+          if needs_adapter(planned.labware[name]):
+            adapter = getattr(resources, PLATE_ADAPTER)(name=f"{name}_adapter")
+            adapter.assign_child_resource(item)
+            item = adapter
           carrier[site] = item
       deck.assign_child_resource(carrier, rails=placement.rails)
   for wells, volume in planned.protocol.liquids.values():
@@ -792,7 +818,7 @@ def emit(planned: Plan, *, source: str = "") -> str:
   """The plan as a PyLabRobot script that runs on its own."""
   from . import __version__
 
-  definitions = sorted(set(planned.labware.values()))
+  definitions = sorted(set(planned.labware.values()) | ({PLATE_ADAPTER} if any(map(needs_adapter, planned.labware.values())) else set()))
   carriers = sorted({p.carrier_type for p in planned.placements})
   lines = [
     f'"""{planned.protocol.name}',
@@ -813,6 +839,13 @@ def emit(planned: Plan, *, source: str = "") -> str:
     f"HEIGHT = {planned.pipetting_height!r}  # mm above the well floor for every aspirate and dispense",
     "",
     "",
+    "def in_adapter(plate):",
+    "  # A plate with no skirt stands in an adapter, and the adapter goes on the carrier.",
+    f'  adapter = {PLATE_ADAPTER}(name=plate.name + "_adapter")',
+    "  adapter.assign_child_resource(plate)",
+    "  return adapter",
+    "",
+    "",
     "def lid_off(plate):",
     "  # The plan assumes lids are off before the run; it cannot move them.",
     "  if plate.has_lid():",
@@ -830,6 +863,8 @@ def emit(planned: Plan, *, source: str = "") -> str:
         made = f'{planned.labware[name]}(name="{name}")'
         if comes_with_lid(planned.labware[name]):
           made = f"lid_off({made})"
+        if needs_adapter(planned.labware[name]):
+          made = f"in_adapter({made})"
         lines.append(f"  {placement.carrier}[{site}] = {made}")
     lines.append(f"  deck.assign_child_resource({placement.carrier}, rails={placement.rails})")
   lines += [

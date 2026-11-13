@@ -16,7 +16,7 @@ STOPPED_AT = {
   "mix-more-than-the-well-holds": "check",
   "well-not-on-the-plate": "read",
   "amount-without-a-unit": "read",
-  "plate-the-carrier-cannot-hold": "plan",
+  "labware-named-waste": "plan",
   "no-diluent": "check",
   "dilution-starts-in-the-wrong-column": "check",
   "one-tip-down-the-series": "-",

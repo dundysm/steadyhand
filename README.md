@@ -261,9 +261,10 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   timed steps on them become waits, washes are done tip by tip, and a plate that ships with a
   lid is planned with the lid assumed off. When a run needs more tips than fit on the deck, the
   plan stops for a person to swap in full racks; nothing loads them automatically.
-- **Unskirted plates.** The planner's plate carrier holds skirted plates only, so 25 of
-  PyLabRobot's plate definitions (most PCR plates among them) are refused at `plan` and are not
-  offered to the model in `draft`. They need an adapter the planner does not place yet.
+- **Adapters beyond one.** A PCR plate with no skirt is planned standing in PyLabRobot's
+  MicroAmp 96-well base, and the plan says so. That is the only adapter the planner knows; four
+  of PyLabRobot's plate definitions need it. Whether your plate really fits that base is yours
+  to check.
 - **Liquid behaviour.** The liquid-level check assumes the tip stays at one height (no liquid
   following or level detection) and knows the liquid height only in flat-bottom wells. Nothing
   models dead volume, viscosity, droplets or carry-over. The planner pipettes 1 mm above the

@@ -1,6 +1,6 @@
 # What drybench stops, and what it does not
 
-Written by `drybench faults`, version 0.8.0. Each row is one mistake planted in a short
+Written by `drybench faults`, version 0.9.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **22 of 24 planted mistakes stopped.** The unchanged protocol ran clean.
@@ -13,7 +13,7 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | The mix draws 250 uL from wells that hold 200 uL. | protocol | check | steps[1]: mixing 250 uL in plate/A2, which holds 200 uL; the same in 23 more wells (B2, C2, ... H4) |
 | The transfer names column 13 of a 12-column plate. | protocol | read | steps[0].transfer.to: plate (Cor_96_wellplate_360ul_Fb) has no well H13 |
 | A volume is written as a bare number. | protocol | read | steps[0].transfer.volume: expected a volume such as '100 uL', got 100 |
-| The plate is an unskirted PCR plate, which the plate carrier cannot hold. | protocol | plan | labware.plate: thermo_AB_96_wellplate_300ul_Vb_MicroAmp cannot sit on a PLT_CAR_L5AC_A00: PlateHolder can only store plates that are skirted |
+| The plate is named waste, a name the planner keeps for its own waste reservoirs. | protocol | plan | labware.waste: names starting with 'waste' are kept for the planner's waste reservoirs |
 | The step that fills the wells with buffer is missing, so the series is not diluted at all. | protocol | check | liquids.buffer: no step draws from, adds to or mixes this liquid; remove it, or fix the step that should use it |
 | The series starts in column 2, not column 1 where the sample is. | protocol | check | liquids.sample: no step draws from, adds to or mixes this liquid; remove it, or fix the step that should use it |
 | The same tip is carried down each dilution series, so sample carries over. | protocol | **not stopped** | ran clean |

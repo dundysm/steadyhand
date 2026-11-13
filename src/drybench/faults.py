@@ -133,6 +133,11 @@ def _text(old: str, new: str) -> Callable[[], Outcome]:
   return seed
 
 
+def _whole_text(text: str) -> Outcome:
+  planned = _planned(text)
+  return planned if isinstance(planned, Outcome) else _motion(planned)
+
+
 def _on_plan(**how) -> Callable[[], Outcome]:
   """A fault made after planning the unchanged protocol. `how` values are called with the plan."""
 
@@ -244,8 +249,8 @@ FAULTS: List[Fault] = [
         _text("to: plate/A2:H4", "to: plate/A2:H13")),
   Fault("amount-without-a-unit", "protocol", "A volume is written as a bare number.",
         _text("to: plate/A2:H4, volume: 100 uL", "to: plate/A2:H4, volume: 100")),
-  Fault("plate-the-carrier-cannot-hold", "protocol", "The plate is an unskirted PCR plate, which the plate carrier cannot hold.",
-        _text("plate:     {type: Cor_96_wellplate_360ul_Fb}", "plate:     {type: thermo_AB_96_wellplate_300ul_Vb_MicroAmp}")),
+  Fault("labware-named-waste", "protocol", "The plate is named waste, a name the planner keeps for its own waste reservoirs.",
+        lambda: _whole_text(BASE.replace("  plate:  ", "  waste:  ").replace("plate/", "waste/"))),
   Fault("no-diluent", "protocol", "The step that fills the wells with buffer is missing, so the series is not diluted at all.",
         _text("  - transfer: {from: reservoir/A1, to: plate/A2:H4, volume: 100 uL, tips: reuse}\n", "")),
   Fault("dilution-starts-in-the-wrong-column", "protocol", "The series starts in column 2, not column 1 where the sample is.",

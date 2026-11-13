@@ -298,22 +298,41 @@ def test_cli_writes_a_plan_file_and_takes_it_back(tmp_path, capsys):
   assert "cannot be read as a plan file" in capsys.readouterr().out
 
 
-def test_a_plate_the_carrier_cannot_hold_is_a_plan_problem_not_a_crash():
+def test_a_plate_with_no_skirt_is_planned_in_an_adapter_and_says_so():
+  from drybench.planner import needs_adapter
   from drybench.protocol import check, loads
 
   checked = check(loads("""
 drybench: 0.1
 name: unskirted pcr plate
 labware:
-  pcr: {type: thermo_AB_96_wellplate_300ul_Vb_MicroAmp}
+  pcr:    {type: thermo_AB_96_wellplate_300ul_Vb_MicroAmp}
+  source: {type: Cor_96_wellplate_2mL_Vb}
 liquids:
-  mix: {in: pcr/A1, volume: 100 uL}
+  mix: {in: source/A1:H1, volume: 600 uL}
 steps:
-  - transfer: {from: pcr/A1, to: pcr/B1, volume: 20 uL}
+  - transfer: {from: source/A1:H1, to: pcr/A1:H1, volume: 20 uL}
+  - mix: {wells: pcr/A1:H1, volume: 12 uL, times: 2}
 """))
   assert checked.ok
   planned = plan(checked)
-  assert not planned.ok and "skirted" in str(planned.problems[0]) and planned.problems[0].where == "labware.pcr"
+  assert planned.ok, planned.report()
+  assert needs_adapter("thermo_AB_96_wellplate_300ul_Vb_MicroAmp") and not needs_adapter("Cor_96_wellplate_2mL_Vb")
+  assert planned.assumptions == [
+    "pcr stands in a thermo_AB_96_plateadapter_MicroAmp (thermo_AB_96_wellplate_300ul_Vb_MicroAmp has no skirt)"
+  ]
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    deck = build_deck(planned)
+  plate = deck.get_resource("pcr")
+  assert plate.parent.name == "pcr_adapter" and type(plate.parent).__name__ == "PlateAdapter"
+  # the adapter lines the wells up with where a skirted plate's wells sit on the same site
+  assert plate.get_item("A1").get_absolute_location("c", "c", "b").x == pytest.approx(253.3, abs=0.2)
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok, result.report()
+  script = emit(planned)
+  assert 'in_adapter(thermo_AB_96_wellplate_300ul_Vb_MicroAmp(name="pcr"))' in script
+  assert "  thermo_AB_96_plateadapter_MicroAmp," in script
 
 
 LIDDED = """
