@@ -95,12 +95,11 @@ def main() -> int:
           state["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
     except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
       state["rehearse"] = f"fail ({refused})"
-    except RuntimeError as refused:
-      if type(refused).__name__ != "Refused":  # the same, on an Opentrons deck
-        raise
-      state["rehearse"] = f"fail ({refused})"
-    except Exception as error:  # a crash here is a steadyhand bug, and worth recording as one
-      state["rehearse"] = f"crash ({type(error).__name__}: {error})"
+    except Exception as error:
+      if type(error).__name__ == "Refused":  # PyLabRobot's checks said no on an Opentrons deck: a clean failure too
+        state["rehearse"] = f"fail ({error})"
+      else:  # a crash here is a steadyhand bug, and worth recording as one
+        state["rehearse"] = f"crash ({type(error).__name__}: {error})"
     state["notes"] = list(checked.protocol.notes)
     print(f"FINISHED: draft passed in round {number}; plan {state['plan']}; rehearse {state['rehearse']}")
     for problem in state.get("plan_problems", []):
