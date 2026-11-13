@@ -1,0 +1,31 @@
+drybench: 0.1
+name: Normalize DNA to 10 ng/uL
+description: >
+  Each sample's volume is worked out from its measured concentration, then topped
+  up with water to 50 uL in the matching well of a fresh plate.
+
+labware:
+  stock:      {type: Cor_96_wellplate_360ul_Fb}
+  normalized: {type: Cor_96_wellplate_360ul_Fb}
+  reservoir:  {type: nest_1_troughplate_195000uL_Vb}
+
+liquids:
+  water: {in: reservoir/A1, volume: 10 mL}
+  dna:   {in: stock/A1:H1, volume: 40 uL}
+
+# One row per sample. The file sits next to this one.
+samples:
+  file: normalization_samples.csv
+  labware: stock
+  well: well
+  concentration: ng_per_ul
+  unit: ng/uL
+
+steps:
+  - normalize:
+      from: stock
+      to: normalized
+      diluent: reservoir/A1
+      target: 10 ng/uL
+      final_volume: 50 uL
+      mix: {times: 3, volume: 25 uL}

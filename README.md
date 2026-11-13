@@ -72,6 +72,27 @@ asyncio.run(main())
 
 To get only the scene, with no protocol: `drybench.export_scene(deck)` returns MuJoCo XML.
 
+## Check a protocol file (draft)
+
+A protocol file says what to do, in YAML, with no word about how a robot does it. `drybench check`
+reads it strictly and follows the liquid through every move.
+
+```bash
+drybench check examples/serial_dilution.yaml
+```
+
+```
+drybench check: PASS  Two-fold serial dilution across a 96-well plate
+  moves: 184 transfers, 88 mixes, 89 tips
+  buffer: uses 8800 uL of 20000 uL supplied
+  sample: uses 800 uL of 1600 uL supplied
+  discarded: 800 uL
+  problems: 0
+```
+
+The format is a draft: see [docs/protocol-format.md](docs/protocol-format.md). A checked protocol
+does not yet become robot code; the planner that connects it to the rehearsal is next.
+
 ## How the scene is built
 
 PyLabRobot describes a deck as a tree of resources, each with a position and a bounding box.
@@ -107,10 +128,10 @@ the protocol gave.
 
 ## Where it is going
 
-Phase 0 (this) is the bridge from a PyLabRobot deck to a physics scene. Next: a typed protocol
-file, a planner, static checks on volumes and tips, and a `compile / check / rehearse / emit`
-command line, so that a protocol written in plain language comes out as checked, rehearsed
-PyLabRobot code.
+Built so far: the bridge from a PyLabRobot deck to a physics scene, and a draft protocol file
+with liquid checks. Next: a planner that lays out the deck and picks tips, so that a checked
+protocol comes out as rehearsed PyLabRobot code, and after that an intake step that drafts the
+protocol file from plain language.
 
 ## Development
 

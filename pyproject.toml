@@ -24,6 +24,7 @@ dependencies = [
   "pylabrobot>=0.2.2,<0.3",
   "mujoco>=3.2",
   "numpy>=1.26",
+  "pyyaml>=6",
 ]
 
 [project.optional-dependencies]

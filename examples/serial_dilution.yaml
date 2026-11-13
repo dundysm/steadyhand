@@ -1,0 +1,30 @@
+drybench: 0.1
+name: Two-fold serial dilution across a 96-well plate
+description: >
+  Eight samples in column 1 are diluted two-fold, eleven times, left to right.
+  Every well ends at 100 uL.
+
+labware:
+  plate:     {type: Cor_96_wellplate_360ul_Fb}
+  reservoir: {type: nest_1_troughplate_195000uL_Vb}
+
+liquids:
+  buffer: {in: reservoir/A1, volume: 20 mL}
+  sample: {in: plate/A1:H1, volume: 200 uL}
+
+steps:
+  # Buffer into every well the samples will be diluted into.
+  - transfer:
+      from: reservoir/A1
+      to: plate/A2:H12
+      volume: 100 uL
+      tips: reuse          # one tip is fine: it only ever touches buffer
+
+  # Each of the eight wells in column 1 starts a series that runs to the right.
+  - serial_dilution:
+      start: plate/A1:H1
+      steps: 11
+      direction: right
+      volume: 100 uL
+      mix: {times: 3, volume: 80 uL}
+      discard: true        # throw away the last 100 uL so every well ends equal

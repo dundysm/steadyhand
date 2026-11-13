@@ -60,6 +60,35 @@ def _demo(args: argparse.Namespace) -> int:
   return 0 if result.ok else 1
 
 
+def _check(args: argparse.Namespace) -> int:
+  from .protocol import ProtocolError, check, load
+
+  try:
+    protocol = load(args.file)
+  except FileNotFoundError:
+    print(f"drybench check: cannot find {args.file}")
+    return 1
+  except ProtocolError as error:
+    print(f"drybench check: FAIL  {args.file} cannot be read as a protocol")
+    print(f"  problems: {len(error.problems)}")
+    for problem in error.problems:
+      print(f"    - {problem}")
+    return 1
+
+  result = check(protocol)
+  print(result.report())
+  if args.moves:
+    print("  moves, in order:")
+    for move in result.moves:
+      if move.kind == "transfer":
+        print(f"    step {move.step}  tip {move.tip:<3}  {move.volume:>7g} uL  {move.source} -> {move.destination}")
+      elif move.kind == "mix":
+        print(f"    step {move.step}  tip {move.tip:<3}  mix {move.times} x {move.volume:g} uL in {move.source}")
+      else:
+        print(f"    step {move.step}  wait {move.seconds / 60:g} min")
+  return 0 if result.ok else 1
+
+
 def main(argv: Optional[List[str]] = None) -> int:
   parser = argparse.ArgumentParser(
     prog="drybench", description="Rehearse a lab-robot protocol in a physics scene."
@@ -72,6 +101,11 @@ def main(argv: Optional[List[str]] = None) -> int:
   demo.add_argument("--out", default="drybench-out", help="folder for the scene and the report")
   demo.add_argument("--no-render", action="store_true", help="skip the PNG picture")
   demo.set_defaults(run=_demo)
+
+  check = commands.add_parser("check", help="read a protocol file and follow its liquid through every move")
+  check.add_argument("file", help="a drybench protocol file (YAML)")
+  check.add_argument("--moves", action="store_true", help="also list every move the steps expand into")
+  check.set_defaults(run=_check)
 
   args = parser.parse_args(argv)
   return args.run(args)
