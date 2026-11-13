@@ -189,11 +189,14 @@ steadyhand rehearse examples/serial_dilution.yaml --robot opentrons-flex
 A file can also say `robot: opentrons-flex` at the top; `--robot` wins over it. `check` is the
 same for every robot.
 
-**What the Opentrons plan decides.** Up to two single-channel pipettes, one per mount: the pair
-that moves every volume in the fewest draws, with filter tips. One pipette holds one tip, so work
-that a protocol interleaves across tips (a dilution down eight rows) is put back together tip by
-tip where no well can tell the difference; where one could, the order is kept and a fresh tip is
-used. Volumes below what any pipette moves are refused, which Opentrons' simulator does not do.
+**What the Opentrons plan decides.** Up to two pipettes, one per mount: the pair that moves
+every volume in the fewest draws, with filter tips. Eight moves that fill or empty one whole
+column of an 8-row plate with the same volume become one move of an 8-channel pipette, from
+another column or from one reservoir well; part of a column, unequal volumes and 384-well plates
+stay with a single channel. On the 27 intake drafts that run on these robots, that cuts the
+commands from 17,986 to 4,686 on the Flex. A single pipette holds one tip, so single moves that
+a protocol interleaves across tips are put back together tip by tip where no well can tell the
+difference; where one could, the order is kept and a fresh tip is used. Volumes below what any pipette moves are refused, which Opentrons' simulator does not do.
 Plates go in the first free slots, tip racks after them; waste reservoirs, tip reloads and waits
 work as on the Hamilton.
 
@@ -211,8 +214,8 @@ simulate an OT-2 protocol, install `opentrons==9.0.0` in a separate environment 
 says nothing simulated it, and exits with status 1.
 
 **What is missing on the Opentrons robots.** No physics replay: nothing checks collisions or
-whether the tip reaches the liquid, and there is no `replay.html`. No 8-channel pipettes, so a
-full plate is 96 moves. No modules or gripper. No plan file to edit. Eleven slots hold less
+whether the tip reaches the liquid, and there is no `replay.html`. An 8-channel pipette always
+takes all eight tips, so half a column is done one well at a time. No modules or gripper. No plan file to edit. Eleven slots hold less
 than a Hamilton deck: a full ELISA with its wash buffer and waste leaves no slot for tips and is
 refused at the plan.
 

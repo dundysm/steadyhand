@@ -124,16 +124,20 @@ def test_the_start_volume_is_held_to_what_opentrons_says_a_well_holds():
 
 
 @needs_opentrons
-def test_dilution_on_a_flex_uses_two_pipettes_and_no_more_tips_than_the_check_counted():
+def test_dilution_on_a_flex_is_done_a_column_at_a_time():
   checked = checked_from(DILUTION)
   planned = ot.plan(checked, ot.FLEX)
   assert planned.ok, planned.report()
-  assert planned.pipettes == {"left": "flex_1channel_50", "right": "flex_1channel_1000"}
-  assert sum(planned.tips.values()) == checked.tips and not planned.notes
-  assert planned.slots == {"plate": "D1", "trough": "D2", "waste": "D3", "tips_50_1": "C1", "tips_200_1": "C2"}
+  assert planned.pipettes == {"left": "flex_8channel_50", "right": "flex_8channel_1000"}
+  # Eight tips stand in for the one reused tip, and each column of the dilution takes eight fresh ones.
+  assert planned.tips == {"opentrons_flex_96_filtertiprack_50ul": 8, "opentrons_flex_96_filtertiprack_200ul": 96}
+  assert not planned.notes
+  assert planned.slots == {"plate": "D1", "trough": "D2", "waste": "D3", "tips_50x8_1": "C1", "tips_200x8_1": "C2"}
   kinds = [a.kind for a in planned.actions]
-  assert kinds.count("pick_up") == kinds.count("drop") == checked.tips
-  # One pipette holds one tip: between a pick-up and its drop, only that mount works.
+  assert kinds.count("pick_up") == kinds.count("drop") == 13
+  assert all(len(a.wells) == 8 for a in planned.actions if a.kind in ("pick_up", "aspirate", "dispense"))
+  assert len(planned.actions) == 141  # a single channel needs 1,107
+  # One pipette holds one set of tips: between a pick-up and its drop, only that mount works.
   on: dict = {}
   for action in planned.actions:
     if action.kind == "pick_up":
@@ -151,21 +155,84 @@ def test_dilution_on_a_flex_uses_two_pipettes_and_no_more_tips_than_the_check_co
   assert all(a.amount != 3.0 for a in planned.actions[:at])
 
 
+EIGHT = HEAD.replace("in: trough/A1, volume: 12 mL", "in: trough/A1:A2, volume: 12 mL") + """
+  - transfer: {from: trough/A1, to: plate/A2:H12, volume: 30 uL}
+  - transfer: {from: trough/A2, to: plate/C5, volume: 7 uL}
+  - transfer: {from: plate/A2:D2, to: plate/A3:D3, volume: 10 uL}
+  - transfer: {from: plate/A4:H4, to: plate/A5:H5, volume: 10 uL}
+"""
+
+
 @needs_opentrons
 def test_the_plan_moves_the_same_liquid_as_the_check():
-  checked = checked_from(DILUTION)
-  planned = ot.plan(checked, ot.OT2)
-  held = {well: volume for wells, volume in checked.protocol.liquids.values() for well in wells for volume in [volume]}
-  for action in planned.actions:
-    well = Well(action.labware, action.well)
-    if action.kind == "aspirate":
-      held[well] = held.get(well, 0.0) - action.amount
-      assert held[well] > -1e-6
-    elif action.kind == "dispense":
-      held[well] = held.get(well, 0.0) + action.amount
-  for well, volume in checked.volumes.items():
-    assert abs(held[well] - volume) < 1e-3, well
-  assert abs(held[Well("waste", "A1")] - checked.wasted) < 1e-3
+  for text in (DILUTION, EIGHT):
+    for profile in (ot.FLEX, ot.OT2):
+      checked = checked_from(text)
+      planned = ot.plan(checked, profile)
+      assert planned.ok, planned.report()
+      held = {well: volume for wells, volume in checked.protocol.liquids.values() for well in wells}
+      for action in planned.actions:
+        if action.kind in ("aspirate", "dispense"):
+          assert len(action.wells) in (1, 8) and action.wells[0] == action.well
+          for name in action.wells:  # an 8-channel pipette moves the amount in every channel
+            well = Well(action.labware, name)
+            held[well] = held.get(well, 0.0) + (action.amount if action.kind == "dispense" else -action.amount)
+            assert held[well] > -1e-6
+      for well, volume in checked.volumes.items():
+        assert abs(held[well] - volume) < 1e-3, (profile.name, well)
+      assert abs(held.get(Well("waste", "A1"), 0.0) - checked.wasted) < 1e-3
+
+
+@needs_opentrons
+def test_a_whole_column_moves_with_eight_channels_and_everything_else_with_one():
+  def reach(planned):
+    return {
+      step: {len(a.wells) for a in planned.actions if a.step == step and a.kind == "aspirate"} for step in range(4)
+    }
+
+  flex = planned_from(EIGHT)
+  assert flex.pipettes == {"left": "flex_1channel_50", "right": "flex_8channel_50"}
+  # A full plate from a reservoir and a column copied to the next: eight at once. One odd well and half a column: singly.
+  assert reach(flex) == {0: {8}, 1: {1}, 2: {1}, 3: {8}}
+  copied = [a for a in flex.actions if a.step == 3 and a.kind in ("aspirate", "dispense")]
+  assert [(a.kind, a.well, a.wells[-1]) for a in copied] == [("aspirate", "A4", "H4"), ("dispense", "A5", "H5")]
+  # The two pipettes take the same tips, but never from one rack: one takes them singly, the other by the column.
+  assert [name for name in flex.labware if name.startswith("tips")] == ["tips_50_1", "tips_50x8_1"]
+  assert flex.tips == {"opentrons_flex_96_filtertiprack_50ul": 5 + 12 * 8}
+  picked = [(a.labware, a.wells) for a in flex.actions if a.kind == "pick_up"]
+  assert picked[0] == ("tips_50x8_1", tuple(f"{row}1" for row in "ABCDEFGH"))
+  assert ("tips_50_1", ("A1",)) in picked and ("tips_50_1", ("B1",)) in picked
+
+  # An OT-2's 8-channel pipettes start at 1 and 20 uL: the 10 uL column falls between the pair chosen here.
+  ot2 = planned_from(EIGHT, ot.OT2)
+  assert ot2.pipettes == {"left": "p20_single_gen2", "right": "p300_multi_gen2"}
+  assert reach(ot2) == {0: {8}, 1: {1}, 2: {1}, 3: {1}}
+
+  # Unequal volumes down a column, and a plate with sixteen rows, are single-channel work.
+  from steadyhand.protocol import load
+
+  unequal = ot.plan(check(load(EXAMPLES / "normalization.yaml")), ot.FLEX)
+  assert unequal.pipettes == {"left": "flex_1channel_50"}
+  dense = planned_from(HEAD.replace("corning_96_wellplate_360ul_flat", "corning_384_wellplate_112ul_flat").replace(
+    "volume: 200 uL", "volume: 50 uL") + """
+  - transfer: {from: trough/A1, to: plate/A2:H2, volume: 20 uL}
+""")
+  assert dense.ok and {len(a.wells) for a in dense.actions if a.kind == "aspirate"} == {1}
+
+
+def test_where_eight_channels_reach():
+  def wells(labware, names):
+    return [Well(labware, name) for name in names.split()]
+
+  rows = {"plate": 8, "trough": 1, "dense": 16}
+  assert ot._reach(wells("plate", "A3 B3 C3 D3 E3 F3 G3 H3"), rows) == "A3"
+  assert ot._reach(wells("trough", "A2 A2 A2 A2 A2 A2 A2 A2"), rows) == "A2"
+  assert ot._reach(wells("plate", "B3 A3 C3 D3 E3 F3 G3 H3"), rows) is None  # out of order
+  assert ot._reach(wells("plate", "A3 B3 C3 D3 E3 F3 G3 H4"), rows) is None  # two columns
+  assert ot._reach(wells("plate", "A1 A2 A3 A4 A5 A6 A7 A8"), rows) is None  # a row, not a column
+  assert ot._reach(wells("trough", "A1 A1 A1 A1 A2 A2 A2 A2"), rows) is None  # two reservoir wells
+  assert ot._reach(wells("dense", "A1 B1 C1 D1 E1 F1 G1 H1"), rows) is None  # tips are 9 mm apart, these wells 4.5
+  assert ot._reach(wells("plate", "A3 B3 C3 D3 E3 F3 G3") + wells("trough", "A1"), rows) is None
 
 
 @needs_opentrons
@@ -264,13 +331,13 @@ def test_more_tips_than_the_deck_holds_are_planned_with_pauses_to_reload():
   # 1,152 tips are 12 racks; two plates leave nine slots.
   assert planned.tips == {"opentrons_96_filtertiprack_20ul": 1152}
   racks = [name for name in planned.labware if name.startswith("tips_")]
-  assert len(racks) == 9 and len(planned.slots) == 11
+  assert len(racks) == 9 and len(planned.slots) == 11 and planned.pipettes == {"left": "p20_multi_gen2"}
   reloads = [a for a in planned.actions if a.kind == "reload"]
   assert len(reloads) == 1 and reloads[0].racks == tuple(racks)
-  picked = [(a.labware, a.well) for a in planned.actions if a.kind == "pick_up"]
-  assert len(set(picked[:864])) == 864 and picked[864] == ("tips_20_1", "A1") and len(set(picked[864:])) == 288
+  picked = [(a.labware, tip) for a in planned.actions if a.kind == "pick_up" for tip in a.wells]
+  assert len(set(picked[:864])) == 864 and picked[864] == ("tips_20x8_1", "A1") and len(set(picked[864:])) == 288
   script = ot.emit(planned)
-  assert 'protocol.pause("Swap in full tip racks: tips_20_1 in slot 3,' in script
+  assert 'protocol.pause("Swap in full tip racks: tips_20x8_1 in slot 3,' in script
   assert script.count('].reset()') == 9
 
   crowded = "".join(f"\n  p{n}: {{type: corning_96_wellplate_360ul_flat}}" for n in range(9))
@@ -293,7 +360,7 @@ def test_the_emitted_protocol_is_python_that_says_which_robot_it_is_for():
     assert ('protocol.load_trash_bin("A3")' in script) == (profile is ot.FLEX)
     assert "protocol.delay(seconds=600)  # 10 min" in script
     assert 'deck["trough"][well].load_liquid(liquid, 12000.0)' in script
-    assert script.count(".pick_up_tip(") == script.count(".drop_tip()") == 97
+    assert script.count(".pick_up_tip(") == script.count(".drop_tip()") == 13
 
 
 def simulator_here():
@@ -311,7 +378,7 @@ def test_opentrons_own_simulator_runs_the_flex_protocol_and_stops_a_planted_mist
   result = ot.simulate(script, ot.FLEX)
   assert result.ok, result.report()
   assert len(result.log) == len([a for a in planned.actions if a.kind != "reload"])
-  assert result.log[0] == "Picking up tip from A1 of tips_200_1 on slot C2"
+  assert result.log[0] == "Picking up tip from A1 of tips_200x8_1 on slot C2"
   assert "PASS" in result.report() and "not checked on this robot: collisions" in result.report()
 
   first = 'right.aspirate(100.0, deck["trough"]["A1"].bottom(HEIGHT))'
@@ -332,7 +399,7 @@ def test_an_ot2_protocol_is_simulated_only_where_a_simulator_still_takes_it(monk
   if older:
     monkeypatch.setenv(ot.OT2_SIMULATOR, older)
     result = ot.simulate(script, ot.OT2)
-    assert result.ok and len(result.log) == 1107, result.report()
+    assert result.ok and len(result.log) == 141, result.report()
 
 
 # ---------------------------------------------------------------- choosing a robot
@@ -375,7 +442,7 @@ def test_cli_plans_rehearses_and_emits_for_the_robot_named(tmp_path, capsys, mon
   assert "(Opentrons Flex)" in said and "steadyhand rehearsal: PASS" in said
   assert sorted(p.name for p in out.iterdir()) == ["protocol.py", "report.json", "report.txt", "run_log.txt"]
   assert json.loads((out / "report.json").read_text())["pass"] is True
-  assert len((out / "run_log.txt").read_text().splitlines()) == 1107
+  assert len((out / "run_log.txt").read_text().splitlines()) == 141
 
   # --robot wins over the file; the Hamilton path is the one it always was.
   assert main(["plan", str(path), "--robot", "hamilton-starlet"]) == 0

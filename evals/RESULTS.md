@@ -6,6 +6,16 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## The Flex drafts planned again with 8-channel pipettes (0.15.0)
+
+No model was asked again. The 28 Flex drafts below that pass `check` were planned again once the planner
+could use 8-channel pipettes.
+
+- **The same 27 plan and pass Opentrons' simulator on both robots**; `sandwich_elisa` is still refused for
+  deck room.
+- **24 of the 27 Flex plans use eight channels somewhere** (23 on the OT-2).
+- **Commands across the 27 fall from 17,986 to 4,686 on the Flex** and from 18,122 to 5,038 on the OT-2.
+
 ## Drafted for an Opentrons Flex (31 notes), on the code released as 0.13.0
 
 Two Claude Opus 5.5 agents played the model through `evals/step_intake.py` with
