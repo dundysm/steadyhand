@@ -33,8 +33,9 @@ drybench plan: OK  Two-fold serial dilution across a 96-well plate
   tips: 96 x hamilton_96_tiprack_300uL_filter
   commands: 136 (56 aspirates, 56 dispenses), up to 8 channels at once
 drybench rehearsal: PASS
-  steps rehearsed: 1088 (path 269.44 m, 33857 samples)
+  steps rehearsed: 1088 (path 269.44 m, 3104 samples)
   collisions: 0
+  tips out of the liquid or the well: 0
 wrote drybench-out/protocol.py
 ```
 
