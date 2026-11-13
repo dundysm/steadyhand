@@ -23,7 +23,7 @@ import urllib.request
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from .planner import carrier_refusal
 from .protocol import Check, Problem, ProtocolError, check, loads
@@ -240,6 +240,7 @@ class Draft:
   messages: List[Message] = field(default_factory=list, repr=False)
   history: List[List[Problem]] = field(default_factory=list, repr=False)  # the problems found after each round
   left_for_a_person: bool = False  # the model sent the same file back: it will not change what the text says
+  rehearsed: bool = False  # the last file was also planned and rehearsed for the robot, not only checked
 
   @property
   def ok(self) -> bool:
@@ -257,6 +258,57 @@ def _problems_of(text: str, base: Optional[Path], robot: str = "") -> tuple:
     # Without the line the file would be planned for the Hamilton, which lacks this labware.
     problems.append(Problem("robot", f"the file must say `robot: {robot}` after its name"))
   return checked, problems
+
+
+def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
+  """Plan a checked protocol for the robot and rehearse it. Returns what stops it, as problems.
+
+  These are worded for whoever wrote the file: by well, not by the replay's own step numbers.
+  """
+  import asyncio
+
+  from .robots import choose
+
+  target = choose(robot or None, checked.protocol.robot)
+  planned = target.plan(checked, None)
+  if not planned.ok:
+    return list(planned.problems)
+  try:
+    if target.takes_plan_file:  # the Hamilton
+      from .planner import rehearse_plan
+
+      result = asyncio.run(rehearse_plan(planned))
+    else:
+      from .opentrons_scene import rehearse_plan
+
+      result = asyncio.run(rehearse_plan(planned))
+  except RuntimeError as refused:  # PyLabRobot's own tracking would not take a command
+    return [Problem("rehearsal", f"the run stops: {refused}")]
+  problems: List[Problem] = []
+  hit: Dict[str, int] = {}
+  for collision in result.collisions:
+    hit[collision.resource] = hit.get(collision.resource, 0) + 1
+  for resource, count in hit.items():
+    problems.append(Problem("rehearsal", f"a tip or channel hits {resource} ({count} times)"))
+  groups: Dict[Tuple[str, str], list] = {}
+  for issue in result.liquid_failures:
+    labware = issue.resource.rpartition("_well_")[0] or issue.resource
+    groups.setdefault((issue.kind, labware), []).append(issue)
+  for (kind, labware), issues in groups.items():
+    wells = sorted({issue.resource.rpartition("_well_")[2] for issue in issues})
+    where = f"{labware}/{wells[0]}" + (f" and {len(wells) - 1} more wells" if len(wells) > 1 else "")
+    gap = max(issue.gap for issue in issues)
+    if kind == "air":
+      problems.append(
+        Problem(
+          "rehearsal",
+          f"in {where} the tip stops up to {gap:g} mm above the liquid and draws air. A tip stops "
+          f"{planned.pipetting_height:g} mm above the floor of a well, so the liquid there is too shallow to reach",
+        )
+      )
+    else:
+      problems.append(Problem("rehearsal", f"in {where} the tip is {gap:g} mm above the rim of the well"))
+  return problems
 
 
 MAX_SOURCE = 60_000  # characters; a whole kit manual is more than a model needs and reads worse
@@ -351,6 +403,7 @@ def draft(
   samples: Optional[Path] = None,
   max_rounds: int = 3,
   robot: str = "",
+  rehearse: bool = False,
 ) -> Draft:
   """Ask `model` to write a protocol for `source`, sending problems back until it checks out.
 
@@ -363,6 +416,8 @@ def draft(
     max_rounds: how many times the model may be asked before giving up.
     robot: the robot to draft for. It decides which labware the model is offered; left empty,
       the Hamilton STARlet's.
+    rehearse: also plan and rehearse each file that passes the check, and send what stops it back
+      to the model like any other problem. The first message to the model is the same either way.
   """
   if base is None and samples is not None:
     base = Path(samples).parent
@@ -374,16 +429,27 @@ def draft(
     reply = model(messages)
     text = extract_yaml(reply)
     checked, problems = _problems_of(text, base, robot)
+    rehearsed = False
+    if not problems and rehearse:
+      problems = rehearsal_problems(checked, robot)
+      rehearsed = True
     messages.append({"role": "assistant", "content": reply})
     history.append(list(problems))
     if not problems:
-      return Draft(text, checked, [], round_number, messages, history)
+      return Draft(text, checked, [], round_number, messages, history, rehearsed=rehearsed)
     if text.strip() == previous.strip():
       # The same file again is the model's way of saying the problem is in the text, not the file.
       return Draft(text, checked, problems, round_number, messages, history, left_for_a_person=True)
     previous = text
     messages.append({"role": "user", "content": feedback(problems)})
   return Draft(text, checked, problems, max_rounds, messages, history)
+
+
+_REHEARSAL_HINT = (
+  "\nA rehearsal problem is about the robot, not the file's form. Liquid too shallow to reach is fixed "
+  "by starting with more of a liquid whose amount the text leaves open, or by labware with narrower wells; "
+  "say which in `notes`."
+)
 
 
 def feedback(problems: Sequence[Problem]) -> str:
@@ -393,6 +459,7 @@ def feedback(problems: Sequence[Problem]) -> str:
     "That file has these problems:\n" + listed + "\n\nWrite the whole file again with them fixed. "
     "If a problem can only be fixed by changing something the text states, or by something only a "
     "person can supply, send the same file again instead. Reply with the YAML only."
+    + (_REHEARSAL_HINT if any(problem.where == "rehearsal" for problem in problems) else "")
   )
 
 

@@ -6,6 +6,23 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## Drafting that rehearses: the one draft the replay stopped, asked again (0.19.0)
+
+`draft` now plans and rehearses each file that passes `check` and sends what stops it back to the model.
+The first message to the model is unchanged, so the 27 drafts that rehearse clean would come out as before
+and were not asked again. The one the replay stopped, `pcr_setup` on the Flex, was run again from the
+start by one Claude Opus 5.5 agent through `evals/step_intake.py`.
+
+- **Round 1:** the same draft as before, with 180 uL of master mix in a 15 mL reservoir. This time it
+  was told: "in trough/A1 the tip stops up to 0.65 mm above the liquid and draws air".
+- **Round 2:** it sent the same file again, which hands the problem to a person. Its reason: the note
+  says the master mix is "enough for 10 reactions", which it read as a stated amount it may not change.
+- So the result for that note is no longer a protocol that would draw air, but a draft returned with
+  the reason. Whether "enough for 10 reactions" should count as a stated amount is a fair question the
+  guide does not settle.
+- The agent also noted that the labware list gives no well widths, so it could not tell which reservoir
+  has narrower wells, which the feedback suggests as one way out.
+
 ## The Flex drafts with the liquid height known in every well (0.18.0)
 
 No model was asked again. On an Opentrons deck the height of a volume now comes from the inside shape of

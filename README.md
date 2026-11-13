@@ -84,7 +84,7 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 
 | Command | What it does |
 | --- | --- |
-| `steadyhand draft NOTES -o FILE` | Has a language model write the protocol file from plain text. See below. |
+| `steadyhand draft NOTES -o FILE` | Has a language model write the protocol file from plain text, and rehearses what it wrote. See below. |
 | `steadyhand check FILE` | Reads the file and follows the liquid through every move. Add `--moves` to list them. |
 | `steadyhand plan FILE` | Also chooses tips, groups moves into 8-channel commands and lays out the deck. |
 | `steadyhand rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
@@ -252,8 +252,9 @@ stand by it.
 the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
 has it write the `robot:` line. On the 31 intake notes, 27 go from text to a protocol that
 passes the physics replay and Opentrons' simulator on both robots with no hand edits. Three
-cannot work as written and are refused at `check`, and one is stopped at the replay for too
-little liquid to reach. Details and caveats are in [evals](evals/RESULTS.md).
+cannot work as written and are refused at `check`. One is stopped at the replay for too
+little liquid to reach; told why, the model hands it back to a person, because the amount is one
+the note states. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
@@ -282,8 +283,9 @@ often.
 ## Draft a protocol from plain text
 
 `draft` is the only place a language model is used. It writes the protocol file; steadyhand then
-reads and checks that file exactly as if you had written it, and sends any problems back to the
-model, up to three times. Nothing a model writes reaches a plan without passing `check`.
+reads and checks that file exactly as if you had written it, plans it and rehearses it for the
+robot, and sends whatever stops it back to the model, up to three times. A draft that passes
+has been rehearsed. `--no-rehearse` stops at the check.
 
 ```bash
 # any command that reads a prompt on stdin and prints a reply

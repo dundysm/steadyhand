@@ -213,3 +213,57 @@ steps:
   assert not thin.ok and not thin.collisions and len(thin.liquid_failures) == 8
   assert "above the liquid, so it draws air" in thin.report()
   assert asyncio.run(scene().rehearse_plan(planned("2 mL"))).ok
+
+
+# ---------------------------------------------------------------- drafting that rehearses
+
+
+THIN = """steadyhand: 0.1
+name: master mix
+robot: opentrons-flex
+labware:
+  trough: {type: nest_12_reservoir_15ml}
+  plate: {type: opentrons_96_wellplate_200ul_pcr_full_skirt}
+liquids:
+  mix: {in: trough/A1, volume: VOLUME}
+steps:
+  - transfer: {from: trough/A1, to: plate/A1:H1, volume: 18 uL}
+"""
+
+
+def test_a_draft_that_passes_the_check_but_not_the_rehearsal_is_sent_back_with_the_reason():
+  from steadyhand.intake import draft, messages_for
+
+  replies = iter([THIN.replace("VOLUME", "180 uL"), THIN.replace("VOLUME", "2 mL")])
+  sent = []
+
+  def model(messages):
+    sent.append([dict(m) for m in messages])
+    return next(replies)
+
+  result = draft("18 uL of master mix into column 1.", model, robot="opentrons-flex", rehearse=True)
+  assert result.ok and result.rehearsed and result.rounds == 2
+  # The first message is what it always was; only the feedback is new.
+  assert sent[0] == messages_for("18 uL of master mix into column 1.", None, "opentrons-flex")
+  told = sent[1][-1]["content"]
+  assert "- rehearsal: in trough/A1 the tip stops up to" in told and "draws air" in told
+  assert "starting with more of a liquid whose amount the text leaves open" in told
+  assert [str(p)[:10] for p in result.history[0]] == ["rehearsal:"] and result.history[1] == []
+
+  # Without rehearsing, the first file is accepted as it was before.
+  once = draft("18 uL of master mix into column 1.", lambda messages: THIN.replace("VOLUME", "180 uL"), robot="opentrons-flex")
+  assert once.ok and once.rounds == 1 and not once.rehearsed
+
+  # The same file sent again hands a rehearsal problem to a person, like any other.
+  stuck = draft("x", lambda messages: THIN.replace("VOLUME", "180 uL"), robot="opentrons-flex", rehearse=True)
+  assert not stuck.ok and stuck.left_for_a_person and stuck.rounds == 2 and stuck.problems[0].where == "rehearsal"
+
+
+def test_what_stops_a_plan_is_sent_back_too():
+  from steadyhand.intake import rehearsal_problems
+
+  crowded = THIN.replace("VOLUME", "2 mL").replace(
+    "liquids:", "".join(f"  extra{n}: {{type: corning_96_wellplate_360ul_flat}}\n" for n in range(9)) + "liquids:"
+  )
+  found = rehearsal_problems(check(__import__("steadyhand.protocol", fromlist=["loads"]).loads(crowded)), "opentrons-flex")
+  assert len(found) == 1 and found[0].where == "labware" and "has 11 for labware" in found[0].message

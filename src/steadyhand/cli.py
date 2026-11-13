@@ -305,7 +305,9 @@ def _draft(args: argparse.Namespace) -> int:
       print(f"steadyhand draft: the protocol names its samples file by name, so write it next to {samples}")
       print(f"  for example: -o {samples.parent / Path(args.output).name}")
       return 1
-    result = draft(source, model, samples=samples, max_rounds=args.rounds, robot=args.robot or "")
+    result = draft(
+      source, model, samples=samples, max_rounds=args.rounds, robot=args.robot or "", rehearse=not args.no_rehearse
+    )
   except ModelError as error:
     print(f"steadyhand draft: {error}")
     return 1
@@ -315,10 +317,13 @@ def _draft(args: argparse.Namespace) -> int:
   print(f"steadyhand draft: {'PASS' if result.ok else 'FAIL'}  the model was asked {asked}")
   if result.checked is not None:
     print(result.checked.report())
-  else:
+  if result.problems and (result.checked is None or result.checked.ok):
+    # the file could not be read, or it passes the check and the plan or the rehearsal stops it
     print(f"  problems: {len(result.problems)}")
     for problem in result.problems:
       print(f"    - {problem}")
+  if result.ok and result.rehearsed:
+    print("  planned and rehearsed: nothing stopped it")
   print(f"wrote {args.output}")
   if result.ok:
     print("A model wrote this file. Read it against your source before you rehearse or run it.")
@@ -348,6 +353,9 @@ def main(argv: Optional[List[str]] = None) -> int:
   draft.add_argument("--model-command", help="a shell command that reads a prompt on stdin and prints a reply")
   draft.add_argument("--samples", help="a CSV of per-sample concentrations, for normalizing; kept next to the output")
   draft.add_argument("--rounds", type=int, default=3, help="how many times the model may be asked (default 3)")
+  draft.add_argument(
+    "--no-rehearse", action="store_true", help="only check each file; do not plan and rehearse it before accepting it"
+  )
   draft.add_argument(
     "--robot", choices=sorted(ROBOTS), help="the robot to draft for: it decides which labware the model is offered"
   )

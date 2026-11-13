@@ -3,21 +3,20 @@
   python evals/step_intake.py prompt CASE          print what the model is sent next
   python evals/step_intake.py submit CASE REPLY    hand in the model's reply (a file); it is checked as draft checks it
 
-Set STEADYHAND_EVAL_ROBOT to draft for another robot, such as opentrons-flex. A draft that passes is
-then planned for that robot and run through whatever rehearses it.
+Set STEADYHAND_EVAL_ROBOT to draft for another robot, such as opentrons-flex. As in
+`steadyhand draft`, a file that passes the check is planned and rehearsed for that robot, and what
+stops it is sent back to the model like any other problem.
 
 The messages, the checking and the limit of three rounds are the ones `steadyhand.intake.draft` uses.
 State is kept in evals/out/agents/CASE/, or evals/out/agents-ROBOT/CASE/ for a named robot.
 """
 
-import asyncio
 import json
 import os
 import sys
 from pathlib import Path
 
-from steadyhand.intake import _problems_of, extract_yaml, feedback, messages_for
-from steadyhand.planner import RunRefused, plan, rehearse_plan
+from steadyhand.intake import _problems_of, extract_yaml, feedback, messages_for, rehearsal_problems
 
 HERE = Path(__file__).parent
 ROUNDS = 3
@@ -69,41 +68,21 @@ def main() -> int:
   state["messages"].append({"role": "assistant", "content": reply})
   state["history"].append([str(problem) for problem in problems])
   if not problems:
-    state["done"], state["draft"] = True, "pass"
-    try:
-      if ROBOT and ROBOT != "hamilton-starlet":
-        from steadyhand import opentrons_robots
-
-        planned = opentrons_robots.plan(checked, opentrons_robots.PROFILES[ROBOT])
-        state["plan"] = "pass" if planned.ok else "fail"
-        state["plan_problems"] = [str(problem) for problem in planned.problems]
-        if planned.ok:
-          from steadyhand import opentrons_scene
-
-          replay = asyncio.run(opentrons_scene.rehearse_plan(planned))
-          result = opentrons_robots.simulate(opentrons_robots.emit(planned), planned.profile)
-          if not replay.ok:
-            state["rehearse"] = f"fail ({len(replay.collisions)} collisions, {len(replay.liquid_failures)} tips out of the liquid)"
-          else:
-            state["rehearse"] = "pass" if result.ok else f"fail ({result.error or result.why_not})"
-      else:
-        planned = plan(checked)
-        state["plan"] = "pass" if planned.ok else "fail"
-        state["plan_problems"] = [str(problem) for problem in planned.problems]
-        if planned.ok:
-          rehearsal = asyncio.run(rehearse_plan(planned))
-          state["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
-    except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
-      state["rehearse"] = f"fail ({refused})"
-    except Exception as error:
-      if type(error).__name__ == "Refused":  # PyLabRobot's checks said no on an Opentrons deck: a clean failure too
-        state["rehearse"] = f"fail ({error})"
-      else:  # a crash here is a steadyhand bug, and worth recording as one
-        state["rehearse"] = f"crash ({type(error).__name__}: {error})"
+    # as draft(rehearse=True) does: a file that passes the check is planned and rehearsed, and what
+    # stops it goes back to the model like any other problem
     state["notes"] = list(checked.protocol.notes)
-    print(f"FINISHED: draft passed in round {number}; plan {state['plan']}; rehearse {state['rehearse']}")
-    for problem in state.get("plan_problems", []):
-      print(f"  plan problem: {problem}")
+    try:
+      problems = rehearsal_problems(checked, ROBOT)
+      state["history"][-1] = [str(problem) for problem in problems]
+    except Exception as error:  # a crash here is a steadyhand bug, and worth recording as one
+      state["done"], state["draft"], state["rehearse"] = True, "pass", f"crash ({type(error).__name__}: {error})"
+      print(f"FINISHED: draft passed in round {number}; rehearse {state['rehearse']}")
+      problems = []
+  if not problems and not state["done"]:
+    state["done"], state["draft"], state["plan"], state["rehearse"] = True, "pass", "pass", "pass"
+    print(f"FINISHED: draft passed in round {number}; plan pass; rehearse pass")
+  elif state["done"]:
+    pass
   else:
     listed = "\n".join(f"- {problem}" for problem in problems)
     same = number > 1 and text.strip() == (folder / f"round_{number - 1}.yaml").read_text(encoding="utf-8").strip()
