@@ -28,12 +28,19 @@ from .scene import (
   PROBE_CONAFFINITY,
   PROBE_CONTYPE,
   Box,
+  bounds,
   boxes_to_mjcf,
+  cavity_floor_z,
   collect_boxes,
+  liquid_height,
+  liquid_height_is_known,
 )
 from .viewer import layout
 
 Vec3 = Tuple[float, float, float]
+
+RIM_ALLOWANCE = 2.0  # mm a tip may sit above the rim of a well and still count as in it
+LIQUID_TOLERANCE = 0.05  # mm; a tip closer to the surface than this counts as touching it
 
 BARREL_RADIUS = 4.0  # mm; STAR channels sit 9 mm apart
 BARREL_LENGTH = 80.0  # mm
@@ -65,11 +72,50 @@ class Collision:
   phase: str  # "travel", "descend" or "ascend", when the overlap began
 
   def describe(self) -> str:
+    if self.geom == "spacing":
+      return (
+        f"step {self.step} ({self.kind}, channel {self.channel}): asked to sit {self.depth:.2f} mm closer to "
+        f"{self.resource} than the head allows"
+      )
     return (
       f"step {self.step} ({self.kind}, channel {self.channel}): the {self.part} runs into "
       f"{self.resource} [{self.geom}] during {self.phase}, starting at "
       f"x={self.at[0]:.1f} y={self.at[1]:.1f} z={self.at[2]:.1f} (deepest overlap {self.depth:.2f} mm)"
     )
+
+
+@dataclass(frozen=True)
+class LiquidIssue:
+  """A tip in the wrong place relative to the liquid when it aspirates or dispenses.
+
+  kind is "air" (an aspirate starts with the tip above the liquid), "outside" (the tip is
+  above the rim of the well) or "ends_in_air" (the liquid falls below the tip before the
+  aspirate is over). `gap` is how far, in mm. `sure` is False when the well's shape is not
+  known well enough to trust the liquid height; those are reported but do not fail the run.
+  """
+
+  step: int
+  kind: str
+  action: str  # "aspirate" or "dispense"
+  channel: int
+  resource: str
+  gap: float
+  sure: bool = True
+
+  @property
+  def fails(self) -> bool:
+    return self.sure and self.kind in ("air", "outside")
+
+  def describe(self) -> str:
+    where = f"step {self.step} ({self.action}, channel {self.channel}) in {self.resource}"
+    if self.kind == "outside":
+      return f"{where}: the tip is {self.gap:g} mm above the rim of the well"
+    height = f"{self.gap:g} mm above" if self.gap > 0 else "at the surface of"
+    if self.kind == "air" and self.sure:
+      return f"{where}: the tip stops {height} the liquid, so it draws air"
+    if self.kind == "air":
+      return f"{where}: by a straight-walled estimate the tip stops {height} the liquid; a tapered bottom holds it higher"
+    return f"{where}: the liquid falls {self.gap:g} mm below the tip before the aspirate ends"
 
 
 @dataclass
@@ -83,10 +129,15 @@ class Rehearsal:
   scene_xml: str = field(repr=False, default="")
   layout: dict = field(repr=False, default_factory=dict)  # where every solid and cavity is, for the HTML replay
   traverse_z: float = 245.0
+  liquid: List[LiquidIssue] = field(default_factory=list)
+
+  @property
+  def liquid_failures(self) -> List[LiquidIssue]:
+    return [issue for issue in self.liquid if issue.fails]
 
   @property
   def ok(self) -> bool:
-    return not self.collisions
+    return not self.collisions and not self.liquid_failures
 
   def replay_html(self, title: str = "") -> str:
     """The rehearsal as one self-contained HTML page that plays it back."""
@@ -99,6 +150,7 @@ class Rehearsal:
       "ok": self.ok,
       "steps": [asdict(s) for s in self.steps],
       "collisions": [asdict(c) for c in self.collisions],
+      "liquid": [{**asdict(i), "fails": i.fails} for i in self.liquid],
       "not_rehearsed": [asdict(s) for s in self.not_rehearsed],
       "path_length_mm": round(self.path_length, 3),
       "samples": self.samples,
@@ -113,10 +165,39 @@ class Rehearsal:
       f"  collisions: {len(self.collisions)}",
     ]
     lines += [f"    - {c.describe()}" for c in self.collisions]
+    failures = self.liquid_failures
+    lines.append(f"  tips out of the liquid or the well: {len(failures)}")
+    lines += [f"    - {text}" for text in _told_once(failures)]
+    unsure = [i for i in self.liquid if i.kind in ("air", "outside") and not i.sure]
+    if unsure:
+      lines.append(f"  possibly out of the liquid, in wells whose shape is not known exactly ({len(unsure)}):")
+      lines += [f"    - {text}" for text in _told_once(unsure)]
+    low = [i for i in self.liquid if i.kind == "ends_in_air"]
+    if low:
+      lines.append(f"  aspirates that finish with the liquid below the tip, so the last of it is air ({len(low)}):")
+      lines += [f"    - {text}" for text in _told_once(low)]
     if self.not_rehearsed:
       kinds = sorted({s.kind.split(":", 1)[1] for s in self.not_rehearsed})
       lines.append(f"  not rehearsed ({len(self.not_rehearsed)} steps): {', '.join(kinds)}")
     return "\n".join(lines)
+
+
+def _told_once(issues: Sequence[LiquidIssue], limit: int = 6) -> List[str]:
+  """One line per command and kind, not one per channel, and no more than `limit` lines."""
+  lines: List[str] = []
+  seen: Dict[Tuple[str, str, str], int] = {}
+  for issue in issues:
+    labware = issue.resource.rsplit("_well_", 1)[0]
+    key = (issue.kind, issue.action, labware)
+    seen[key] = seen.get(key, 0) + 1
+    if seen[key] == 1:
+      lines.append(issue.describe())
+  for index, (key, count) in enumerate(seen.items()):
+    if count > 1:
+      lines[index] += f"; the same {count - 1} more times in {key[2]}"
+  if len(lines) > limit:
+    lines = lines[:limit] + [f"and {len(lines) - limit} more kinds"]
+  return lines
 
 
 def volumes(root: Resource) -> Dict[str, float]:
@@ -248,9 +329,11 @@ def rehearse(
   root: Resource,
   steps: Sequence[Step],
   *,
+  start_volumes: Optional[Dict[str, float]] = None,
   traverse_z: float = 245.0,
   sample_mm: float = 1.0,
   tolerance_mm: float = 0.05,
+  min_channel_pitch: Optional[float] = 9.0,
   profile: TipProfile = TipProfile(),
   on_sample: Optional[Callable[[mujoco.MjModel, mujoco.MjData, List[Step], str], None]] = None,
 ) -> Rehearsal:
@@ -259,11 +342,16 @@ def rehearse(
   Args:
     root: the deck (or any resource) the steps were recorded on.
     steps: what `RecordingBackend.steps` holds after the protocol ran.
+    start_volumes: microlitres in each container before the first step, by resource name. Leave
+      it out when `root` is the deck the steps just ran on; it is then worked out backwards.
     traverse_z: height, in mm, that the lowest point of a channel keeps while travelling. 245 mm
       is the Hamilton STAR backend's default.
     sample_mm: distance between collision checks along the path.
     tolerance_mm: overlaps shallower than this are ignored, so that a tip resting exactly on a
       well's floor does not count as a collision.
+    min_channel_pitch: the closest two neighbouring channels can sit along y, in mm; 9 mm on a
+      STAR. Channel 0 is at the back. A command that asks for less is reported as a collision
+      with the other channel. None turns the check off.
     profile: the outside shape assumed for tips.
     on_sample: called after every collision check with the model, its data, the steps being
       replayed together and the phase ("travel", "descend" or "ascend"). Use it to draw frames
@@ -353,6 +441,25 @@ def rehearse(
       commands.setdefault(step.command, {})[step.channel] = step
 
   for group in commands.values():
+    # The head cannot bring two channels closer than its pitch, or let one pass another.
+    if min_channel_pitch:
+      ordered = sorted(group)
+      for a, b in zip(ordered, ordered[1:]):
+        gap = group[a].reference[1] - group[b].reference[1]  # type: ignore[index]
+        short = min_channel_pitch * (b - a) - gap
+        if short > 0.01:
+          worst[(group[b].index, b, f"channel{a}")] = Collision(
+            step=group[b].index,
+            kind=group[b].kind,
+            channel=b,
+            part="channel",
+            resource=f"channel {a}",
+            geom="spacing",
+            depth=round(short, 4),
+            at=tuple(round(v, 3) for v in group[b].reference),  # type: ignore[arg-type,union-attr]
+            phase="descend",
+          )
+
     # A tip is on for the whole of every step except the way down to pick one up.
     for c, step in group.items():
       channels[c].set_tip(model, None if step.kind == "pick_up_tip" else _tip_key(step))
@@ -382,4 +489,56 @@ def rehearse(
     scene_xml=xml,
     layout=layout(root),
     traverse_z=traverse_z,
+    liquid=liquid_issues(root, steps, start_volumes),
   )
+
+
+def liquid_issues(
+  root: Resource, steps: Sequence[Step], start_volumes: Optional[Dict[str, float]] = None
+) -> List[LiquidIssue]:
+  """Where each aspirate and dispense leaves the tip relative to the liquid and the rim.
+
+  The liquid is followed through the steps in order. `start_volumes` is what every container
+  held before the first step; when it is not given it is worked out backwards from what the
+  containers under `root` hold now, which is right when `root` is the deck the steps ran on.
+  """
+  containers: Dict[str, Container] = {}
+
+  def walk(resource: Resource) -> None:
+    if isinstance(resource, Container):
+      containers[resource.name] = resource
+    for child in resource.children:
+      walk(child)
+
+  walk(root)
+  acting = [s for s in steps if s.kind in ("aspirate", "dispense") and s.reference is not None and s.resource in containers]
+  if start_volumes is None:
+    held = {name: float(c.tracker.get_used_volume()) for name, c in containers.items()}
+    for s in acting:
+      held[s.resource] += (s.volume or 0.0) if s.kind == "aspirate" else -(s.volume or 0.0)
+  else:
+    held = {name: float(start_volumes.get(name, 0.0)) for name in containers}
+
+  issues: List[LiquidIssue] = []
+  for s in acting:
+    container = containers[s.resource]
+    floor, rim = cavity_floor_z(container), bounds(container)[1][2]
+    end = s.tip_end[2]  # type: ignore[index]
+    volume = s.volume or 0.0
+    before = max(0.0, held[s.resource])
+    sure = liquid_height_is_known(container) or before <= 0.0  # an empty well is empty whatever its shape
+
+    def issue(kind: str, gap: float, certain: bool = True) -> None:
+      issues.append(LiquidIssue(s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain))
+
+    if end > rim + RIM_ALLOWANCE:
+      issue("outside", end - rim)
+    elif s.kind == "aspirate":
+      surface = floor + liquid_height(container, before)
+      after = floor + liquid_height(container, max(0.0, before - volume))
+      if end > surface - LIQUID_TOLERANCE:
+        issue("air", end - surface, sure)
+      elif end > after + LIQUID_TOLERANCE:
+        issue("ends_in_air", end - after, sure)
+    held[s.resource] = before - volume if s.kind == "aspirate" else before + volume
+  return issues

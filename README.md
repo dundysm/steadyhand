@@ -146,29 +146,36 @@ volume, and every command takes the same time on screen. It is 2D; for 3D open `
 
 ### What `rehearse` checks
 
-Whether a channel or its tip would be driven into the deck, a carrier, a plate's floor or the
-walls between wells. A test also confirms that PyLabRobot's own volume trackers end the run
-with the same volume in every well that `check` predicted.
+- **Collisions.** Whether a channel or its tip would be driven into the deck, a carrier, a
+  plate's floor or the walls between wells, on the way across, down or up.
+- **Channel spacing.** Whether a command asks two channels to sit closer than the head allows
+  (9 mm on a STAR).
+- **Tip in the liquid.** The liquid is followed through every step. An aspirate that starts with
+  the tip above the liquid, or any aspirate or dispense with the tip above the rim of the well,
+  fails the run. This is only trusted in flat-bottom wells, where the liquid height is known:
+  in round- and V-bottom wells it is reported as possible and does not fail. An aspirate that
+  ends with the liquid below the tip (emptying a well) is noted, not failed.
+
+A test also confirms that PyLabRobot's own volume trackers end the run with the same volume in
+every well that `check` predicted.
 
 ## What it stops, measured
 
 A dry run that passes says little unless you know what it would have failed on. `drybench faults`
 plants 24 specific mistakes in a short dilution that otherwise runs clean, and records the first
-stage that stops each one. Today **18 of 24 are stopped**; the full table is in
+stage that stops each one. Today **22 of 24 are stopped**; the full table is in
 [docs/faults.md](docs/faults.md), and a test pins it so a change in either direction shows.
 
-The six that get through, each a check drybench does not have yet:
+The two that get through:
 
-- The same tip is carried down each dilution series, so sample carries over.
-- A 2 mL deep-well plate is on the deck where the plan expects the shallow plate.
-- 50 uL tips are in the rack where the plan expects 300 uL tips; they are 9.5 mm shorter.
-- Every aspirate from the plate stops 9 mm above the well floor, in air.
-- Every dispense is released 30 mm above the well, so it would splash.
-- Two channels are 4 mm apart in the reservoir; the head cannot bring them closer than 9 mm.
+- The same tip is carried down each dilution series, so sample carries over. Nothing checks
+  what a tip has touched.
+- A 2 mL deep-well plate is on the deck where the plan expects the shallow plate. The wells line
+  up and the tips reach the liquid, so nothing is hit; drybench cannot know the deck differs
+  from the plan unless it is told.
 
-Four of the six are the same gap: nothing checks that the tip is in the liquid, or how far
-above the well it is, when it aspirates or dispenses. The suite is one protocol on one deck, so
-it shows which kinds of mistake are stopped, not how often.
+The suite is one protocol on one deck, so it shows which kinds of mistake are stopped, not how
+often.
 
 ## Draft a protocol from plain text
 
@@ -239,7 +246,8 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   `evals/step_intake.py` by hand: seven passed first time and one made drybench crash on an
   unskirted plate. After that crash was fixed and the guide rewritten, the same eight again with
   fresh agents: eight of eight first time. That is one model family, eight notes, and agents
-  not a bare API call. A pass means the file runs, not that it matches the notes: given a vague
+  not a bare API call. These runs predate the tip-in-the-liquid check, which would now fail drafts that put a
+  few microlitres in flat-bottom wells. A pass means the file runs, not that it matches the notes: given a vague
   note the model fills the gaps with guesses and lists them under `notes`. The overflow note
   passed because the model chose a bigger plate; it now names its plate and has not been rerun.
   It does not write `normalize` steps or read PDFs.
@@ -249,6 +257,10 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 - **Unskirted plates.** The planner's plate carrier holds skirted plates only, so 25 of
   PyLabRobot's plate definitions (most PCR plates among them) are refused at `plan` and are not
   offered to the model in `draft`. They need an adapter the planner does not place yet.
+- **Liquid behaviour.** The liquid-level check assumes the tip stays at one height (no liquid
+  following or level detection) and knows the liquid height only in flat-bottom wells. Nothing
+  models dead volume, viscosity, droplets or carry-over. The planner pipettes 1 mm above the
+  floor everywhere, which is too high for a few microlitres in a flat-bottom well.
 - **Other robots.** The planner targets a Hamilton STARlet. The rehearsal alone works on any
   PyLabRobot deck.
 - **PyLabRobot 1.0.** drybench targets the 0.2 line, the current stable release.

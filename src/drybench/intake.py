@@ -50,6 +50,8 @@ RULES
   to or empty, treat those wells as empty and say so in `notes`.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
   the labware, choose one whose wells hold the largest volume any well reaches with room to spare.
+  For wells that hold under 50 uL, choose a V- or U-bottom plate: in a flat-bottom well that
+  little liquid is too shallow for a tip to reach.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
 - Do not invent steps the text does not describe.

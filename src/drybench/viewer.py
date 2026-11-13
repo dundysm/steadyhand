@@ -90,6 +90,7 @@ def replay_data(rehearsal: "Rehearsal", *, title: str = "") -> dict:
       ]
     )
   by_index = {step.index: step for step in rehearsal.steps}
+  cavity_parent = {name: c["parent"] for name, c in rehearsal.layout.get("cavities", {}).items()}
   collisions = [
     {
       "command": index_of.get(by_index[c.step].command, 0),
@@ -113,6 +114,16 @@ def replay_data(rehearsal: "Rehearsal", *, title: str = "") -> dict:
     "path_m": round(rehearsal.path_length / 1000.0, 2),
     "commands": commands,
     "collisions": collisions,
+    "liquid": [
+      {
+        "command": index_of.get(by_index[i.step].command, 0),
+        "channel": i.channel,
+        "labware": cavity_parent.get(i.resource, i.resource),
+        "text": i.describe().split(": ", 1)[1],
+      }
+      for i in rehearsal.liquid_failures
+      if i.step in by_index
+    ],
     **rehearsal.layout,
   }
 
@@ -429,7 +440,7 @@ function drawMarks() {
   g.setTransform(scale, 0, 0, scale, 0, 0);
   const seek = $("seek").getBoundingClientRect(), box = canvas.getBoundingClientRect();
   g.fillStyle = css("--hit");
-  for (const c of D.collisions) g.fillRect(seek.left - box.left + 8 + (seek.width - 16) * (c.command + 0.7) / Math.max(1, N) - 1.5, 0, 3, 8);
+  for (const c of grouped) g.fillRect(seek.left - box.left + 8 + (seek.width - 16) * (c.command + 0.7) / Math.max(1, N) - 1.5, 0, 3, 8);
 }
 
 // ---- words for the current command
@@ -444,7 +455,7 @@ function describe(index) {
   const volumes = [...new Set(channels.map(ch => ch[6]).filter(v => v !== null))];
   const amount = volumes.length === 0 ? "" : volumes.length === 1 ? ", " + volumes[0] + " uL each" : ", " + Math.min(...volumes) + " to " + Math.max(...volumes) + " uL";
   let text = "<b>" + (names[command.kind] || command.kind) + "</b> with " + channels.length + (channels.length === 1 ? " channel" : " channels") + " at " + labware + (labware === span ? "" : " " + span) + amount;
-  for (const hit of grouped.filter(h => h.command === index)) text += "<br><span class='hit'>Collision: " + hit.text + ".</span>";
+  for (const hit of grouped.filter(h => h.command === index)) text += "<br><span class='hit'>Stopped: " + hit.text + ".</span>";
   return text;
 }
 // collisions that differ only in the channel are told as one
@@ -454,12 +465,25 @@ for (const c of D.collisions) {
   if (same) { same.channels.push(c.channel); same.depth = Math.max(same.depth, c.depth); }
   else grouped.push({command: c.command, part: c.part, resource: c.resource, phase: c.phase, channels: [c.channel], depth: c.depth});
 }
+const runOf = ch => ch.length > 1 && ch[ch.length - 1] - ch[0] === ch.length - 1 ? ch[0] + " to " + ch[ch.length - 1] : ch.join(", ");
 for (const hit of grouped) {
   const ch = hit.channels.sort((a, b) => a - b), many = ch.length > 1;
-  const run = many && ch[ch.length - 1] - ch[0] === ch.length - 1 ? ch[0] + " to " + ch[ch.length - 1] : ch.join(", ");
+  const run = runOf(ch);
   hit.text = "the " + hit.part + (many ? "s on channels " : " on channel ") + run + (many ? " go " : " goes ") + (Math.round(hit.depth * 100) / 100) +
     " mm into " + hit.resource + " on the way " + (hit.phase === "descend" ? "down" : hit.phase === "ascend" ? "up" : "across");
 }
+
+// tips out of the liquid or the well: one line per command and labware, with the first channel's numbers
+const liquidGroups = [];
+for (const i of D.liquid || []) {
+  const same = liquidGroups.find(h => h.command === i.command && h.labware === i.labware);
+  if (same) same.channels.push(i.channel); else liquidGroups.push({command: i.command, labware: i.labware, channels: [i.channel], first: i.text});
+}
+for (const hit of liquidGroups) {
+  const ch = hit.channels.sort((a, b) => a - b);
+  grouped.push({command: hit.command, text: "in " + hit.labware + ", " + hit.first + (ch.length > 1 ? " (channels " + runOf(ch) + ")" : " (channel " + ch[0] + ")")});
+}
+grouped.sort((a, b) => a.command - b.command);
 
 // ---- controls
 let t = 0, playing = false, last = 0;
@@ -499,16 +523,16 @@ document.addEventListener("keydown", event => {
 $("title").textContent = D.title || "drybench replay";
 $("badge").textContent = D.ok ? "PASS" : "FAIL"; $("badge").className = "badge " + (D.ok ? "pass" : "fail");
 $("facts").textContent = N + " commands, " + D.steps + " channel moves, " + D.path_m + " m travelled, " +
-  D.collisions.length + (D.collisions.length === 1 ? " collision" : " collisions") + (D.skipped ? ", " + D.skipped + " moves not rehearsed" : "");
-if (D.collisions.length) {
+  D.collisions.length + (D.collisions.length === 1 ? " collision" : " collisions") + ", " + (D.liquid || []).length + " tips out of the liquid" + (D.skipped ? ", " + D.skipped + " moves not rehearsed" : "");
+if (grouped.length) {
   const list = grouped.map((hit, i) => "<li data-i='" + i + "'>Command " + (hit.command + 1) + ": " + hit.text + "</li>").join("");
-  $("hitbox").innerHTML = "<h2>Collisions (select one to go there)</h2><ul id='hits'>" + list + "</ul>";
+  $("hitbox").innerHTML = "<h2>What stopped the run (select one to go there)</h2><ul id='hits'>" + list + "</ul>";
   $("hits").onclick = event => { const item = event.target.closest("li"); if (item) jump(grouped[Number(item.dataset.i)].command + 0.7); };
 }
 window.addEventListener("resize", () => { drawMarks(); show(); });
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { drawMarks(); show(); });
 drawMarks();
-jump(D.collisions.length ? D.collisions[0].command + 0.7 : 0);
+jump(grouped.length ? grouped[0].command + 0.7 : 0);
 </script>
 </body>
 </html>

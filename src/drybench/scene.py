@@ -20,6 +20,7 @@ the MuJoCo XML is written.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
 from xml.etree import ElementTree as ET
@@ -232,7 +233,19 @@ def liquid_height(container: Container, volume: float) -> float:
     return float(container.compute_height_from_volume(volume))
   lo, hi = bounds(container)
   area = (hi[0] - lo[0]) * (hi[1] - lo[1])
+  if str(getattr(getattr(container, "cross_section_type", None), "value", "")).lower() == "circle":
+    area *= math.pi / 4
   return volume / area if area > EPS else 0.0
+
+
+def liquid_height_is_known(container: Container) -> bool:
+  """Whether `liquid_height` can be trusted to a fraction of a millimetre for this container.
+
+  Only for a flat bottom, where straight walls are the real shape. In a round or V bottom,
+  shallow liquid stands higher than a straight-walled estimate says, and some of PyLabRobot's
+  own volume-to-height functions for such labware are that same estimate.
+  """
+  return str(getattr(getattr(container, "bottom_type", None), "value", "")).lower() == "flat"
 
 
 def collect_boxes(root: Resource) -> List[Box]:

@@ -27,13 +27,13 @@ STOPPED_AT = {
   "lid-left-on": "run",
   "tips-missing": "run",
   "longer-tips-loaded": "rehearse",
-  "shorter-tips-loaded": "-",
+  "shorter-tips-loaded": "rehearse",
   "x-offset-onto-the-wall": "rehearse",
   "too-deep": "rehearse",
   "travel-too-low": "rehearse",
-  "aspirate-above-the-liquid": "-",
-  "dispense-from-high-up": "-",
-  "channels-too-close": "-",
+  "aspirate-above-the-liquid": "rehearse",
+  "dispense-from-high-up": "rehearse",
+  "channels-too-close": "rehearse",
 }
 
 

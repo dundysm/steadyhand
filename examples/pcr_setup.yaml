@@ -6,8 +6,8 @@ description: >
 
 labware:
   reagents:  {type: nest_12_troughplate_15000uL_Vb}
-  templates: {type: Cor_96_wellplate_360ul_Fb}
-  pcr:       {type: Cor_96_wellplate_360ul_Fb}
+  templates: {type: Azenta4titudeFrameStar_96_wellplate_200ul_Vb}
+  pcr:       {type: Azenta4titudeFrameStar_96_wellplate_200ul_Vb}
 
 liquids:
   master_mix: {in: reagents/A1, volume: 600 uL}

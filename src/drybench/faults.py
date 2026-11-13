@@ -28,7 +28,7 @@ from typing import Callable, Dict, List, Optional, Sequence
 from .planner import PLATE_CARRIER, Plan, build_deck, plan, record_plan
 from .protocol import ProtocolError, check, loads
 from .record import Step
-from .replay import rehearse
+from .replay import rehearse, volumes
 from .scene import bounds
 
 BASE = """\
@@ -104,16 +104,21 @@ def _motion(
     return Outcome(True, "run", f"PyLabRobot refused: {type(error).__name__}: {str(error)[:90]}")
   if mutate is not None:
     steps = mutate(list(steps))
+  start = None
   if replay_on is not None:
     with warnings.catch_warnings():
       warnings.simplefilter("ignore")
       deck = build_deck(replay_on)
-  result = rehearse(deck, steps, **(options(deck) if options else {}))
-  if not result.ok:
+    start = volumes(deck)  # this deck never ran, so what it holds now is where it starts
+  result = rehearse(deck, steps, start_volumes=start, **(options(deck) if options else {}))
+  if result.collisions:
     hit = result.collisions[0]
     return Outcome(
       True, "rehearse", f"{len(result.collisions)} collisions; first: the {hit.part} into {hit.resource} on {hit.phase}"
     )
+  if result.liquid_failures:
+    first = result.liquid_failures[0]
+    return Outcome(True, "rehearse", f"{len(result.liquid_failures)} tips out of the liquid; first: {first.describe()}")
   return Outcome(False, "-", "ran clean")
 
 

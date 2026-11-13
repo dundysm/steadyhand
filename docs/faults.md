@@ -1,9 +1,9 @@
 # What drybench stops, and what it does not
 
-Written by `drybench faults`, version 0.5.0. Each row is one mistake planted in a short
+Written by `drybench faults`, version 0.6.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
-**18 of 24 planted mistakes stopped.** The unchanged protocol ran clean.
+**22 of 24 planted mistakes stopped.** The unchanged protocol ran clean.
 
 | mistake | level | stopped at | what happened |
 |---|---|---|---|
@@ -24,13 +24,13 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | The plate still has its lid on. | deck | run | PyLabRobot refused: ValueError: Cannot dispense to 'plate_well_A2': its enclosing resource 'plate' has a lid. Remove the l |
 | The first column of the tip rack is empty. | deck | run | PyLabRobot refused: NoTipError: Tip spot does not have a tip. |
 | 1000 uL tips are in the rack where the plan expects 300 uL tips; they are 35 mm longer. | deck | rehearse | 416 collisions; first: the tip into plate_carrier_1 on descend |
-| 50 uL tips are in the rack where the plan expects 300 uL tips; they are 9.5 mm shorter. | deck | **not stopped** | ran clean |
+| 50 uL tips are in the rack where the plan expects 300 uL tips; they are 9.5 mm shorter. | deck | rehearse | 80 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 4.31 mm above the liquid, so it draws air |
 | Every move into the plate is 4.5 mm to the right, over the wall between wells. | motion | rehearse | 176 collisions; first: the tip into plate on descend |
 | Every aspirate stops 4 mm lower than planned, 3 mm under the well floor. | motion | rehearse | 104 collisions; first: the tip into reservoir on descend |
 | Channels travel 5 mm below the top of the plate instead of well above the deck. | motion | rehearse | 1054 collisions; first: the tip into reservoir on travel |
-| Every aspirate from the plate stops 9 mm above the well floor, in air. | motion | **not stopped** | ran clean |
-| Every dispense is released 30 mm above the well, so it would splash. | motion | **not stopped** | ran clean |
-| Two channels are 4 mm apart in the reservoir; the head cannot bring them closer than 9 mm. | motion | **not stopped** | ran clean |
+| Every aspirate from the plate stops 9 mm above the well floor, in air. | motion | rehearse | 80 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 2.81 mm above the liquid, so it draws air |
+| Every dispense is released 30 mm above the well, so it would splash. | motion | rehearse | 104 tips out of the liquid; first: step 16 (dispense, channel 0) in plate_well_A2: the tip is 20.83 mm above the rim of the well |
+| Two channels are 4 mm apart in the reservoir; the head cannot bring them closer than 9 mm. | motion | rehearse | 3 collisions; first: the channel into channel 0 on descend |
 
 Stages: `read` (the file is not a valid protocol), `check` (the liquid ledger), `plan` (tips, channels,
 deck), `run` (PyLabRobot's own tip and volume trackers refused a command), `rehearse` (a collision in
