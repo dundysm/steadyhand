@@ -215,6 +215,63 @@ def _problems_of(text: str, base: Optional[Path]) -> tuple:
   return checked, list(checked.problems)
 
 
+MAX_SOURCE = 60_000  # characters; a whole kit manual is more than a model needs and reads worse
+
+
+class SourceError(ValueError):
+  """The text to draft from could not be read."""
+
+
+def pages_from(spec: str, count: int) -> List[int]:
+  """Page numbers, counted from 1, named by a spec such as "3-5,8"."""
+  wanted: List[int] = []
+  for part in spec.split(","):
+    match = re.fullmatch(r"\s*(\d+)\s*(?:-\s*(\d+)\s*)?", part)
+    if match is None:
+      raise SourceError(f"cannot read pages {spec!r}; write them like 3-5,8")
+    first, last = int(match.group(1)), int(match.group(2) or match.group(1))
+    if not 1 <= first <= last <= count:
+      raise SourceError(f"pages {part.strip()} are not in a document of {count} pages")
+    wanted += [n for n in range(first, last + 1) if n not in wanted]
+  return wanted
+
+
+def read_source(path: Path, pages: Optional[str] = None) -> str:
+  """The text of a notes file or of a PDF, ready to draft from.
+
+  A PDF needs the `pypdf` package (`pip install drybench[pdf]`). Its text is taken as the file
+  stores it: tables come out as runs of words, and a scanned page has no text at all. Give
+  `pages` to send only the pages with the protocol on them.
+  """
+  path = Path(path)
+  if path.suffix.lower() != ".pdf":
+    if pages:
+      raise SourceError("--pages only applies to a PDF")
+    return path.read_text(encoding="utf-8")
+  try:
+    from pypdf import PdfReader
+  except ImportError as error:
+    raise SourceError("reading a PDF needs the pypdf package: pip install drybench[pdf]") from error
+  try:
+    reader = PdfReader(str(path))
+    numbers = pages_from(pages, len(reader.pages)) if pages else list(range(1, len(reader.pages) + 1))
+    texts = [(n, (reader.pages[n - 1].extract_text() or "").strip()) for n in numbers]
+  except SourceError:
+    raise
+  except Exception as error:  # pypdf raises many kinds of error on a damaged file
+    raise SourceError(f"cannot read {path.name} as a PDF: {error}") from error
+  empty = [n for n, text in texts if not text]
+  if len(empty) == len(texts):
+    raise SourceError(f"{path.name} has no text on {'those pages' if pages else 'any page'}; a scanned PDF needs OCR first")
+  text = "\n\n".join(f"[page {n}]\n{text}" for n, text in texts if text)
+  if len(text) > MAX_SOURCE:
+    raise SourceError(
+      f"{path.name} gives {len(text):,} characters from {len(texts)} pages, more than the {MAX_SOURCE:,} drybench sends; "
+      "name the pages with the protocol on them, for example --pages 4-6"
+    )
+  return text
+
+
 def describe_samples(path: Path, rows: int = 4) -> str:
   """What a model needs to know about a samples file: its name, its columns and its first rows.
 

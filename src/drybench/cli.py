@@ -195,13 +195,18 @@ def _emit(args: argparse.Namespace) -> int:
 
 
 def _draft(args: argparse.Namespace) -> int:
-  from .intake import ModelError, anthropic_model, command_model, draft, openai_model
+  from .intake import ModelError, SourceError, anthropic_model, command_model, draft, openai_model, read_source
 
   try:
-    source = sys.stdin.read() if args.source == "-" else Path(args.source).read_text()
+    source = sys.stdin.read() if args.source == "-" else read_source(Path(args.source), args.pages)
   except OSError as error:
     print(f"drybench draft: cannot read {args.source}: {error}")
     return 1
+  except SourceError as error:
+    print(f"drybench draft: {error}")
+    return 1
+  if args.source.lower().endswith(".pdf"):
+    print(f"drybench draft: read {len(source):,} characters from {args.source}" + (f", pages {args.pages}" if args.pages else ""))
   try:
     if args.model_command:
       model = command_model(args.model_command)
@@ -251,7 +256,8 @@ def main(argv: Optional[List[str]] = None) -> int:
   commands = parser.add_subparsers(dest="command", required=True)
 
   draft = commands.add_parser("draft", help="have a language model write a protocol file from plain text")
-  draft.add_argument("source", help="a text file with notes, a kit manual or a description; '-' reads stdin")
+  draft.add_argument("source", help="a text file or a PDF with notes, a kit manual or a description; '-' reads stdin")
+  draft.add_argument("--pages", help="for a PDF, the pages to read, such as 4-6 or 3,5-7")
   draft.add_argument("-o", "--output", required=True, help="where to write the protocol file")
   draft.add_argument("--provider", choices=("anthropic", "openai"), help="an API to call; needs --model")
   draft.add_argument("--model", help="the model's name at that provider")

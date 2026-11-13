@@ -208,6 +208,17 @@ writes names the file, and drybench reads the numbers from the file itself.
 drybench draft notes.txt --samples readings.csv -o protocol.yaml --model-command "my-local-model"
 ```
 
+The source can be a PDF, with `pip install drybench[pdf]`. Name the pages the protocol is on;
+a whole manual is refused as too long.
+
+```bash
+drybench draft kit-manual.pdf --pages 4-6 -o protocol.yaml --model-command "my-local-model"
+```
+
+The text is taken as the PDF stores it, so tables come out as runs of words and a scanned page
+has no text at all. This has been tested on small PDFs made for the tests, not yet on a
+manufacturer's manual.
+
 When the text asks for something that cannot work (more liquid than a named plate holds, a sample
 too dilute to reach its target), the model is told to write it as stated and not to change your
 numbers. `check` then refuses the file and says why, and the drafting stops there for you to decide.
@@ -261,8 +272,8 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   from plain text to a rehearsed script at the first attempt with no hand edits, and the other
   three, which cannot work as written, were refused for the right reason. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
-  matches the note; two were read against their notes and matched. It reads plain text and a
-  CSV of concentrations, not PDFs.
+  matches the note; two were read against their notes and matched. Drafting from a PDF is
+  untested on real manuals.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.

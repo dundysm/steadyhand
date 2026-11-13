@@ -281,3 +281,71 @@ def test_the_same_file_sent_again_ends_the_drafting_and_hands_the_problem_over(t
   script.write_text("import sys\nsys.stdin.read()\nprint(" + repr(overflow) + ")\n")
   assert main(["draft", str(notes), "-o", str(tmp_path / "p.yaml"), "--model-command", f"{sys.executable} {script}"]) == 1
   assert "The model kept the file as it is" in capsys.readouterr().out
+
+
+def tiny_pdf(path, pages):
+  """A PDF with one line of plain text per page, written by hand so the test needs no PDF writer."""
+  objects = ["<< /Type /Catalog /Pages 2 0 R >>", None, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"]
+  kids = []
+  for text in pages:
+    stream = f"BT /F1 12 Tf 72 720 Td ({text}) Tj ET" if text else ""
+    objects.append(f"<< /Length {len(stream)} >>\nstream\n{stream}\nendstream")
+    objects.append(
+      f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents {len(objects)} 0 R "
+      "/Resources << /Font << /F1 3 0 R >> >> >>"
+    )
+    kids.append(f"{len(objects)} 0 R")
+  objects[1] = f"<< /Type /Pages /Kids [{' '.join(kids)}] /Count {len(kids)} >>"
+  out, offsets = "%PDF-1.4\n", []
+  for number, body in enumerate(objects, start=1):
+    offsets.append(len(out))
+    out += f"{number} 0 obj\n{body}\nendobj\n"
+  start = len(out)
+  out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n" + "".join(f"{o:010d} 00000 n \n" for o in offsets)
+  out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{start}\n%%EOF\n"
+  path.write_bytes(out.encode("latin-1"))
+
+
+def test_a_pdf_is_read_page_by_page_and_pages_can_be_chosen(tmp_path):
+  from drybench.intake import SourceError, pages_from, read_source
+
+  manual = tmp_path / "manual.pdf"
+  tiny_pdf(manual, ["Kit contents and storage", "Add 50 uL reagent to each well", "", "Troubleshooting"])
+  everything = read_source(manual)
+  assert everything.count("[page ") == 3 and "[page 2]\nAdd 50 uL reagent to each well" in everything
+  assert read_source(manual, "2") == "[page 2]\nAdd 50 uL reagent to each well"
+  assert "Kit contents" in read_source(manual, "1-2") and "Troubleshooting" not in read_source(manual, "1-2")
+  assert pages_from("3-5, 8,4", 9) == [3, 4, 5, 8]
+  with pytest.raises(SourceError, match="not in a document of 4 pages"):
+    read_source(manual, "4-6")
+  with pytest.raises(SourceError, match="write them like 3-5,8"):
+    read_source(manual, "two")
+  with pytest.raises(SourceError, match="scanned PDF needs OCR"):
+    read_source(manual, "3")
+  notes = tmp_path / "notes.txt"
+  notes.write_text("plain notes")
+  assert read_source(notes) == "plain notes"
+  with pytest.raises(SourceError, match="only applies to a PDF"):
+    read_source(notes, "1")
+
+
+def test_a_long_pdf_is_refused_until_pages_are_named(tmp_path):
+  from drybench.intake import MAX_SOURCE, SourceError, read_source
+
+  manual = tmp_path / "long.pdf"
+  tiny_pdf(manual, ["x" * 900] * (MAX_SOURCE // 900 + 2))
+  with pytest.raises(SourceError, match="name the pages with the protocol on them"):
+    read_source(manual)
+  assert read_source(manual, "1").startswith("[page 1]")
+
+
+def test_cli_drafts_from_a_pdf(tmp_path, capsys):
+  manual = tmp_path / "manual.pdf"
+  tiny_pdf(manual, ["Storage", "Move 50 uL from A1 to A2"])
+  script = tmp_path / "model.py"
+  script.write_text("import sys\nseen = sys.stdin.read()\nassert '[page 2]' in seen and 'Storage' not in seen\nprint(" + repr(GOOD) + ")\n")
+  command = ["draft", str(manual), "--pages", "2", "-o", str(tmp_path / "p.yaml"), "--model-command", f"{sys.executable} {script}"]
+  assert main(command) == 0
+  assert "read 33 characters from" in capsys.readouterr().out
+  assert main(["draft", str(manual), "--pages", "9", "-o", str(tmp_path / "p.yaml"), "--model-command", "true"]) == 1
+  assert "not in a document of 2 pages" in capsys.readouterr().out

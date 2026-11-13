@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "drybench"
-version = "0.10.0"
+version = "0.11.0"
 description = "Rehearse a lab-robot protocol in a physics scene before it touches a real bench."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -28,7 +28,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "pypdf>=4"]
+pdf = ["pypdf>=4"]
 
 [project.scripts]
 drybench = "drybench.cli:main"
