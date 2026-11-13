@@ -81,7 +81,7 @@ def test_sources_and_destinations_must_pair_up():
 
 def test_taking_more_than_a_well_holds_is_caught():
   result = check(loads(HEAD + "  - transfer: {from: plate/A1, to: plate/A2, volume: 250 uL}\n"))
-  assert [str(p) for p in result.problems] == [
+  assert [str(p) for p in result.problems if p.where.startswith("steps")] == [
     "steps[0]: takes 250 uL from plate/A1, which holds 200 uL at that point"
   ]
 
@@ -188,3 +188,39 @@ steps:
   assert len(checked.problems) == 1
   said = str(checked.problems[0])
   assert "fills plate/A1 to 450 uL" in said and "the same in 95 more wells (B1, C1, ... H12)" in said
+
+
+def test_a_liquid_no_step_touches_is_a_problem():
+  from drybench.protocol import check, loads
+
+  text = """
+drybench: 0.1
+name: wrong column
+labware:
+  plate: {type: Cor_96_wellplate_360ul_Fb}
+liquids:
+  sample: {in: plate/A1:H1, volume: 200 uL}
+  buffer: {in: plate/A2:H3, volume: 100 uL}
+steps:
+  - transfer: {from: plate/A2:H2, to: plate/A3:H3, volume: 50 uL}
+"""
+  problems = [str(p) for p in check(loads(text)).problems]
+  assert len(problems) == 1 and problems[0].startswith("liquids.sample: no step draws from, adds to or mixes")
+  assert check(loads(text.replace("from: plate/A2:H2", "from: plate/A1:H1"))).ok
+
+
+def test_one_well_running_dry_again_and_again_is_one_line():
+  from drybench.protocol import check, loads
+
+  checked = check(loads("""
+drybench: 0.1
+name: dry
+labware:
+  plate: {type: Cor_96_wellplate_360ul_Fb}
+  trough: {type: nest_1_troughplate_195000uL_Vb}
+liquids:
+  buffer: {in: trough/A1, volume: 250 uL}
+steps:
+  - transfer: {from: trough/A1, to: plate/A1:H1, volume: 100 uL}
+"""))
+  assert len(checked.problems) == 1 and "and 5 more times after that" in str(checked.problems[0])

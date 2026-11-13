@@ -160,7 +160,7 @@ _ONE_WELL = re.compile(r"(?<![\w/])([A-Za-z_][\w-]*)/([A-Z]{1,2}[0-9]{1,2})(?![\
 def _merged(problems: List[Problem]) -> List[Problem]:
   """Fold a problem that repeats well after well into one line that names the wells."""
   merged: List[Problem] = []
-  groups: Dict[Tuple[str, str], Tuple[int, List[str]]] = {}
+  groups: Dict[Tuple[str, str], Tuple[int, List[str], List[bool], str]] = {}
   for problem in problems:
     found = _ONE_WELL.findall(problem.message)
     if len(found) != 1:
@@ -170,13 +170,18 @@ def _merged(problems: List[Problem]) -> List[Problem]:
     key = (problem.where, problem.message.replace(f"{labware}/{well}", f"{labware}/*"))
     if key in groups:
       groups[key][1].append(well)
+      groups[key][2].append(well == groups[key][3])
     else:
-      groups[key] = (len(merged), [])
+      groups[key] = (len(merged), [], [], well)
       merged.append(problem)
-  for position, others in groups.values():
-    if others:
+  for position, others, same_well, _ in groups.values():
+    if not others:
+      continue
+    first = merged[position]
+    if all(same_well):  # one well, over and over
+      merged[position] = Problem(first.where, f"{first.message}; and {len(others)} more times after that")
+    else:
       shown = ", ".join(others) if len(others) <= 4 else f"{others[0]}, {others[1]}, ... {others[-1]}"
-      first = merged[position]
       plural = "well" if len(others) == 1 else "wells"
       merged[position] = Problem(first.where, f"{first.message}; the same in {len(others)} more {plural} ({shown})")
   return merged
@@ -711,6 +716,17 @@ def check(protocol: Protocol) -> Check:
         Problem(where, f"fills {move.destination} to {after:g} uL, over its {capacity:g} uL capacity")
       )
     volumes[move.destination] = after
+
+  # A liquid no step touches is in the file for nothing, or a step meant for it points elsewhere.
+  touched = {w for m in moves if m.kind != "wait" for w in (m.source, m.destination) if w is not None}
+  for name, (wells, _) in protocol.liquids.items():
+    if moves and not touched.intersection(wells):
+      problems.append(
+        Problem(
+          f"liquids.{name}",
+          "no step draws from, adds to or mixes this liquid; remove it, or fix the step that should use it",
+        )
+      )
 
   problems = _merged(problems)
   tips = len({m.tip for m in moves if m.tip >= 0})

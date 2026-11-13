@@ -42,8 +42,9 @@ RULES
 - Wells are written labware/well, such as plate/A1. A range such as plate/A1:H1 runs from its
   top-left well to its bottom-right well. On a 96-well plate, A1:H1 is column 1 (8 wells) and
   A1:A12 is row A (12 wells).
-- Declare under `liquids` every liquid that is in a well before the first step, whether the
-  steps draw from it, add to it or mix it, with the wells it starts in and the volume in each.
+- Declare under `liquids` every liquid in a well before the first step that the steps draw
+  from, add to or mix, with the wells it starts in and the volume in each. Leave out liquid
+  that no step touches: declaring it is an error.
   Use the volume the text gives. When it gives none for a liquid the steps draw from, supply
   about 20% more than they use, and at least 10 uL more in each well. When it gives none for what is already in wells the steps add
   to or empty, treat those wells as empty and say so in `notes`.

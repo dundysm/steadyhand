@@ -70,7 +70,7 @@ It says what to do and nothing about how a robot does it. Every amount carries a
 fields are errors, and every problem is reported at once with its place in the file. The format
 is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 
-## The five commands
+## The commands
 
 | Command | What it does |
 | --- | --- |
@@ -79,6 +79,7 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 | `drybench plan FILE` | Also chooses tips, groups moves into 8-channel commands and lays out the deck. |
 | `drybench rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
 | `drybench emit FILE -o script.py` | Writes the PyLabRobot script without rehearsing. |
+| `drybench faults` | Plants 24 known mistakes in a working protocol and lists which are stopped. |
 
 ### What `check` catches
 
@@ -86,6 +87,7 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 - A well filled past the capacity PyLabRobot gives for that labware.
 - A volume too small to pipette.
 - A sample too dilute to normalize, or a dilution series that runs off the plate.
+- A declared liquid that no step touches, which usually means a step points at the wrong wells.
 
 ### What `plan` decides
 
@@ -147,6 +149,26 @@ volume, and every command takes the same time on screen. It is 2D; for 3D open `
 Whether a channel or its tip would be driven into the deck, a carrier, a plate's floor or the
 walls between wells. A test also confirms that PyLabRobot's own volume trackers end the run
 with the same volume in every well that `check` predicted.
+
+## What it stops, measured
+
+A dry run that passes says little unless you know what it would have failed on. `drybench faults`
+plants 24 specific mistakes in a short dilution that otherwise runs clean, and records the first
+stage that stops each one. Today **18 of 24 are stopped**; the full table is in
+[docs/faults.md](docs/faults.md), and a test pins it so a change in either direction shows.
+
+The six that get through, each a check drybench does not have yet:
+
+- The same tip is carried down each dilution series, so sample carries over.
+- A 2 mL deep-well plate is on the deck where the plan expects the shallow plate.
+- 50 uL tips are in the rack where the plan expects 300 uL tips; they are 9.5 mm shorter.
+- Every aspirate from the plate stops 9 mm above the well floor, in air.
+- Every dispense is released 30 mm above the well, so it would splash.
+- Two channels are 4 mm apart in the reservoir; the head cannot bring them closer than 9 mm.
+
+Four of the six are the same gap: nothing checks that the tip is in the liquid, or how far
+above the well it is, when it aspirates or dispenses. The suite is one protocol on one deck, so
+it shows which kinds of mistake are stopped, not how often.
 
 ## Draft a protocol from plain text
 

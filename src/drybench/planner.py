@@ -638,14 +638,19 @@ async def run(planned: Plan, handler) -> None:
       )
 
 
-async def rehearse_plan(planned: Plan, **options) -> Rehearsal:
-  """Run the plan on a recording backend and replay it in the physics scene."""
+async def record_plan(planned: Plan, *, prepare=None):
+  """Run the plan on a recording backend. Returns the deck it ran on and the steps it recorded.
+
+  `prepare`, if given, is called with the deck before the run, to change what is on it.
+  """
   from pylabrobot.liquid_handling import LiquidHandler
   from pylabrobot.resources import set_tip_tracking, set_volume_tracking
 
   set_volume_tracking(True)
   set_tip_tracking(True)
   deck = build_deck(planned)
+  if prepare is not None:
+    prepare(deck)
   backend = RecordingBackend(num_channels=CHANNELS)
   with warnings.catch_warnings():
     warnings.simplefilter("ignore")
@@ -653,7 +658,13 @@ async def rehearse_plan(planned: Plan, **options) -> Rehearsal:
     await handler.setup()
     await run(planned, handler)
     await handler.stop()
-  return rehearse(deck, backend.steps, **options)
+  return deck, backend.steps
+
+
+async def rehearse_plan(planned: Plan, **options) -> Rehearsal:
+  """Run the plan on a recording backend and replay it in the physics scene."""
+  deck, steps = await record_plan(planned)
+  return rehearse(deck, steps, **options)
 
 
 # ---------------------------------------------------------------- writing a script

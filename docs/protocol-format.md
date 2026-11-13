@@ -47,6 +47,9 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 
 `tips` is `fresh` (the default: a new tip for every transfer) or `reuse` (one tip per source well).
 
+Every liquid under `liquids` must be touched by at least one step (drawn from, added to or mixed);
+one that is not is reported as a problem.
+
 A transfer's `to` may be the word `waste` in place of wells: the liquid is thrown away. Waste is not
 labware and is not declared; the planner adds a reservoir for it.
 `mix` and `mix_after` are `{times: 3, volume: 80 uL}`. `direction` is `right`, `left`, `down` or `up`.

@@ -66,6 +66,18 @@ def _demo(args: argparse.Namespace) -> int:
   return 0 if result.ok else 1
 
 
+def _faults(args: argparse.Namespace) -> int:
+  from .faults import run_suite
+
+  print("planting mistakes in a short dilution; this takes about half a minute")
+  report = run_suite()
+  print(report.text())
+  if args.output:
+    Path(args.output).write_text(report.markdown(), encoding="utf-8")
+    print(f"wrote {args.output}")
+  return 0 if not report.clean.caught else 1
+
+
 def _load_checked(path: str):
   """Read and check a protocol file. Prints what is wrong and returns None when it cannot be read."""
   from .protocol import ProtocolError, check, load
@@ -259,6 +271,10 @@ def main(argv: Optional[List[str]] = None) -> int:
   demo.add_argument("--out", default="drybench-out", help="folder for the scene and the report")
   demo.add_argument("--no-render", action="store_true", help="skip the PNG picture")
   demo.set_defaults(run=_demo)
+
+  faults = commands.add_parser("faults", help="plant known mistakes in a working protocol and list which are stopped")
+  faults.add_argument("-o", "--output", help="also write the table as Markdown")
+  faults.set_defaults(run=_faults)
 
   args = parser.parse_args(argv)
   return args.run(args)
