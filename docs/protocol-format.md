@@ -1,8 +1,8 @@
 # The drybench protocol file (draft 0.1)
 
 A protocol file says **what** to do: which labware, where the liquids start, and the steps.
-It says nothing about **how** a robot does it. Deck positions, tip types, channels and liquid
-classes belong to a separate plan file that the planner will write and you can edit.
+It says nothing about **how** a robot does it. Deck positions, tip types and channels are chosen
+by the planner (`drybench plan FILE`). An editable plan file for overriding those choices is not built yet.
 
 The file is YAML so that a person can read it, a language model can write it, and everything
 after it can be exact. `drybench check FILE` reads it and follows the liquid through every move.
@@ -67,7 +67,6 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 - Labware chosen by requirement ("any 96-well plate that holds 200 uL") in place of an exact definition.
 - Tube racks and other labware that is not a plate.
 - Dead volume, the liquid a well cannot give up.
-- Tip capacity. Tip types live in the plan file, so the planner will check it.
 
 ## Open questions
 

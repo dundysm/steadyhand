@@ -500,28 +500,31 @@ def expand(protocol: Protocol) -> Tuple[List[Move], List[Problem]]:
         moves.append(Move(index, "mix", source=well, volume=step.volume, times=step.times, tip=fresh()))
 
     elif isinstance(step, SerialDilution):
+      # All series advance one dilution at a time, so that neighbouring rows can share a
+      # multi-channel move. Each series keeps its own tip numbering.
       dx, dy = _DIRECTIONS[step.direction]
+      series = []
       for start in step.start:
         labware = protocol.labware[start.labware]
         column, row = labware.position(start.well)
-        current = start
-        use = fresh()
-        for n in range(1, step.steps + 1):
-          name = labware.at(column + dx * n, row + dy * n)
-          if name is None:
-            problems.append(
-              Problem(f"{where}.serial_dilution", f"{step.steps} steps {step.direction} from {start} runs off the plate")
-            )
-            break
-          following = Well(start.labware, name)
+        if labware.at(column + dx * step.steps, row + dy * step.steps) is None:
+          problems.append(
+            Problem(f"{where}.serial_dilution", f"{step.steps} steps {step.direction} from {start} runs off the plate")
+          )
+          continue
+        series.append({"labware": labware, "column": column, "row": row, "current": start, "tip": fresh()})
+      for n in range(1, step.steps + 1):
+        for one in series:
+          name = one["labware"].at(one["column"] + dx * n, one["row"] + dy * n)
+          following = Well(one["current"].labware, name)
           if step.tips == "fresh" and n > 1:
-            use = fresh()
-          moves.append(Move(index, "transfer", current, following, step.volume, tip=use))
-          mix(index, following, step.mix, use)
-          current = following
-        else:
-          if step.discard:
-            moves.append(Move(index, "transfer", current, WASTE, step.volume, tip=use))
+            one["tip"] = fresh()
+          moves.append(Move(index, "transfer", one["current"], following, step.volume, tip=one["tip"]))
+          mix(index, following, step.mix, one["tip"])
+          one["current"] = following
+      if step.discard:
+        for one in series:
+          moves.append(Move(index, "transfer", one["current"], WASTE, step.volume, tip=one["tip"]))
 
     elif isinstance(step, Normalize):
       if step.unit != protocol.concentration_unit:
