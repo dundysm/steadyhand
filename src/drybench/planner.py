@@ -106,6 +106,7 @@ class _Geometry:
 
   def __init__(self) -> None:
     self._cache: Dict[str, Tuple[Dict[str, Tuple[int, float]], float]] = {}
+    self._shared: Dict[str, int] = {}
 
   def _load(self, definition: str) -> Tuple[Dict[str, Tuple[int, float]], float]:
     if definition not in self._cache:
@@ -125,8 +126,25 @@ class _Geometry:
   def column_and_y(self, definition: str, well: str) -> Tuple[int, float]:
     return self._load(definition)[0][well]
 
-  def well_width(self, definition: str) -> float:
-    return self._load(definition)[1]
+  def channels_in_one_well(self, definition: str) -> int:
+    """How many channels PyLabRobot will put side by side in one well of this labware."""
+    if definition not in self._shared:
+      import pylabrobot.resources as resources
+      from pylabrobot.liquid_handling.channel_positioning import compute_channel_offsets
+
+      with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        well = getattr(resources, definition)(name="probe").get_all_items()[0]
+        fits = 1
+        for count in range(CHANNELS, 1, -1):
+          try:
+            compute_channel_offsets(well, count, spread="wide", channel_spacings=[CHANNEL_PITCH] * count)
+          except Exception:
+            continue
+          fits = count
+          break
+      self._shared[definition] = fits
+    return self._shared[definition]
 
 
 # ---------------------------------------------------------------- units of work
@@ -207,7 +225,7 @@ def plan(checked: Check) -> Plan:
         return False
       definition = labware[wells[0][0]]
       if len(set(wells)) == 1:  # every channel in one well: it has to be wide enough
-        if geometry.well_width(definition) < CHANNEL_PITCH * len(wells):
+        if len(wells) > geometry.channels_in_one_well(definition):
           return False
         continue
       if len(set(wells)) != len(wells):
@@ -258,7 +276,9 @@ def plan(checked: Check) -> Plan:
     kind = tip_type[batch[0].tip]
     step = batch[0].step
 
-    stale = tuple(c for c in holding if c >= len(batch) or holding[c] != batch[c].tip)
+    # A channel gives up its tip only when this command needs a different one on it. A channel
+    # that sits this command out keeps its tip for later.
+    stale = tuple(c for c in channels if c in holding and holding[c] != batch[c].tip)
     if stale:
       commands.append(Command("discard", stale, step=step))
       for c in stale:
@@ -294,7 +314,7 @@ def plan(checked: Check) -> Plan:
         commands.append(Command("dispense", channels, resource, wells, (volume,) * len(batch), step))
 
     position += len(batch)
-    done = tuple(c for c in channels if last_use[batch[c].tip] < position)
+    done = tuple(sorted(c for c in holding if last_use[holding[c]] < position))
     if done:
       commands.append(Command("discard", done, step=step))
       for c in done:

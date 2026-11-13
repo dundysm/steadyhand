@@ -182,3 +182,13 @@ def test_rehearsal_stops_a_plan_that_pipettes_below_the_well_floor(dilution):
   result = asyncio.run(rehearse_plan(too_deep))
   assert not result.ok
   assert {c.geom.split("/")[1] for c in result.collisions} == {"floor"}
+
+
+def test_pcr_setup_example_rehearses_and_keeps_tips_on_idle_channels():
+  checked, planned = plan_file(EXAMPLES / "pcr_setup.yaml")
+  # 7 channels fit side by side in the reagent well, so 7 tips serve all the master mix.
+  assert planned.tips == {"hamilton_96_tiprack_10uL_filter": 24, "hamilton_96_tiprack_50uL_filter": 7}
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok, result.report()
+  for well, volume in checked.volumes.items():
+    assert result.volumes[f"{well.labware}_well_{well.well}"] == pytest.approx(volume, abs=1e-3)

@@ -134,6 +134,7 @@ class Protocol:
   min_volume: float
   steps: List[Step]
   path: Optional[Path] = None
+  notes: List[str] = field(default_factory=list)
 
 
 # ---------------------------------------------------------------- moves
@@ -421,8 +422,12 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     raise ProtocolError([Problem("file", f"not valid YAML: {error}")]) from error
 
   top = reader.keys(
-    raw, "file", ("drybench", "name", "labware", "steps"), ("description", "liquids", "samples", "limits")
+    raw, "file", ("drybench", "name", "labware", "steps"), ("description", "notes", "liquids", "samples", "limits")
   )
+  notes = top.get("notes", [])
+  if not isinstance(notes, list) or not all(isinstance(note, str) for note in notes):
+    reader.fail("notes", "expected a list of sentences")
+    notes = []
   if str(top.get("drybench")) != FORMAT_VERSION and "drybench" in top:
     reader.fail("drybench", f"this reader understands format {FORMAT_VERSION}, the file says {top['drybench']!r}")
 
@@ -458,6 +463,7 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     min_volume=min_volume,
     steps=steps,
     path=path,
+    notes=list(notes),
   )
 
 
@@ -609,6 +615,8 @@ class Check:
       lines.append(f"  {name}: uses {volume:g} uL of {each * len(wells):g} uL supplied")
     if self.wasted:
       lines.append(f"  discarded: {self.wasted:g} uL")
+    for note in self.protocol.notes:
+      lines.append(f"  note: {note}")
     lines.append(f"  problems: {len(self.problems)}")
     lines += [f"    - {p}" for p in self.problems]
     return "\n".join(lines)

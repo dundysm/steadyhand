@@ -1,0 +1,29 @@
+drybench: 0.1
+name: PCR plate setup, 24 reactions
+description: >
+  20 uL reactions in the first three columns of a PCR plate: 15 uL of master mix
+  and 5 uL of template each, mixed after the template goes in.
+
+labware:
+  reagents:  {type: nest_12_troughplate_15000uL_Vb}
+  templates: {type: Cor_96_wellplate_360ul_Fb}
+  pcr:       {type: Cor_96_wellplate_360ul_Fb}
+
+liquids:
+  master_mix: {in: reagents/A1, volume: 600 uL}
+  template:   {in: templates/A1:H3, volume: 30 uL}
+
+steps:
+  # Master mix first, into dry wells, so one set of tips serves all of it.
+  - transfer:
+      from: reagents/A1
+      to: pcr/A1:H3
+      volume: 15 uL
+      tips: reuse
+
+  # Each template into the matching well, with a fresh tip, then mixed.
+  - transfer:
+      from: templates/A1:H3
+      to: pcr/A1:H3
+      volume: 5 uL
+      mix_after: {times: 3, volume: 10 uL}

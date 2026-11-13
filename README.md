@@ -70,10 +70,11 @@ It says what to do and nothing about how a robot does it. Every amount carries a
 fields are errors, and every problem is reported at once with its place in the file. The format
 is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 
-## The four commands
+## The five commands
 
 | Command | What it does |
 | --- | --- |
+| `drybench draft NOTES -o FILE` | Has a language model write the protocol file from plain text. See below. |
 | `drybench check FILE` | Reads the file and follows the liquid through every move. Add `--moves` to list them. |
 | `drybench plan FILE` | Also chooses tips, groups moves into 8-channel commands and lays out the deck. |
 | `drybench rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
@@ -100,6 +101,25 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 Whether a channel or its tip would be driven into the deck, a carrier, a plate's floor or the
 walls between wells. A test also confirms that PyLabRobot's own volume trackers end the run
 with the same volume in every well that `check` predicted.
+
+## Draft a protocol from plain text
+
+`draft` is the only place a language model is used. It writes the protocol file; drybench then
+reads and checks that file exactly as if you had written it, and sends any problems back to the
+model, up to three times. Nothing a model writes reaches a plan without passing `check`.
+
+```bash
+# any command that reads a prompt on stdin and prints a reply
+drybench draft notes.txt -o protocol.yaml --model-command "my-local-model"
+
+# or an API, with the key in ANTHROPIC_API_KEY or OPENAI_API_KEY
+drybench draft notes.txt -o protocol.yaml --provider anthropic --model MODEL_NAME
+drybench draft notes.txt -o protocol.yaml --provider openai --model MODEL_NAME
+```
+
+`--provider openai` works with any OpenAI-compatible server; point `OPENAI_BASE_URL` at it.
+When the text leaves something out, the model is told to choose the conventional option and
+record the choice under `notes` in the file. Read the file against your source before you use it.
 
 ## Rehearse a PyLabRobot protocol you already have
 
@@ -145,8 +165,9 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 
 ## What it does not do yet
 
-- **Plain-language intake.** You write the protocol file yourself. Drafting it from a paper or a
-  sentence with a language model is the next piece.
+- **A proven intake.** `draft` is tested against stand-in models and stub APIs only. It has not
+  yet been run with a real model, so how well models follow the format is unmeasured. It does
+  not write `normalize` steps or read PDFs.
 - **An editable plan.** The planner's choices are printed, but cannot yet be overridden.
 - **Other robots.** The planner targets a Hamilton STARlet. The rehearsal alone works on any
   PyLabRobot deck.

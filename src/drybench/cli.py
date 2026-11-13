@@ -150,12 +150,59 @@ def _emit(args: argparse.Namespace) -> int:
   return 0
 
 
+def _draft(args: argparse.Namespace) -> int:
+  from .intake import ModelError, anthropic_model, command_model, draft, openai_model
+
+  try:
+    source = sys.stdin.read() if args.source == "-" else Path(args.source).read_text()
+  except OSError as error:
+    print(f"drybench draft: cannot read {args.source}: {error}")
+    return 1
+  try:
+    if args.model_command:
+      model = command_model(args.model_command)
+    elif args.provider and args.model:
+      model = (anthropic_model if args.provider == "anthropic" else openai_model)(args.model)
+    else:
+      print("drybench draft: say which model to use, with --model-command CMD or --provider NAME --model NAME")
+      return 1
+    result = draft(source, model, max_rounds=args.rounds)
+  except ModelError as error:
+    print(f"drybench draft: {error}")
+    return 1
+
+  Path(args.output).write_text(result.text)
+  asked = "once" if result.rounds == 1 else f"{result.rounds} times"
+  print(f"drybench draft: {'PASS' if result.ok else 'FAIL'}  the model was asked {asked}")
+  if result.checked is not None:
+    print(result.checked.report())
+  else:
+    print(f"  problems: {len(result.problems)}")
+    for problem in result.problems:
+      print(f"    - {problem}")
+  print(f"wrote {args.output}")
+  if result.ok:
+    print("A model wrote this file. Read it against your source before you rehearse or run it.")
+  else:
+    print("The file still has problems after the last try. Fix it by hand, then run drybench check.")
+  return 0 if result.ok else 1
+
+
 def main(argv: Optional[List[str]] = None) -> int:
   parser = argparse.ArgumentParser(
     prog="drybench", description="Rehearse a lab-robot protocol in a physics scene."
   )
   parser.add_argument("--version", action="version", version=f"drybench {__version__}")
   commands = parser.add_subparsers(dest="command", required=True)
+
+  draft = commands.add_parser("draft", help="have a language model write a protocol file from plain text")
+  draft.add_argument("source", help="a text file with notes, a kit manual or a description; '-' reads stdin")
+  draft.add_argument("-o", "--output", required=True, help="where to write the protocol file")
+  draft.add_argument("--provider", choices=("anthropic", "openai"), help="an API to call; needs --model")
+  draft.add_argument("--model", help="the model's name at that provider")
+  draft.add_argument("--model-command", help="a shell command that reads a prompt on stdin and prints a reply")
+  draft.add_argument("--rounds", type=int, default=3, help="how many times the model may be asked (default 3)")
+  draft.set_defaults(run=_draft)
 
   check = commands.add_parser("check", help="read a protocol file and follow its liquid through every move")
   check.add_argument("file", help="a drybench protocol file (YAML)")
