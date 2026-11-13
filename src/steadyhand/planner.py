@@ -287,26 +287,54 @@ def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, Tuple[float, i
   return units, waits
 
 
-def send_waste(units: List[_Unit], taken, capacity: float) -> Tuple[List[str], Optional[Problem]]:
+def send_waste(
+  units: List[_Unit], taken, capacity: float, limit: Optional[int] = None
+) -> Tuple[List[str], Optional[Problem], List[int]]:
   """Point every discarded volume at a waste reservoir: `waste`, then `waste_2` and so on.
 
-  Each reservoir takes 90% of the `capacity` its one well holds. Returns the reservoirs to add,
-  or a problem when the protocol already uses one of those names.
+  Each reservoir takes 90% of the `capacity` its one well holds. With a `limit`, no more than
+  that many reservoirs are used: when the last is full they are all emptied by a person and
+  filled again from the first.
+
+  Returns the reservoirs to add, a problem when the protocol already uses one of those names,
+  and the indexes of the units before which the reservoirs must be emptied.
   """
   if not any(unit.destination == WASTE for unit in units):
-    return [], None
+    return [], None, []
   if any(name == "waste" or name.startswith("waste_") for name in taken):
-    return [], Problem("labware.waste", "names starting with 'waste' are kept for the planner's waste reservoirs")
+    problem = Problem("labware.waste", "names starting with 'waste' are kept for the planner's waste reservoirs")
+    return [], problem, []
   room = 0.9 * capacity
-  names, filled = ["waste"], 0.0
-  for unit in units:
-    if unit.destination == WASTE:
-      if filled + unit.volume > room:
-        names.append(f"waste_{len(names) + 1}")
-        filled = 0.0
-      filled += unit.volume
-      unit.destination = Well(names[-1], "A1")
-  return names, None
+  filled, fills, empties = 0.0, 1, []  # `fills` counts reservoirs filled so far, this one included
+  along = 0  # how far into a run of discards from one step this unit is
+  for index, unit in enumerate(units):
+    if unit.destination != WASTE:
+      along = 0
+      continue
+    if index and (units[index - 1].step != unit.step or units[index - 1].destination.labware[:5] != "waste"):
+      along = 0
+    ahead = unit.volume
+    if along % 8 == 0:
+      # Eight discards in a row can go down eight channels at once, but only into one reservoir:
+      # start the next reservoir before such a group, not part-way through it.
+      group = 0.0
+      for other in units[index : index + 8]:
+        if other.destination != WASTE or other.step != unit.step:
+          break
+        group += other.volume
+      if group <= room:
+        ahead = group
+    if filled + ahead > room:
+      fills += 1
+      filled = 0.0
+      if limit and (fills - 1) % limit == 0:
+        empties.append(index)
+    filled += unit.volume
+    along += 1
+    number = (fills - 1) % limit + 1 if limit else fills
+    unit.destination = Well("waste" if number == 1 else f"waste_{number}", "A1")
+  on_deck = min(fills, limit) if limit else fills
+  return ["waste"] + [f"waste_{number}" for number in range(2, on_deck + 1)], None, empties
 
 
 def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
@@ -336,7 +364,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
         )
   if problems:
     return Plan(protocol=protocol, labware=labware, placements=[], commands=[], tips={}, problems=problems)
-  reservoirs, refused = send_waste(units, labware, _waste_capacity())
+  reservoirs, refused, _ = send_waste(units, labware, _waste_capacity())
   if refused is not None:
     return Plan(protocol=protocol, labware=labware, placements=[], commands=[], tips={}, problems=[refused])
   labware.update({name: WASTE_TYPE for name in reservoirs})

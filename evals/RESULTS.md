@@ -6,6 +6,17 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## The Flex drafts planned again once a tight deck makes room (0.16.0)
+
+No model was asked again.
+
+- **All 28 Flex drafts that pass `check` now plan and pass Opentrons' simulator on both robots**, the
+  ELISA included.
+- **The ELISA needs a person standing by**: 14 tip reloads and 3 stops to empty the waste on the Flex,
+  7 and 3 on the OT-2. No other draft pauses.
+- So of the 31 notes, 28 now reach a simulated Opentrons protocol with no hand edits; the other 3 cannot
+  work as written. The drafts are the ones from the 0.13.0 run; only the planner changed.
+
 ## The Flex drafts planned again with 8-channel pipettes (0.15.0)
 
 No model was asked again. The 28 Flex drafts below that pass `check` were planned again once the planner

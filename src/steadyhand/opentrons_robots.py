@@ -22,6 +22,9 @@ Choices this planner makes, all deterministic:
 * **Deck.** Plates go in the first free slots in file order, tip racks after them.
 * **Waste and tip reloads.** As on the Hamilton: reservoirs named `waste`, `waste_2`, ..., and
   a pause for a person to swap in full racks when the deck cannot hold enough.
+* **A tight deck.** When everything does not fit in the slots, room is made in this order: a
+  pair of pipettes that needs fewer kinds of tip; one size of tip for each pipette; fewer waste
+  reservoirs, with a pause to empty them; fewer tip racks, with pauses to reload.
 
 What it does not use yet: part of an 8-channel pipette's tips, modules, the gripper.
 """
@@ -208,12 +211,12 @@ def load_name(labware: Labware) -> Optional[Tuple[str, float]]:
 
 @dataclass(frozen=True)
 class Action:
-  kind: str  # "pick_up", "aspirate", "dispense", "drop", "wait" or "reload"
+  kind: str  # "pick_up", "aspirate", "dispense", "drop", "wait", "reload" or "empty"
   mount: str = ""  # "left" or "right"; empty for "wait" and "reload"
   labware: str = ""
   well: str = ""
   amount: float = 0.0  # uL per channel, or seconds for "wait"
-  racks: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps for full ones
+  racks: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps; for "empty", the waste reservoirs
   step: int = -1
   wells: Tuple[str, ...] = ()  # every well or tip the action touches: one, or eight for an 8-channel pipette
 
@@ -246,6 +249,8 @@ class OpentronsPlan:
     kinds = [a.kind for a in self.actions]
     if "reload" in kinds:
       lines.append(f"  tip reloads: {kinds.count('reload')} (the run pauses for a person to swap in full racks)")
+    if "empty" in kinds:
+      lines.append(f"  waste emptied: {kinds.count('empty')} times (the run pauses for a person to empty it)")
     if "wait" in kinds:
       waited = sum(a.amount for a in self.actions if a.kind == "wait")
       lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
@@ -272,9 +277,12 @@ class _Fit:
   draws: int
 
 
-def _fit(pipette: Pipette, volumes: Sequence[float], mixes: Sequence[float]) -> Optional[_Fit]:
+def _fit(pipette: Pipette, volumes: Sequence[float], mixes: Sequence[float], one_size: bool = False) -> Optional[_Fit]:
+  """How `pipette` would do this work, or None when it cannot. With `one_size` it only has its largest tip."""
   carried = max(list(volumes) + list(mixes))
   options = [(min(capacity, pipette.high), rack) for capacity, rack in pipette.tips]
+  if one_size:
+    options = options[-1:]
   holding = [option for option in options if option[0] + EPS >= carried]
   capacity, rack = holding[0] if holding else options[-1]
   if any(mix > capacity + EPS or mix < pipette.low - EPS for mix in mixes):
@@ -342,8 +350,14 @@ def _tip_by_tip(units: list, waits: Dict[int, Tuple[float, int]], sinks: Sequenc
   return ordered
 
 
-def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> OpentronsPlan:
-  """Plan a protocol that has passed `check` for the robot `profile` describes."""
+def plan(
+  checked: Check, profile: Profile, *, pipetting_height: float = 1.0, waste_reservoirs: Optional[int] = None
+) -> OpentronsPlan:
+  """Plan a protocol that has passed `check` for the robot `profile` describes.
+
+  `waste_reservoirs` caps how many waste reservoirs stand on the deck; the planner sets it
+  itself, by planning again, when the deck is too small for all of them.
+  """
   from .planner import _Unit, _units, send_waste
 
   protocol = checked.protocol
@@ -382,7 +396,7 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
     return failed()
 
   units, waits = _units(checked.moves)
-  reservoirs, refused = send_waste(units, labware, WASTE_CAPACITY)
+  reservoirs, refused, empties = send_waste(units, labware, WASTE_CAPACITY, waste_reservoirs)
   if refused is not None:
     problems.append(refused)
     return failed()
@@ -465,7 +479,7 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
     first = group[0]
     alike = all(
       u.step == first.step and abs(u.volume - first.volume) < EPS and u.mix == first.mix for u in group
-    ) and not any(i in waits for i in range(index + 1, index + 8))
+    ) and not any(i in waits or i in empties for i in range(index + 1, index + 8))
     delivers = _reach([u.destination for u in group], rows) if alike else None
     draws = _reach([u.source for u in group], rows) if alike and first.volume else None
     if delivers is not None and (draws is not None or not first.volume):
@@ -482,11 +496,13 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
     if first.mix:
       mixes.append(first.mix[1])
 
-  def assign(pair: Tuple[Pipette, ...]) -> Optional[Tuple[Dict[int, _Fit], Dict[Tuple[int, ...], _Fit]]]:
+  def assign(
+    pair: Tuple[Pipette, ...], one_size: bool
+  ) -> Optional[Tuple[Dict[int, _Fit], Dict[Tuple[int, ...], _Fit]]]:
     """Who does what with this pair: a pipette for each set of eight tips, and one for each tip left over."""
     by_set: Dict[Tuple[int, ...], _Fit] = {}
     for tips, (volumes, mixes) in sets.items():
-      able = [fit for p in pair if p.channels == 8 and (fit := _fit(p, volumes, mixes)) is not None]
+      able = [fit for p in pair if p.channels == 8 and (fit := _fit(p, volumes, mixes, one_size)) is not None]
       if able:
         by_set[tips] = min(able, key=lambda fit: (fit.draws, fit.pipette.high))
     left = [
@@ -496,7 +512,7 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
     ]
     by_tip: Dict[int, _Fit] = {}
     for tip, (volumes, mixes, _) in carried(left).items():
-      able = [fit for p in pair if p.channels == 1 and (fit := _fit(p, volumes, mixes)) is not None]
+      able = [fit for p in pair if p.channels == 1 and (fit := _fit(p, volumes, mixes, one_size)) is not None]
       if not able:
         return None
       by_tip[tip] = min(able, key=lambda fit: (fit.draws, fit.pipette.high))
@@ -511,17 +527,28 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
     at = bisect.bisect_right(starts, index) - 1
     return [starts[at]] if at >= 0 and starts[at] <= index < starts[at] + 8 else []
 
-  best: Optional[Tuple[Tuple[int, int, float], Tuple[Pipette, ...], Dict[int, _Fit], Dict[Tuple[int, ...], _Fit]]] = None
-  for size in (1, 2):
-    for pair in combinations(profile.pipettes, size):
-      assigned = assign(pair)
-      if assigned is not None:
-        by_tip, by_set = assigned
-        fits_used = list(by_tip.values()) + list(by_set.values())
-        used = tuple(p for p in pair if any(fit.pipette is p for fit in fits_used))
-        score = (sum(fit.draws for fit in fits_used), len(used), sum(p.high for p in used))
-        if best is None or score < best[0]:
-          best = (score, used, by_tip, by_set)
+  # The pair that moves everything in the fewest draws, among those the deck has room for: every
+  # plate, one waste reservoir if any is needed, and one rack of each kind of tip. Each pair is
+  # tried twice: with the best tip for each job, and with each pipette held to its largest tip,
+  # which needs fewer kinds of rack. Where both fit and draw as often, the best tips win.
+  fixed = len(labware) - len(reservoirs) + (1 if reservoirs else 0)
+  best: Optional[Tuple[Tuple[int, int, int, int, float], Tuple[Pipette, ...], Dict[int, _Fit], Dict[Tuple[int, ...], _Fit]]] = None
+  for one_size in (False, True):
+    for size in (1, 2):
+      for pair in combinations(profile.pipettes, size):
+        assigned = assign(pair, one_size)
+        if assigned is not None:
+          by_tip, by_set = assigned
+          fits_used = list(by_tip.values()) + list(by_set.values())
+          used_by = tuple(p for p in pair if any(fit.pipette is p for fit in fits_used))
+          kinds = len({(fit.pipette.name, fit.rack) for fit in fits_used})
+          crowded = int(fixed + kinds > len(profile.slots))
+          draws = sum(fit.draws for fit in fits_used)
+          score = (crowded, draws, int(one_size), len(used_by), sum(p.high for p in used_by))
+          if best is None or score < best[0]:
+            best = (score, used_by, by_tip, by_set)
+  if best is not None and best[0][2]:
+    notes.append("the deck is tight, so each pipette uses one size of tip")
   if best is None and work:
     wanted = sorted({min(by, key=lambda n: by[n].draws) for by in fits.values()})
     problems.append(
@@ -536,7 +563,7 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
 
   # The order of work. Columns stay where they are; the single moves between them are put together
   # tip by tip where that is safe. Each entry is a wait, one unit, or the eight units of a column.
-  sequence: List[Tuple[str, Any]] = []
+  sequence: List[Tuple[str, Any]] = []  # also ("empty", (the waste reservoirs, step))
   run: list = []
 
   def flush() -> None:
@@ -545,6 +572,9 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
 
   index = 0
   while index < len(units):
+    if index in empties:
+      flush()
+      sequence.append(("empty", (tuple(reservoirs), units[index].step)))
     if index in waits:
       flush()
       sequence.append(("wait", waits[index]))
@@ -570,7 +600,7 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
 
   last_use: Dict[Tuple[str, Any], int] = {}
   for place, entry in enumerate(sequence):
-    if entry[0] != "wait":
+    if entry[0] not in ("wait", "empty"):
       fit, key, _ = job(entry)
       last_use[(mounts[fit.pipette.name], key)] = place
   holding: Dict[str, Any] = {}  # mount -> what is on it
@@ -578,7 +608,7 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
   used: Dict[Tuple[str, str], int] = {}  # (pipette, tip rack) -> tips taken
   drafts: List[Tuple[str, Any]] = []  # ("pick_up", entry), ("drop", (mount, step)), ("work", entry), ("wait", ...)
   for place, entry in enumerate(sequence):
-    if entry[0] == "wait":
+    if entry[0] in ("wait", "empty"):
       drafts.append(entry)
       continue
     fit, key, step = job(entry)
@@ -606,6 +636,12 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
   racks = {key: math.ceil(used[key] / RACK) for key in order}
   free = len(profile.slots) - len(labware)
   limit = dict(racks)
+  if sum(racks.values()) > free and waste_reservoirs is None and len(reservoirs) > 1:
+    # Not everything fits. Emptying a reservoir is less work than swapping tip racks, so give up
+    # waste reservoirs first: keep as many as still leave room for every rack, and at least one.
+    plates = len(labware) - len(reservoirs)
+    keep = max(1, min(len(reservoirs) - 1, len(profile.slots) - plates - sum(racks.values())))
+    return plan(checked, profile, pipetting_height=pipetting_height, waste_reservoirs=keep)
   if free < len(racks):
     problems.append(
       Problem(
@@ -652,6 +688,9 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
   for kind, body in drafts:
     if kind == "wait":
       actions.append(Action("wait", amount=body[0], step=body[1]))
+      continue
+    if kind == "empty":
+      actions.append(Action("empty", racks=body[0], step=body[1]))
       continue
     if kind == "drop":
       actions.append(Action("drop", body[0], step=body[1]))
@@ -776,6 +815,9 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
       where = ", ".join(f"{name} in slot {planned.slots[name]}" for name in action.racks)
       lines.append(f"  protocol.pause({json.dumps('Swap in full tip racks: ' + where)})")
       lines += [f"  deck[{json.dumps(name)}].reset()" for name in action.racks]
+    elif action.kind == "empty":
+      where = ", ".join(f"{name} in slot {planned.slots[name]}" for name in action.racks)
+      lines.append(f"  protocol.pause({json.dumps('Empty the waste: ' + where)})")
     elif action.kind == "drop":
       lines.append(f"  {action.mount}.drop_tip()")
     elif action.kind == "pick_up":

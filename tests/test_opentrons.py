@@ -607,3 +607,95 @@ steps:
   assert result.ok and result.rounds == 2
   assert "the file must say `robot: opentrons-flex` after its name" in sent[1]
   assert result.checked.protocol.robot == "opentrons-flex"
+
+
+# ---------------------------------------------------------------- a deck with no room to spare
+
+
+def crowded(fillers, steps, plate="nest_96_wellplate_2ml_deep", volume="1.9 mL"):
+  """A protocol with one deep-well plate, a trough and `fillers` more plates that only take up slots."""
+  extra = "".join(f"\n  filler{n}: {{type: corning_96_wellplate_360ul_flat}}" for n in range(fillers))
+  return f"""
+steadyhand: 0.1
+name: crowded
+labware:
+  plate: {{type: {plate}}}
+  trough: {{type: nest_12_reservoir_15ml}}{extra}
+liquids:
+  sample: {{in: plate/A1:H12, volume: {volume}}}
+  buffer: {{in: trough/A1:A2, volume: 12 mL}}
+steps:
+{steps}
+"""
+
+
+EMPTY_IT = "  - transfer: {from: plate/A1:H12, to: waste, volume: 1.9 mL}"
+
+
+@needs_opentrons
+def test_waste_reservoirs_give_way_before_tip_racks_and_are_emptied_in_a_pause():
+  # 182 mL of waste is two reservoirs. With nine plates on the deck they fit, beside one rack of tips.
+  roomy = planned_from(crowded(6, EMPTY_IT))
+  assert roomy.ok and [name for name in roomy.labware if name.startswith("waste")] == ["waste", "waste_2"]
+  assert len(roomy.slots) == 11 and "empty" not in [a.kind for a in roomy.actions]
+
+  # One plate more and they do not. One reservoir stays and is emptied once; the tips are left alone.
+  checked = checked_from(crowded(7, EMPTY_IT))
+  tight = ot.plan(checked, ot.FLEX)
+  assert tight.ok, tight.report()
+  assert [name for name in tight.labware if name.startswith("waste")] == ["waste"] and len(tight.slots) == 11
+  kinds = [a.kind for a in tight.actions]
+  assert kinds.count("empty") == 1 and "reload" not in kinds
+  assert "waste emptied: 1 times" in tight.report()
+  at = kinds.index("empty")
+  assert tight.actions[at].racks == ("waste",)
+
+  def into_waste(actions):
+    return sum(a.amount * len(a.wells) for a in actions if a.kind == "dispense" and a.labware == "waste")
+
+  room = 0.9 * ot.WASTE_CAPACITY
+  assert 0 < into_waste(tight.actions[at:]) <= room and room - 1900 * 8 < into_waste(tight.actions[:at]) <= room
+  assert abs(into_waste(tight.actions) - checked.wasted) < 1e-3
+  script = ot.emit(tight)
+  assert f'protocol.pause("Empty the waste: waste in slot {tight.slots["waste"]}")' in script
+  if simulator_here():
+    assert ot.simulate(script, ot.FLEX).ok
+
+
+@needs_opentrons
+def test_on_a_tight_deck_each_pipette_keeps_to_one_size_of_tip():
+  steps = """  - transfer: {from: trough/A1, to: plate/A1:H1, volume: 100 uL}
+  - transfer: {from: trough/A2, to: plate/A2:H2, volume: 800 uL}"""
+  # Nine plates and reservoirs: the 8-channel pipette takes a 200 uL tip for one job and a 1000 uL tip for the other.
+  roomy = planned_from(crowded(7, steps, volume="1 mL"))
+  assert roomy.ok and not roomy.notes
+  assert set(roomy.tips) == {"opentrons_flex_96_filtertiprack_200ul", "opentrons_flex_96_filtertiprack_1000ul"}
+  # Ten: only one kind of rack fits, so it does both with the larger tip, and the plan says so.
+  tight = planned_from(crowded(8, steps, volume="1 mL"))
+  assert tight.ok, tight.report()
+  assert tight.tips == {"opentrons_flex_96_filtertiprack_1000ul": 16} and len(tight.slots) == 11
+  assert tight.notes == ["the deck is tight, so each pipette uses one size of tip"]
+  # Eleven: there is no slot for tips at all.
+  full = planned_from(crowded(9, steps, volume="1 mL"))
+  assert not full.ok and "the Opentrons Flex has 11 for labware" in str(full.problems[0])
+
+
+def test_waste_goes_round_a_limited_set_of_reservoirs():
+  from steadyhand.planner import WASTE, _Unit, send_waste
+
+  def units(count):
+    return [_Unit(0, n, Well("plate", "A1"), WASTE, 40.0, None) for n in range(count)]
+
+  # Each reservoir takes 90 of its 100: two moves of 40.
+  work = units(7)
+  names, problem, empties = send_waste(work, {}, 100.0)
+  assert problem is None and empties == [] and names == ["waste", "waste_2", "waste_3", "waste_4"]
+  assert [u.destination.labware for u in work] == ["waste", "waste", "waste_2", "waste_2", "waste_3", "waste_3", "waste_4"]
+  work = units(7)
+  names, _, empties = send_waste(work, {}, 100.0, limit=2)
+  assert names == ["waste", "waste_2"] and empties == [4]  # both are full before the fifth move
+  assert [u.destination.labware for u in work] == ["waste", "waste", "waste_2", "waste_2", "waste", "waste", "waste_2"]
+  work = units(7)
+  names, _, empties = send_waste(work, {}, 100.0, limit=1)
+  assert names == ["waste"] and empties == [2, 4, 6] and {u.destination.labware for u in work} == {"waste"}
+  assert send_waste(units(1), {"waste": "x"}, 100.0)[1] is not None

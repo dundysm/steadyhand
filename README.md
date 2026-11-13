@@ -215,15 +215,21 @@ says nothing simulated it, and exits with status 1.
 
 **What is missing on the Opentrons robots.** No physics replay: nothing checks collisions or
 whether the tip reaches the liquid, and there is no `replay.html`. An 8-channel pipette always
-takes all eight tips, so half a column is done one well at a time. No modules or gripper. No plan file to edit. Eleven slots hold less
-than a Hamilton deck: a full ELISA with its wash buffer and waste leaves no slot for tips and is
-refused at the plan.
+takes all eight tips, so half a column is done one well at a time. No modules or gripper. No plan file to edit.
+
+**A tight deck.** Eleven slots hold less than a Hamilton deck. When a run does not fit, the plan
+makes room in this order: a pair of pipettes that needs fewer kinds of tip; one size of tip per
+pipette; fewer waste reservoirs, with a pause for a person to empty them; fewer tip racks, with
+pauses to reload. The plan report counts every pause. A full ELISA drafted from a kit note fits
+this way, at the price of 14 tip reloads and 3 waste stops on a Flex: it runs, but someone has to
+stand by it.
 
 **Drafting for them.** `steadyhand draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
 the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
 has it write the `robot:` line. On the 31 intake notes, 27 went from text to a protocol that
 passes Opentrons' simulator at the first attempt, and the same 27 drafts also plan and simulate
-for the OT-2. Details and caveats are in [evals](evals/RESULTS.md).
+for the OT-2. The one that was refused then, the ELISA, has planned and simulated on both since
+0.16.0. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
