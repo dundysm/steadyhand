@@ -1,3 +1,3 @@
 Top up the plate.
 
-Every well of the 96-well plate has 0.2 mL of culture. Add 0.25 mL of fresh medium to every well from the big reservoir (it has 60 mL in it).
+Every well of the 96-well plate (standard Corning flat-bottom, 360 uL wells) has 0.2 mL of culture. Add 0.25 mL of fresh medium to every well from the big reservoir (it has 60 mL in it).

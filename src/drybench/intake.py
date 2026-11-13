@@ -44,14 +44,16 @@ RULES
   A1:A12 is row A (12 wells).
 - Declare under `liquids` every liquid that is in a well before the first step, whether the
   steps draw from it, add to it or mix it, with the wells it starts in and the volume in each.
-  Use the volume the text gives. When it gives none, supply about 20% more than the steps use.
+  Use the volume the text gives. When it gives none for a liquid the steps draw from, supply
+  about 20% more than they use, and at least 10 uL more in each well. When it gives none for what is already in wells the steps add
+  to or empty, treat those wells as empty and say so in `notes`.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
-  the labware, choose one whose wells hold the largest volume any well reaches.
+  the labware, choose one whose wells hold the largest volume any well reaches with room to spare.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
 - Do not invent steps the text does not describe.
 - Leave out what a pipetting robot cannot do (vortexing, a magnet, heating, sealing, storage)
-  and say so in `notes`, one sentence each. A timed hold becomes a `wait`.
+  and say so in `notes`, one sentence each. A timed hold becomes a `wait`, even on equipment the robot lacks.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume
@@ -89,7 +91,7 @@ STEPS
     mix, discard and tips are optional.
 - wait: {duration: <time>}
 
-EXAMPLE 1
+EXAMPLE 1 (for a text that states every plate, volume and mix)
 drybench: 0.1
 name: Two-fold serial dilution across a 96-well plate
 labware:
@@ -151,6 +153,8 @@ def labware_catalogue() -> str:
       continue  # not a plate, a second spelling of one, or one the deck's carrier cannot hold
     seen.add(name.lower())  # some definitions exist under two spellings; one is enough
     wells = plate.get_all_items()
+    if wells[0].max_volume < 1.0:
+      continue  # under 1 uL a well is a mistake in the definition, not a plate to offer
     lines.append(
       f"{name}: {len(wells)} wells ({plate.num_items_y} rows x {plate.num_items_x} columns), "
       f"{wells[0].max_volume:g} uL each"

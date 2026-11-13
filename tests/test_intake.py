@@ -198,7 +198,7 @@ def test_the_catalogue_offers_only_plates_the_deck_can_hold_and_the_guide_exampl
 
   offered = labware_catalogue()
   assert "Cor_96_wellplate_360ul_Fb:" in offered and "thermo_AB_96_wellplate_300ul_Vb_MicroAmp:" not in offered
-  first = GUIDE.split("EXAMPLE 1\n")[1].split("\nEXAMPLE 2")[0]
+  first = GUIDE.split("EXAMPLE 1")[1].split("\n", 1)[1].split("\nEXAMPLE 2")[0]
   second = GUIDE.split("EXAMPLE 2")[1].split("\n", 1)[1]
   for text in (first, second):
     checked, problems = _problems_of(text, None)
