@@ -261,3 +261,23 @@ def test_cli_wants_the_protocol_written_next_to_its_samples_file(tmp_path, capsy
   assert "write it next to" in capsys.readouterr().out
   assert main(command + ["-o", str(table.parent / "protocol.yaml")]) == 0
   assert main(["rehearse", str(table.parent / "protocol.yaml"), "--no-render", "--out", str(tmp_path / "out")]) == 0
+
+
+def test_the_same_file_sent_again_ends_the_drafting_and_hands_the_problem_over(tmp_path, capsys):
+  overflow = BAD  # the text itself asks for more than the well holds
+  asked = []
+
+  def model(messages):
+    asked.append(messages[-1]["content"])
+    return overflow
+
+  result = draft("anything", model, max_rounds=5)
+  assert not result.ok and result.left_for_a_person and result.rounds == 2 and len(asked) == 2
+  assert "send the same file again instead" in asked[1]
+
+  notes = tmp_path / "notes.txt"
+  notes.write_text("fill the wells past the brim")
+  script = tmp_path / "model.py"
+  script.write_text("import sys\nsys.stdin.read()\nprint(" + repr(overflow) + ")\n")
+  assert main(["draft", str(notes), "-o", str(tmp_path / "p.yaml"), "--model-command", f"{sys.executable} {script}"]) == 1
+  assert "The model kept the file as it is" in capsys.readouterr().out

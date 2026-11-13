@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from drybench.intake import _problems_of, extract_yaml, messages_for
+from drybench.intake import _problems_of, extract_yaml, feedback, messages_for
 from drybench.planner import RunRefused, plan, rehearse_plan
 
 HERE = Path(__file__).parent
@@ -82,9 +82,12 @@ def main() -> int:
       print(f"  plan problem: {problem}")
   else:
     listed = "\n".join(f"- {problem}" for problem in problems)
-    feedback = "That file has these problems:\n" + listed + "\n\nWrite the whole file again with them fixed. Reply with the YAML only."
-    state["messages"].append({"role": "user", "content": feedback})
-    if number >= ROUNDS:
+    same = number > 1 and text.strip() == (folder / f"round_{number - 1}.yaml").read_text(encoding="utf-8").strip()
+    state["messages"].append({"role": "user", "content": feedback(problems)})
+    if same:  # as in draft(): the same file again hands the problem to a person
+      state["done"], state["draft"] = True, "left for a person"
+      print(f"FINISHED: the same file was sent again in round {number}; left for a person to decide:\n{listed}")
+    elif number >= ROUNDS:
       state["done"], state["draft"] = True, "fail"
       print(f"FINISHED: draft still has problems after {ROUNDS} rounds:\n{listed}")
     else:

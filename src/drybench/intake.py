@@ -23,7 +23,7 @@ import urllib.request
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Sequence
 
 from .planner import carrier_refusal
 from .protocol import Check, Problem, ProtocolError, check, loads
@@ -71,8 +71,10 @@ RULES
   samples file is offered with the text. If the text asks for it and no file is offered, write
   the step with `samples.file: samples.csv` and say in `notes` that the file is needed.
 - Never change an amount the text states. If what the text describes cannot work (a well
-  would overflow, a source would run dry), write it as stated and say so in `notes`. If you
-  are then told about that problem, send the same file again; a person has to decide.
+  would overflow, a source would run dry), write it as stated and say so in `notes`.
+- When you are told about a problem that only a person can settle (the text itself cannot work,
+  a samples file is missing), send the same file again. That ends the drafting and hands the
+  problem to them.
 
 SECTIONS
 drybench: 0.1            (required, exactly this)
@@ -197,6 +199,7 @@ class Draft:
   rounds: int  # how many times the model was asked
   messages: List[Message] = field(default_factory=list, repr=False)
   history: List[List[Problem]] = field(default_factory=list, repr=False)  # the problems found after each round
+  left_for_a_person: bool = False  # the model sent the same file back: it will not change what the text says
 
   @property
   def ok(self) -> bool:
@@ -262,6 +265,7 @@ def draft(
   messages = messages_for(source, samples)
   text, checked, problems = "", None, [Problem("draft", "the model was never asked")]
   history: List[List[Problem]] = []
+  previous = ""
   for round_number in range(1, max_rounds + 1):
     reply = model(messages)
     text = extract_yaml(reply)
@@ -270,15 +274,22 @@ def draft(
     history.append(list(problems))
     if not problems:
       return Draft(text, checked, [], round_number, messages, history)
-    listed = "\n".join(f"- {problem}" for problem in problems)
-    messages.append(
-      {
-        "role": "user",
-        "content": "That file has these problems:\n" + listed + "\n\nWrite the whole file again with them fixed. "
-        "Reply with the YAML only.",
-      }
-    )
+    if text.strip() == previous.strip():
+      # The same file again is the model's way of saying the problem is in the text, not the file.
+      return Draft(text, checked, problems, round_number, messages, history, left_for_a_person=True)
+    previous = text
+    messages.append({"role": "user", "content": feedback(problems)})
   return Draft(text, checked, problems, max_rounds, messages, history)
+
+
+def feedback(problems: Sequence[Problem]) -> str:
+  """What the model is told when the file it wrote does not hold up."""
+  listed = "\n".join(f"- {problem}" for problem in problems)
+  return (
+    "That file has these problems:\n" + listed + "\n\nWrite the whole file again with them fixed. "
+    "If a problem can only be fixed by changing something the text states, or by something only a "
+    "person can supply, send the same file again instead. Reply with the YAML only."
+  )
 
 
 # ---------------------------------------------------------------- ready-made models

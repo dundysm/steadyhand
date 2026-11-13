@@ -200,6 +200,18 @@ drybench draft notes.txt -o protocol.yaml --provider openai --model MODEL_NAME
 When the text leaves something out, the model is told to choose the conventional option and
 record the choice under `notes` in the file. Read the file against your source before you use it.
 
+To normalize samples to a common concentration, give it the readings as a CSV. The model is shown
+the column names and the first few rows, so it can tell which column is which; the protocol it
+writes names the file, and drybench reads the numbers from the file itself.
+
+```bash
+drybench draft notes.txt --samples readings.csv -o protocol.yaml --model-command "my-local-model"
+```
+
+When the text asks for something that cannot work (more liquid than a named plate holds, a sample
+too dilute to reach its target), the model is told to write it as stated and not to change your
+numbers. `check` then refuses the file and says why, and the drafting stops there for you to decide.
+
 ## Rehearse a PyLabRobot protocol you already have
 
 Swap your backend for `RecordingBackend`, run the protocol, then rehearse what it recorded.
@@ -244,16 +256,13 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 
 ## What it does not do yet
 
-- **A proven intake.** `draft` has been measured four times, all on 13 Nov 2026 and all with
-  Claude models. The largest is the acceptance run: twenty notes drawn from public kit manuals,
-  drafted by Opus 5.5 agents and then checked, planned and rehearsed with no hand edits.
-  Seventeen of twenty passed every stage at the first attempt. The other three were drybench's
-  doing, not the drafts': with lids assumed off, tip reloads and extra waste reservoirs, the same
-  twenty drafts all pass on 0.8.0. The table, the notes and
-  their sources are in [evals/acceptance](evals/acceptance). A pass means the file runs, not
-  that it matches the note (two were read against their notes and matched). It is one model
-  family, driven by agents and not a bare API call, and the guide has been edited since.
-  It does not write `normalize` steps or read PDFs.
+- **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
+  model one turn at a time. On the latest run, 28 of 31 notes (20 from public kit manuals) went
+  from plain text to a rehearsed script at the first attempt with no hand edits, and the other
+  three, which cannot work as written, were refused for the right reason. The runs, the notes
+  and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
+  matches the note; two were read against their notes and matched. It reads plain text and a
+  CSV of concentrations, not PDFs.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.

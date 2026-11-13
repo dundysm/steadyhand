@@ -235,6 +235,9 @@ def _draft(args: argparse.Namespace) -> int:
   print(f"wrote {args.output}")
   if result.ok:
     print("A model wrote this file. Read it against your source before you rehearse or run it.")
+  elif result.left_for_a_person:
+    print("The model kept the file as it is: fixing these problems means changing what your text says,")
+    print("or supplying something it does not have. Decide what to change, then run drybench check.")
   else:
     print("The file still has problems after the last try. Fix it by hand, then run drybench check.")
   return 0 if result.ok else 1

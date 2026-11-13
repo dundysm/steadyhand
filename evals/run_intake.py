@@ -33,7 +33,7 @@ def one(note: Path, model, rounds: int, out: Path) -> dict:
     return row
   (out / f"{note.stem}.yaml").write_text(result.text, encoding="utf-8")
   row["rounds"] = result.rounds
-  row["draft"] = "pass" if result.ok else "fail"
+  row["draft"] = "pass" if result.ok else "left for a person" if result.left_for_a_person else "fail"
   row["problems"] = [str(problem) for problem in result.problems]
   # what the model got wrong on the way, round by round: this is what the prompt should be tuned against
   row["fixed"] = [[str(problem) for problem in found] for found in result.history[:-1]] if result.ok else []
