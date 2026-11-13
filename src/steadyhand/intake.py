@@ -272,26 +272,13 @@ def _volume_to_cover(container, height: float) -> Optional[float]:
 
   Rounded up to two figures; None where the well's shape is not known.
   """
-  import math
-
   from .replay import LIQUID_TOLERANCE
-  from .scene import bounds, liquid_height_is_known
-
-  height += LIQUID_TOLERANCE  # the replay wants the tip that far under the surface
+  from .scene import liquid_height_is_known, liquid_volume, two_figures_up
 
   if not liquid_height_is_known(container):
     return None
-  if container.supports_compute_height_volume_functions():
-    volume = float(container.compute_volume_from_height(height))
-  else:  # a flat bottom: straight walls
-    lo, hi = bounds(container)
-    area = (hi[0] - lo[0]) * (hi[1] - lo[1])
-    if str(getattr(getattr(container, "cross_section_type", None), "value", "")).lower() == "circle":
-      area *= math.pi / 4
-    volume = area * height
-  from .scene import two_figures_up
-
-  return two_figures_up(volume)
+  # the replay wants the tip that far under the surface
+  return two_figures_up(liquid_volume(container, height + LIQUID_TOLERANCE))
 
 
 def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
@@ -345,6 +332,17 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
           "rehearsal",
           f"in {where} the tip {reach} and draws air. A tip stops "
           f"{planned.pipetting_height:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}",
+        )
+      )
+    elif kind == "short":
+      cover = _volume_to_cover(deck.get_resource(issues[0].resource), planned.pipetting_height)
+      short = max(issue.short for issue in issues)
+      needs = f" That well needs about {cover:g} uL left in it after the draw." if cover else ""
+      problems.append(
+        Problem(
+          "rehearsal",
+          f"in {where} a draw takes the liquid below the tip, so up to {short:g} uL of what it moves on is air. "
+          f"A tip stops {planned.pipetting_height:g} mm above the floor of a well and cannot reach what is under it.{needs}",
         )
       )
     else:

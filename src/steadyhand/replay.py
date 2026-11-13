@@ -34,6 +34,7 @@ from .scene import (
   collect_boxes,
   liquid_height,
   liquid_height_is_known,
+  liquid_volume,
 )
 from .viewer import layout
 
@@ -90,9 +91,12 @@ class LiquidIssue:
   """A tip in the wrong place relative to the liquid when it aspirates or dispenses.
 
   kind is "air" (an aspirate starts with the tip above the liquid), "outside" (the tip is
-  above the rim of the well) or "ends_in_air" (the liquid falls below the tip before the
-  aspirate is over). `gap` is how far, in mm. `sure` is False when the well's shape is not
-  known well enough to trust the liquid height; those are reported but do not fail the run.
+  above the rim of the well), "short" (the liquid falls below the tip before the aspirate is
+  over, and what was drawn is then delivered to a well, part of it air) or "ends_in_air" (the
+  same, but what was drawn is thrown away, so all it means is a little left behind). `gap` is
+  how far, in mm; `short` is how many microlitres of air a "short" draw takes. `sure` is False
+  when the well's shape is not known well enough to trust the liquid height; those are
+  reported but do not fail the run.
   """
 
   step: int
@@ -102,10 +106,11 @@ class LiquidIssue:
   resource: str
   gap: float
   sure: bool = True
+  short: float = 0.0
 
   @property
   def fails(self) -> bool:
-    return self.sure and self.kind in ("air", "outside")
+    return self.sure and self.kind in ("air", "outside", "short")
 
   def describe(self) -> str:
     where = f"step {self.step} ({self.action}, channel {self.channel}) in {self.resource}"
@@ -116,6 +121,11 @@ class LiquidIssue:
       return f"{where}: the tip stops {height} the liquid, so it draws air"
     if self.kind == "air":
       return f"{where}: by a straight-walled estimate the tip stops {height} the liquid; a tapered bottom holds it higher"
+    if self.kind == "short" and self.sure:
+      return (
+        f"{where}: the liquid falls {self.gap:g} mm below the tip before the aspirate ends, "
+        f"so about {self.short:g} uL of what it delivers is air"
+      )
     return f"{where}: the liquid falls {self.gap:g} mm below the tip before the aspirate ends"
 
 
@@ -169,13 +179,13 @@ class Rehearsal:
     failures = self.liquid_failures
     lines.append(f"  tips out of the liquid or the well: {len(failures)}")
     lines += [f"    - {text}" for text in _told_once(failures)]
-    unsure = [i for i in self.liquid if i.kind in ("air", "outside") and not i.sure]
+    unsure = [i for i in self.liquid if i.kind in ("air", "outside", "short") and not i.sure]
     if unsure:
       lines.append(f"  possibly out of the liquid, in wells whose shape is not known exactly ({len(unsure)}):")
       lines += [f"    - {text}" for text in _told_once(unsure)]
     low = [i for i in self.liquid if i.kind == "ends_in_air"]
     if low:
-      lines.append(f"  aspirates that finish with the liquid below the tip, so the last of it is air ({len(low)}):")
+      lines.append(f"  aspirates to waste that finish with the liquid below the tip, so a little is left behind ({len(low)}):")
       lines += [f"    - {text}" for text in _told_once(low)]
     if self.not_rehearsed:
       kinds = sorted({s.kind.split(":", 1)[1] for s in self.not_rehearsed})
@@ -533,6 +543,15 @@ def rehearse(
   )
 
 
+def is_waste(resource: str) -> bool:
+  """Whether a well belongs to one of the planner's waste reservoirs: `waste`, `waste_2` and so on.
+
+  Those names are kept for the planner; a protocol cannot give them to its own labware.
+  """
+  labware = resource.rpartition("_well_")[0] or resource
+  return labware == "waste" or (labware.startswith("waste_") and labware[6:].isdigit())
+
+
 def liquid_issues(
   root: Resource, steps: Sequence[Step], start_volumes: Optional[Dict[str, float]] = None
 ) -> List[LiquidIssue]:
@@ -559,6 +578,15 @@ def liquid_issues(
   else:
     held = {name: float(start_volumes.get(name, 0.0)) for name in containers}
 
+  # where each aspirate's liquid goes: the next dispense of the same channel
+  thrown_away: Dict[int, bool] = {}
+  next_dispense: Dict[int, str] = {}
+  for s in reversed(acting):
+    if s.kind == "dispense":
+      next_dispense[s.channel] = s.resource
+    else:
+      thrown_away[s.index] = is_waste(next_dispense.get(s.channel, ""))
+
   issues: List[LiquidIssue] = []
   for s in acting:
     container = containers[s.resource]
@@ -568,8 +596,8 @@ def liquid_issues(
     before = max(0.0, held[s.resource])
     sure = liquid_height_is_known(container) or before <= 0.0  # an empty well is empty whatever its shape
 
-    def issue(kind: str, gap: float, certain: bool = True) -> None:
-      issues.append(LiquidIssue(s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain))
+    def issue(kind: str, gap: float, certain: bool = True, short: float = 0.0) -> None:
+      issues.append(LiquidIssue(s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain, round(short, 1)))
 
     if end > rim + RIM_ALLOWANCE:
       issue("outside", end - rim)
@@ -579,6 +607,10 @@ def liquid_issues(
       if end > surface - LIQUID_TOLERANCE:
         issue("air", end - surface, sure)
       elif end > after + LIQUID_TOLERANCE:
-        issue("ends_in_air", end - after, sure)
+        if thrown_away[s.index]:
+          issue("ends_in_air", end - after, sure)
+        else:  # the tip takes only what stands above it; the rest of the draw is air, and it is delivered
+          reached = max(0.0, before - liquid_volume(container, end - floor))
+          issue("short", end - after, sure, volume - reached)
     held[s.resource] = before - volume if s.kind == "aspirate" else before + volume
   return issues

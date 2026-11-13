@@ -391,15 +391,19 @@ def test_what_the_labware_list_calls_out_of_reach_is_what_the_rehearsal_enforces
   reach = float(re.search(r"last ([\d.]+) uL out of reach", line).group(1))
   plate = "corning_96_wellplate_360ul_flat" if robot else "Cor_96_wellplate_360ul_Fb"
 
-  def stopped(volume):
+  def stopped(volume, draw=2.0):
     text = (
       "steadyhand: 0.1\nname: reach\n" + (f"robot: {robot}\n" if robot else "")
       + f"labware:\n  source: {{type: {labware}}}\n  plate: {{type: {plate}}}\n"
       + f"liquids:\n  buffer: {{in: source/A1, volume: {volume:g} uL}}\n"
-      + "steps:\n  - transfer: {from: source/A1, to: plate/A12, volume: 2 uL}\n"
+      + f"steps:\n  - transfer: {{from: source/A1, to: plate/A12, volume: {draw:g} uL}}\n"
     )
     return rehearsal_problems(check(loads(text)), robot)
 
-  assert stopped(reach) == []  # with that much in the well, a draw starts with the tip in the liquid
-  short = stopped(reach * 0.8)
-  assert len(short) == 1 and "draws air" in short[0].message and f"about {reach:g} uL" in short[0].message
+  assert stopped(reach + 2) == []  # with that much left after the draw, the tip stays in the liquid
+  low = stopped(reach * 0.8)  # less than that to start with: the tip is above the liquid
+  assert len(low) == 1 and "draws air" in low[0].message and f"about {reach:g} uL" in low[0].message
+  if reach <= 100:  # a plate well: one draw can take it from covered to well below the tip
+    short = stopped(reach * 1.5, reach)  # starts covered, ends below the tip, and the liquid is kept
+    assert len(short) == 1 and "of what it moves on is air" in short[0].message
+    assert f"about {reach:g} uL left in it after the draw" in short[0].message

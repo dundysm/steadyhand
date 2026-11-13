@@ -255,6 +255,9 @@ FAULTS: List[Fault] = [
         _text("  - transfer: {from: reservoir/A1, to: plate/A2:H4, volume: 100 uL, tips: reuse}\n", "")),
   Fault("dilution-starts-in-the-wrong-column", "protocol", "The series starts in column 2, not column 1 where the sample is.",
         _text("start: plate/A1:H1", "start: plate/A2:H2")),
+  Fault("source-drawn-below-the-tip", "protocol",
+        "The sample wells hold 110 uL and the series takes 100 uL: the last of each draw is under the tip, so it is air.",
+        _text("sample: {in: plate/A1:H1, volume: 200 uL}", "sample: {in: plate/A1:H1, volume: 110 uL}")),
   Fault("one-tip-down-the-series", "protocol", "The same tip is carried down each dilution series, so sample carries over.",
         _text("      volume: 100 uL\n", "      volume: 100 uL\n      tips: reuse\n")),
   # the deck is not what the plan assumed

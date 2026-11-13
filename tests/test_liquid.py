@@ -78,13 +78,42 @@ def test_a_dispense_from_above_the_rim_fails(dilution):
   assert result.liquid_failures[0].gap > 15
 
 
-def test_emptying_a_well_is_noted_but_does_not_fail():
+def test_the_normalization_example_never_draws_a_well_below_the_tip():
   checked, planned = plan_file(EXAMPLES / "normalization.yaml")
   result = asyncio.run(rehearse_plan(planned))
-  assert result.ok
-  low = [i for i in result.liquid if i.kind == "ends_in_air"]
-  assert low and not any(i.fails for i in low)
-  assert "finish with the liquid below the tip" in result.report()
+  assert result.ok and result.liquid == []
+
+
+def test_a_draw_that_empties_a_well_below_the_tip_fails_when_the_liquid_is_delivered_not_thrown_away():
+  from steadyhand.planner import plan
+  from steadyhand.protocol import check, loads
+
+  def run(to, volume="100 uL"):
+    planned = plan(check(loads(f"""
+steadyhand: 0.1
+name: the last of a well
+labware:
+  source: {{type: Cor_96_wellplate_360ul_Fb}}
+  plate: {{type: Cor_96_wellplate_360ul_Fb}}
+liquids:
+  sample: {{in: source/A1:H1, volume: 110 uL}}
+steps:
+  - transfer: {{from: source/A1:H1, to: {to}, volume: {volume}}}
+""")))
+    return asyncio.run(rehearse_plan(planned))
+
+  kept = run("plate/A1:H1")
+  short = [i for i in kept.liquid if i.kind == "short"]
+  assert not kept.ok and len(short) == 8 and all(i.fails for i in short)
+  # the tip stops 1 mm up; what stands under it cannot be drawn, so that much of the 100 uL is air
+  assert all(20 < i.short < 26 for i in short)
+  assert "of what it delivers is air" in kept.report()
+  # thrown away, the same draw only leaves a little behind
+  wasted = run("waste")
+  assert wasted.ok and {i.kind for i in wasted.liquid} == {"ends_in_air"}
+  assert "finish with the liquid below the tip" in wasted.report()
+  # and a draw that leaves the tip covered is clean
+  assert run("plate/A1:H1", "70 uL").liquid == []
 
 
 def test_channels_closer_than_the_head_allows_are_a_collision(dilution):

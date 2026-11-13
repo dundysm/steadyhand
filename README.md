@@ -90,7 +90,7 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 | `steadyhand rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
 | `steadyhand emit FILE -o script.py` | Writes the robot's program without rehearsing. |
 | `steadyhand robots` | Lists the robots, and what `rehearse` checks on each. |
-| `steadyhand faults` | Plants 24 known mistakes in a working protocol and lists which are stopped. |
+| `steadyhand faults` | Plants 25 known mistakes in a working protocol and lists which are stopped. |
 
 `plan`, `rehearse` and `emit` take `--robot`. The rows above describe the Hamilton STARlet, which
 is used when no robot is named; the others are under [Robots](#robots).
@@ -177,8 +177,11 @@ volume, and every command takes the same time on screen. It is 2D; for 3D open `
   round- and V-bottom wells it is reported as possible and does not fail.
   On an Opentrons deck the height comes from the inside shape of the well, which Opentrons'
   definitions give for 45 of the 46 plates and reservoirs offered, so it is trusted in every
-  bottom shape. The volumes agree with Opentrons' own maths at 270 heights checked by a test. An aspirate that
-  ends with the liquid below the tip (emptying a well) is noted, not failed.
+  bottom shape. The volumes agree with Opentrons' own maths at 270 heights checked by a test.
+  An aspirate that starts in the liquid and takes it below the tip draws air for the rest. When
+  that liquid is delivered to a well, or mixed back, the run fails and the report says how many
+  microlitres are air. When it is thrown away it is noted, not failed: the well is only left
+  with a little in it.
 
 A test also confirms that PyLabRobot's own volume trackers end the run with the same volume in
 every well that `check` predicted.
@@ -262,8 +265,8 @@ the first attempt. The other three cannot work as written and are refused at `ch
 ## What it stops, measured
 
 A dry run that passes says little unless you know what it would have failed on. `steadyhand faults`
-plants 24 specific mistakes in a short dilution that otherwise runs clean, and records the first
-stage that stops each one. Today **22 of 24 are stopped**; the full table is in
+plants 25 specific mistakes in a short dilution that otherwise runs clean, and records the first
+stage that stops each one. Today **23 of 25 are stopped**; the full table is in
 [docs/faults.md](docs/faults.md), and a test pins it so a change in either direction shows.
 
 The two that get through:
@@ -275,7 +278,7 @@ The two that get through:
   from the plan unless it is told.
 
 The same suite, with the mistakes that make sense there, runs on the Opentrons robots with
-`steadyhand faults --robot opentrons-flex`: **16 of 19 are stopped** on both the
+`steadyhand faults --robot opentrons-flex`: **17 of 20 are stopped** on both the
 [Flex](docs/faults-opentrons-flex.md) and the [OT-2](docs/faults-opentrons-ot2.md). The three
 that get through are the same tip carry-over, and a deep-well or a PCR plate standing where the
 flat plate was planned: the wells line up and the tips fit inside them.

@@ -238,6 +238,19 @@ def liquid_height(container: Container, volume: float) -> float:
   return volume / area if area > EPS else 0.0
 
 
+def liquid_volume(container: Container, height: float) -> float:
+  """Microlitres that stand `height` mm deep in a container: the reverse of `liquid_height`."""
+  if height <= 0:
+    return 0.0
+  if container.supports_compute_height_volume_functions():
+    return float(container.compute_volume_from_height(height))
+  lo, hi = bounds(container)
+  area = (hi[0] - lo[0]) * (hi[1] - lo[1])
+  if str(getattr(getattr(container, "cross_section_type", None), "value", "")).lower() == "circle":
+    area *= math.pi / 4
+  return area * height
+
+
 def two_figures_up(volume: float) -> Optional[float]:
   """A volume rounded up to two figures, as it is quoted to a person or a model; None for nothing."""
   import math

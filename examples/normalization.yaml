@@ -11,7 +11,7 @@ labware:
 
 liquids:
   water: {in: reservoir/A1, volume: 10 mL}
-  dna:   {in: stock/A1:H1, volume: 40 uL}
+  dna:   {in: stock/A1:H1, volume: 70 uL}
 
 # One row per sample. The file sits next to this one.
 samples:
@@ -28,4 +28,5 @@ steps:
       diluent: reservoir/A1
       target: 10 ng/uL
       final_volume: 50 uL
-      mix: {times: 3, volume: 25 uL}
+      # a small mix: in a flat well a tip 1 mm up cannot reach the last 34 uL
+      mix: {times: 3, volume: 15 uL}

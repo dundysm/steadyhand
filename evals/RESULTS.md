@@ -6,6 +6,22 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## A delivered draw that takes air now fails (0.23.0)
+
+The gap named under 0.22.0 is closed. A draw that starts in the liquid and takes it below the tip
+fails the rehearsal when that liquid is then delivered to a well or mixed back; thrown away, it is
+still only noted. The first message to the model is byte for byte the one 0.22.0 measured, so nothing
+was drafted again.
+
+- All 28 accepted drafts on the Hamilton and all 28 on the Flex were rehearsed again under the
+  stricter check, and the Flex drafts planned again for the OT-2: every one still passes. None of them
+  had such a draw: the 2,016 (Hamilton) and 2,160 (Flex) draws that end below the tip all go to waste.
+- On the Hamilton, 48 more such draws are in wells whose shape is not known exactly. They are reported
+  as possible and do not fail.
+- The check did stop one thing: the project's own `examples/normalization.yaml`, which mixed 25 uL in
+  50 uL in a flat well and drew samples down to a few microlitres. On a real robot both would have
+  taken air. The example now starts with more sample and mixes less.
+
 ## Every note drafted again, with a labware list that says what a tip cannot reach (0.22.0)
 
 Two changes to the first message, then all 31 notes drafted again from the start for the Hamilton and
@@ -47,7 +63,7 @@ notes each).
   draw that begins with the tip under the surface and takes the well below the tip is noted, not
   failed. That is right for emptying a well to waste and wrong for a transfer whose volume matters:
   a real tip would take air for the last part. One agent noticed that the checker lets through what
-  the prompt implies it would stop. This is the next thing to fix.
+  the prompt implies it would stop. Fixed in 0.23.0, above.
 - What the agents found unclear in the first message, none of it changed yet: "a few minutes" and
   "wait a bit" are neither a stated time nor no time; "vortex 30 s" falls under both "leave out
   vortexing" and "a timed step becomes a wait"; "room to spare" has no number; a mix with no count;

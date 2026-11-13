@@ -1,9 +1,9 @@
 # What steadyhand stops, and what it does not: Hamilton STARlet
 
-Written by `steadyhand faults`, version 0.22.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.23.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
-**22 of 24 planted mistakes stopped.** The unchanged protocol ran clean.
+**23 of 25 planted mistakes stopped.** The unchanged protocol ran clean.
 
 | mistake | level | stopped at | what happened |
 |---|---|---|---|
@@ -16,6 +16,7 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | The plate is named waste, a name the planner keeps for its own waste reservoirs. | protocol | plan | labware.waste: names starting with 'waste' are kept for the planner's waste reservoirs |
 | The step that fills the wells with buffer is missing, so the series is not diluted at all. | protocol | check | liquids.buffer: no step draws from, adds to or mixes this liquid; remove it, or fix the step that should use it |
 | The series starts in column 2, not column 1 where the sample is. | protocol | check | liquids.sample: no step draws from, adds to or mixes this liquid; remove it, or fix the step that should use it |
+| The sample wells hold 110 uL and the series takes 100 uL: the last of each draw is under the tip, so it is air. | protocol | rehearse | 8 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the liquid falls 0.68 mm below the tip before the aspirate ends, so about 21.9 uL of what it delivers is air |
 | The same tip is carried down each dilution series, so sample carries over. | protocol | **not stopped** | ran clean |
 | The plate carrier sits one rail (22.5 mm) to the right of where the plan put it. | deck | rehearse | 168 collisions; first: the tip into plate on descend |
 | The plate and the reservoir are on each other's carrier sites. | deck | rehearse | 24 collisions; first: the tip into plate on descend |

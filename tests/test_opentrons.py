@@ -279,7 +279,12 @@ def test_a_move_and_a_mix_no_one_pipette_can_both_do_get_a_tip_each():
 
   # Each sample tip moves a few microlitres and then mixes 25 uL. On an OT-2 the p20 cannot mix
   # 25 uL and the p300 cannot move less than 20, so the mix gets its own tip on the p300.
-  checked = check(load(EXAMPLES / "normalization.yaml"))
+  from steadyhand.protocol import loads
+
+  text = (EXAMPLES / "normalization.yaml").read_text(encoding="utf-8")
+  assert "mix: {times: 3, volume: 15 uL}" in text  # the example itself mixes less, to stay under the liquid
+  text = text.replace("mix: {times: 3, volume: 15 uL}", "mix: {times: 3, volume: 25 uL}")
+  checked = check(loads(text, base=EXAMPLES))
   ot2 = ot.plan(checked, ot.OT2)
   assert ot2.ok, ot2.report()
   assert ot2.pipettes == {"left": "p20_single_gen2", "right": "p300_single_gen2"}
@@ -287,7 +292,6 @@ def test_a_move_and_a_mix_no_one_pipette_can_both_do_get_a_tip_each():
   mixes = [a for a in ot2.actions if a.kind == "aspirate" and a.amount == 25.0]
   assert mixes and {a.mount for a in mixes} == {"right"}
   # A Flex's 50 uL pipette does both, so nothing changes there.
-  checked = check(load(EXAMPLES / "normalization.yaml"))
   flex = ot.plan(checked, ot.FLEX)
   assert flex.ok and not flex.notes and sum(flex.tips.values()) == checked.tips
 

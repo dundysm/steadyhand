@@ -1,9 +1,9 @@
 # What steadyhand stops, and what it does not: Opentrons OT-2
 
-Written by `steadyhand faults`, version 0.22.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.23.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
-**16 of 19 planted mistakes stopped.** The unchanged protocol ran clean.
+**17 of 20 planted mistakes stopped.** The unchanged protocol ran clean.
 
 | mistake | level | stopped at | what happened |
 |---|---|---|---|
@@ -13,6 +13,7 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | The file allows 0.5 uL moves and the dilution asks for one; no pipette on the Opentrons OT-2 moves less than 1 uL. | protocol | plan | steps[1]: 0.5 uL is less than any pipette on the Opentrons OT-2 moves (1 uL) (and 31 more) |
 | Ten more plates are declared; with tips they need more slots than the Opentrons OT-2 has. | protocol | plan | labware: 13 plates and reservoirs and 1 kinds of tip need 14 slots; the Opentrons OT-2 has 11 for labware |
 | The sample wells hold 25 uL in a flat-bottom plate: under 1 mm of liquid, below where the tip stops. | protocol | rehearse | 8 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 0.22 mm above the liquid, so it draws air |
+| The sample wells hold 110 uL and the series takes 100 uL: the last of each draw is under the tip, so it is air. | protocol | rehearse | 8 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the liquid falls 0.68 mm below the tip before the aspirate ends, so about 21.9 uL of what it delivers is air |
 | The same tip is carried down each dilution series, so sample carries over. | protocol | **not stopped** | ran clean |
 | The plate and the reservoir are in each other's slots. | deck | rehearse | 24 collisions; first: the tip into plate on descend |
 | The plate sits 4.5 mm towards the back of its slot, half a well off. | deck | rehearse | 176 collisions; first: the tip into plate on descend |
