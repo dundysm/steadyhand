@@ -94,3 +94,25 @@ def test_liquid_is_drawn_at_the_labware_height():
 def test_export_scene_compiles(deck):
   model = mujoco.MjModel.from_xml_string(export_scene(deck))
   assert model.ngeom > 50
+
+
+def test_an_offscreen_backend_is_only_named_when_its_library_is_on_the_machine(monkeypatch):
+  import ctypes.util
+
+  from steadyhand import _gl
+
+  monkeypatch.setattr("sys.platform", "linux")
+  for name in ("MUJOCO_GL", "DISPLAY", "WAYLAND_DISPLAY"):
+    monkeypatch.delenv(name, raising=False)
+  have = set()
+  monkeypatch.setattr(ctypes.util, "find_library", lambda name: f"lib{name}.so" if name in have else None)
+  assert _gl.choose() == ""  # naming a missing one would make `import mujoco` fail
+  have.add("OSMesa")
+  assert _gl.choose() == "osmesa"
+  have.add("EGL")
+  assert _gl.choose() == "egl"
+  monkeypatch.setenv("DISPLAY", ":0")
+  assert _gl.choose() == ""  # a display is there: MuJoCo's default is right
+  monkeypatch.delenv("DISPLAY")
+  monkeypatch.setenv("MUJOCO_GL", "osmesa")
+  assert _gl.choose() == ""  # what the user set is never changed

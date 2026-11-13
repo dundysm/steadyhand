@@ -51,8 +51,8 @@ def _write(result: Rehearsal, out: Path, kept: dict, render: bool, title: str = 
         middle = [sum(e[i] for e in ends) / len(ends) for i in range(3)]
         middle[2] += 25.0
         print(f"wrote {render_model(model, data, out / 'aspirate.png', camera=close_up(middle))}")
-    except RuntimeError as error:
-      print(f"no picture: {error}")
+    except Exception as error:  # no OpenGL on this machine, or no way to open a context
+      print(f"no picture: {' '.join(str(error).split())[:200]}")
   print(f"to look around the scene: python -m mujoco.viewer --mjcf {out / 'scene.xml'}")
 
 
