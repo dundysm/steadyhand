@@ -4,7 +4,7 @@ Twenty notes drawn from public kit manuals (see SOURCES.md), each drafted by a C
 playing the model through `evals/step_intake.py`, then checked, planned and rehearsed with no hand
 edits to what the model wrote. Run on drybench 0.6.0.
 
-| note | draft | rounds | plan | rehearse | same draft on 0.7.0 |
+| note | draft | rounds | plan | rehearse | same draft on 0.8.0 |
 |---|---|---|---|---|---|
 | amplex_red_h2o2 | pass | 1 | pass | pass | pass |
 | ampure_cleanup | pass | 1 | pass | pass | pass |
@@ -25,15 +25,19 @@ edits to what the model wrote. Run on drybench 0.6.0.
 | prestoblue | pass | 1 | pass | pass | pass |
 | q5_pcr_setup | pass | 1 | pass | pass | pass |
 | restriction_digest | pass | 1 | pass | pass | pass |
-| sandwich_elisa | pass | 1 | fail | - | plan fail |
+| sandwich_elisa | pass | 1 | fail | - | pass |
 
 **17 of 20 passed every stage at the first attempt.** The three that did not:
 
 - `caspase_glo` and `celltiter_glo`: the model chose a plate PyLabRobot builds with its lid on, `plan`
   accepted it and `rehearse` crashed. Fixed in 0.7.0: the plan assumes lids are off and says so, and a
   command PyLabRobot refuses is a clean failure. The same two drafts now pass.
-- `sandwich_elisa`: fifteen plate washes need about 2,200 tips. The deck holds about 1,900 and the
-  planner cannot reload tips or use a plate washer, so this one is out of reach for now.
+- `sandwich_elisa`: fifteen plate washes need about 2,200 tips and discard about 690 mL. The deck
+  holds about 1,900 tips and the planner had one waste reservoir. Fixed in 0.8.0: the plan stops for
+  tip reloads (two here) and adds waste reservoirs as they fill (four here). The same draft now
+  passes, in about 40 seconds of rehearsal for 12,408 channel moves.
+
+With those fixes all twenty drafts pass on 0.8.0, with no change to what the model wrote.
 
 What a pass means: the file the model wrote runs through every check with no collision and no tip
 clearly out of the liquid. It does not mean the file matches the note. Two were read against their

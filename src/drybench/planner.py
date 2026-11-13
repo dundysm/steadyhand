@@ -15,7 +15,10 @@ Choices this planner makes, all deterministic:
 * **Channels.** Consecutive moves share an 8-channel command when their wells sit in one
   column at least 9 mm apart, or when they all draw from one well wide enough to take them.
 * **Deck.** Tip carriers go on the left from rail 1, plate carriers after them, in file order.
-* **Waste.** Discarded liquid goes to a reservoir named `waste`, which the planner adds.
+* **Waste.** Discarded liquid goes to a reservoir named `waste`, which the planner adds; when it
+  is nearly full the planner adds `waste_2`, and so on.
+* **Tip reloads.** If the run needs more tip racks than fit beside the plates, the plan keeps what
+  fits and stops for a person to swap in full racks each time a tip type runs out.
 
 Three of these can be overridden. `dump_choices` writes the tips, the deck layout and the
 pipetting height of a plan as a small YAML file; edit it and hand it back through
@@ -56,10 +59,10 @@ TIP_TYPES: List[Tuple[float, str]] = [
 
 @dataclass(frozen=True)
 class Command:
-  kind: str  # "pick_up", "aspirate", "dispense" or "discard"
+  kind: str  # "pick_up", "aspirate", "dispense", "discard" or "reload"
   channels: Tuple[int, ...]
-  resource: str = ""  # the plate or tip rack; empty for "discard"
-  wells: Tuple[str, ...] = ()
+  resource: str = ""  # the plate or tip rack; empty for "discard" and "reload"
+  wells: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps for full ones
   volumes: Tuple[float, ...] = ()
   step: int = -1
 
@@ -105,6 +108,8 @@ class Plan:
     for definition, count in self.tips.items():
       lines.append(f"  tips: {count} x {definition}")
     kinds = [c.kind for c in self.commands]
+    if "reload" in kinds:
+      lines.append(f"  tip reloads: {kinds.count('reload')} (the run stops for a person to swap in full racks)")
     widest = max((len(c.channels) for c in self.commands), default=0)
     lines.append(
       f"  commands: {len(self.commands)} ({kinds.count('aspirate')} aspirates, "
@@ -211,6 +216,20 @@ def carrier_refusal(definition: str) -> Optional[str]:
   return _REFUSALS[definition]
 
 
+def _waste_capacity() -> float:
+  """Microlitres the waste reservoir's one well holds, as PyLabRobot states it."""
+  if "waste" not in _CAPACITY:
+    import pylabrobot.resources as resources
+
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore")
+      _CAPACITY["waste"] = float(getattr(resources, WASTE_TYPE)(name="probe").get_all_items()[0].max_volume)
+  return _CAPACITY["waste"]
+
+
+_CAPACITY: Dict[str, float] = {}
+
+
 # ---------------------------------------------------------------- units of work
 
 
@@ -253,9 +272,19 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
 
   labware = {name: item.type for name, item in protocol.labware.items()}
   if any(u.destination == WASTE for u in units):
-    if "waste" in labware:
-      problems.append(Problem("labware.waste", "the name 'waste' is kept for the planner's waste reservoir"))
-    labware["waste"] = WASTE_TYPE
+    if any(name == "waste" or name.startswith("waste_") for name in labware):
+      problems.append(Problem("labware.waste", "names starting with 'waste' are kept for the planner's waste reservoirs"))
+    # Discarded liquid fills one reservoir after another; each takes 90% of what it holds.
+    room = 0.9 * _waste_capacity()
+    name, filled = "waste", 0.0
+    labware[name] = WASTE_TYPE
+    for unit in units:
+      if unit.destination == WASTE:
+        if filled + unit.volume > room:
+          name, filled = f"waste_{sum(1 for n in labware if n.startswith('waste')) + 1}", 0.0
+          labware[name] = WASTE_TYPE
+        filled += unit.volume
+        unit.destination = Well(name, "A1")
 
   for name, definition in labware.items():
     refusal = carrier_refusal(definition)
@@ -319,77 +348,108 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
     else:
       batches.append([unit])
 
-  # Tips are handed out down each column of a rack. A command that needs k tips takes k
-  # neighbouring rows of one column, so a column's leftovers are skipped when too few remain.
-  racks: Dict[int, int] = {}  # tip type -> racks opened
-  cursor: Dict[int, Tuple[int, int]] = {}  # tip type -> (column, row) of the next free tip
-  used: Dict[int, int] = {}
+  def build(limit: Optional[Dict[int, int]]) -> Tuple[List[Command], Dict[int, int], Dict[int, int]]:
+    """The commands, with at most `limit` racks of each tip type on the deck; None for no limit."""
+    # Tips are handed out down each column of a rack. A command that needs k tips takes k
+    # neighbouring rows of one column, so a column's leftovers are skipped when too few remain.
+    racks: Dict[int, int] = {}  # tip type -> the rack being used
+    most: Dict[int, int] = {}  # tip type -> racks on the deck
+    cursor: Dict[int, Tuple[int, int]] = {}  # tip type -> (column, row) of the next free tip
+    used: Dict[int, int] = {}
+    commands: List[Command] = []
 
-  def take(kind: int, count: int) -> Tuple[str, Tuple[str, ...]]:
-    column, row = cursor.get(kind, (0, 0))
-    if kind not in racks:
-      racks[kind] = 1
-    if row + count > 8:
-      column, row = column + 1, 0
-    if column >= 12:
-      racks[kind] += 1
-      column, row = 0, 0
-    cursor[kind] = (column, row + count)
-    used[kind] = used.get(kind, 0) + count
-    name = f"tips_{tip_types[kind][0]:g}_{racks[kind]}"
-    return name, tuple(f"{'ABCDEFGH'[row + i]}{column + 1}" for i in range(count))
+    def take(kind: int, count: int) -> Tuple[str, Tuple[str, ...]]:
+      column, row = cursor.get(kind, (0, 0))
+      if kind not in racks:
+        racks[kind] = 1
+      if row + count > 8:
+        column, row = column + 1, 0
+      if column >= 12:
+        if limit is not None and racks[kind] >= limit[kind]:
+          # Every rack of this kind on the deck is used up: stop for a person to swap in full ones.
+          names = tuple(f"tips_{tip_types[kind][0]:g}_{n}" for n in range(1, limit[kind] + 1))
+          commands.append(Command("reload", (), wells=names))
+          racks[kind] = 1
+        else:
+          racks[kind] += 1
+        column, row = 0, 0
+      cursor[kind] = (column, row + count)
+      used[kind] = used.get(kind, 0) + count
+      most[kind] = max(most.get(kind, 0), racks[kind])
+      name = f"tips_{tip_types[kind][0]:g}_{racks[kind]}"
+      return name, tuple(f"{'ABCDEFGH'[row + i]}{column + 1}" for i in range(count))
 
-  commands: List[Command] = []
-  holding: Dict[int, int] = {}  # channel -> the tip number it has on
-  position = 0
-  for batch in batches:
-    channels = tuple(range(len(batch)))
-    kind = tip_type[batch[0].tip]
-    step = batch[0].step
+    holding: Dict[int, int] = {}  # channel -> the tip number it has on
+    position = 0
+    for batch in batches:
+      channels = tuple(range(len(batch)))
+      kind = tip_type[batch[0].tip]
+      step = batch[0].step
 
-    # A channel gives up its tip only when this command needs a different one on it. A channel
-    # that sits this command out keeps its tip for later.
-    stale = tuple(c for c in channels if c in holding and holding[c] != batch[c].tip)
-    if stale:
-      commands.append(Command("discard", stale, step=step))
-      for c in stale:
-        del holding[c]
-    need = tuple(c for c in channels if c not in holding)
-    if need:
-      rack, spots = take(kind, len(need))
-      commands.append(Command("pick_up", need, rack, spots, step=step))
-      for c in need:
-        holding[c] = batch[c].tip
+      # A channel gives up its tip only when this command needs a different one on it. A channel
+      # that sits this command out keeps its tip for later.
+      stale = tuple(c for c in channels if c in holding and holding[c] != batch[c].tip)
+      if stale:
+        commands.append(Command("discard", stale, step=step))
+        for c in stale:
+          del holding[c]
+      need = tuple(c for c in channels if c not in holding)
+      if need:
+        rack, spots = take(kind, len(need))
+        commands.append(Command("pick_up", need, rack, spots, step=step))
+        for c in need:
+          holding[c] = batch[c].tip
 
-    capacity = tip_types[kind][0]
-    if batch[0].volume:
-      parts = [max(1, math.ceil((u.volume - EPS) / capacity)) for u in batch]
-      for cycle in range(max(parts)):
-        active = [c for c in channels if cycle < parts[c]]
-        volumes = tuple(round(batch[c].volume / parts[c], 4) for c in active)
-        source, destination = place(batch[0].source)[0], place(batch[0].destination)[0]
-        commands.append(
-          Command("aspirate", tuple(active), source, tuple(place(batch[c].source)[1] for c in active), volumes, step)
-        )
-        commands.append(
-          Command(
-            "dispense", tuple(active), destination, tuple(place(batch[c].destination)[1] for c in active), volumes, step
+      capacity = tip_types[kind][0]
+      if batch[0].volume:
+        parts = [max(1, math.ceil((u.volume - EPS) / capacity)) for u in batch]
+        for cycle in range(max(parts)):
+          active = [c for c in channels if cycle < parts[c]]
+          volumes = tuple(round(batch[c].volume / parts[c], 4) for c in active)
+          source, destination = place(batch[0].source)[0], place(batch[0].destination)[0]
+          commands.append(
+            Command("aspirate", tuple(active), source, tuple(place(batch[c].source)[1] for c in active), volumes, step)
           )
-        )
-    if batch[0].mix:
-      times, volume = batch[0].mix
-      resource = place(batch[0].destination)[0]
-      wells = tuple(place(u.destination)[1] for u in batch)
-      for _ in range(times):
-        commands.append(Command("aspirate", channels, resource, wells, (volume,) * len(batch), step))
-        commands.append(Command("dispense", channels, resource, wells, (volume,) * len(batch), step))
+          commands.append(
+            Command(
+              "dispense", tuple(active), destination, tuple(place(batch[c].destination)[1] for c in active), volumes, step
+            )
+          )
+      if batch[0].mix:
+        times, volume = batch[0].mix
+        resource = place(batch[0].destination)[0]
+        wells = tuple(place(u.destination)[1] for u in batch)
+        for _ in range(times):
+          commands.append(Command("aspirate", channels, resource, wells, (volume,) * len(batch), step))
+          commands.append(Command("dispense", channels, resource, wells, (volume,) * len(batch), step))
 
-    position += len(batch)
-    done = tuple(sorted(c for c in holding if last_use[holding[c]] < position))
-    if done:
-      commands.append(Command("discard", done, step=step))
-      for c in done:
-        del holding[c]
+      position += len(batch)
+      done = tuple(sorted(c for c in holding if last_use[holding[c]] < position))
+      if done:
+        commands.append(Command("discard", done, step=step))
+        for c in done:
+          del holding[c]
+
+    return commands, most, used
+
+  # First with as many racks as it takes. If they do not fit beside the plates, plan again with
+  # what does fit and a stop to reload whenever a tip type runs out.
+  commands, racks, used = build(None)
+  plate_count = len(labware)
+  sites = SITES * ((DECK_RAILS - CARRIER_RAILS * math.ceil(plate_count / SITES)) // CARRIER_RAILS)
+  if sum(racks.values()) > sites >= len(racks):
+    limit = {kind: 1 for kind in racks}
+    spare = sites - len(racks)
+    total = sum(racks.values())
+    for kind in sorted(racks, key=lambda k: -racks[k]):  # share the rest by need, biggest first
+      extra = min(spare, max(0, round(sites * racks[kind] / total) - 1), racks[kind] - 1)
+      limit[kind] += extra
+      spare -= extra
+    for kind in sorted(racks, key=lambda k: -racks[k]):  # hand out what rounding left over
+      extra = min(spare, racks[kind] - limit[kind])
+      limit[kind] += extra
+      spare -= extra
+    commands, racks, used = build(limit)
 
   # Deck: tip carriers from rail 1, then plate carriers.
   tip_racks: List[str] = []
@@ -656,11 +716,21 @@ def build_deck(planned: Plan):
   return deck
 
 
-async def run(planned: Plan, handler) -> None:
-  """Send every command in the plan to a PyLabRobot LiquidHandler."""
+async def run(planned: Plan, handler, *, on_reload=None) -> None:
+  """Send every command in the plan to a PyLabRobot LiquidHandler.
+
+  At a tip reload, `on_reload` is called with the names of the racks to swap; give one that
+  waits for the operator when running on a robot. The racks are then counted as full again.
+  """
   deck = handler.deck
   height = planned.pipetting_height
   for number, command in enumerate(planned.commands, start=1):
+    if command.kind == "reload":
+      if on_reload is not None:
+        on_reload(command.wells)
+      for name in command.wells:
+        deck.get_resource(name).fill()
+      continue
     try:
       await _send(command, handler, deck, height)
     except Exception as error:  # a tracker or a check inside PyLabRobot said no
@@ -766,6 +836,13 @@ def emit(planned: Plan, *, source: str = "") -> str:
     "  return deck",
     "",
     "",
+    "def reload(deck, names):",
+    "  # The deck does not hold enough tips for the whole run, so it stops here for full racks.",
+    '  input(f"Swap in full tip racks for {names}, then press Enter. ")',
+    "  for name in names.split():",
+    "    deck.get_resource(name).fill()",
+    "",
+    "",
     "def wells(deck, resource, names):",
     "  return [deck.get_resource(resource).get_item(name) for name in names.split()]",
     "",
@@ -779,6 +856,9 @@ def emit(planned: Plan, *, source: str = "") -> str:
       step = command.step
       lines.append(f"  # step {step}")
     channels = list(command.channels)
+    if command.kind == "reload":
+      lines.append(f'  reload(deck, "{" ".join(command.wells)}")')
+      continue
     if command.kind == "discard":
       lines.append(f"  await lh.discard_tips(use_channels={channels})")
       continue

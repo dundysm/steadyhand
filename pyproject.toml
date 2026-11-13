@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "drybench"
-version = "0.7.0"
+version = "0.8.0"
 description = "Rehearse a lab-robot protocol in a physics scene before it touches a real bench."
 readme = "README.md"
 requires-python = ">=3.10"

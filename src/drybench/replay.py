@@ -40,6 +40,7 @@ from .viewer import layout
 Vec3 = Tuple[float, float, float]
 
 RIM_ALLOWANCE = 2.0  # mm a tip may sit above the rim of a well and still count as in it
+SPACING_TOLERANCE = 0.1  # mm; PyLabRobot's own spread of channels in a wide well rounds to about 0.01
 LIQUID_TOLERANCE = 0.05  # mm; a tip closer to the surface than this counts as touching it
 
 BARREL_RADIUS = 4.0  # mm; STAR channels sit 9 mm apart
@@ -366,11 +367,16 @@ def rehearse(
   worst: Dict[Tuple[int, int, str], Collision] = {}
   path_length = 0.0
   samples = 0
+  reused = 0
 
-  def check(group: Dict[int, Step], phase: str) -> None:
+  # One sample of the scene: every overlap between a moving channel and something solid.
+  Hit = Tuple[int, str, str, float, Vec3]  # channel, solid geom, "tip" or "channel", depth, where
+
+  def check(moving: Sequence[int]) -> List[Hit]:
     nonlocal samples
     samples += 1
     mujoco.mj_fwdPosition(model, data)
+    hits: List[Hit] = []
     for i in range(data.ncon):
       contact = data.contact[i]
       depth = -contact.dist / MM
@@ -382,52 +388,86 @@ def rehearse(
       if probe is None or solid is None:
         continue
       channel = int(probe.split("/")[0][len("channel") :])
-      step = group.get(channel)
-      if step is None:  # a parked channel; it has not moved since it was last checked
-        continue
-      key = (step.index, channel, solid)
-      if key in worst:
-        # Keep where the overlap began; only the depth grows.
-        if depth > worst[key].depth:
-          worst[key] = replace(worst[key], depth=round(depth, 4))
+      if channel not in moving:  # a parked channel; it has not moved since it was last checked
         continue
       position = channels[channel].position
       assert position is not None
-      worst[key] = Collision(
-        step=step.index,
-        kind=step.kind,
-        channel=channel,
-        part="tip" if "/tip" in probe else "channel",
-        resource=by_geom[solid].resource,
-        geom=solid,
-        depth=round(depth, 4),
-        at=tuple(round(v, 3) for v in position),  # type: ignore[arg-type]
-        phase=phase,
-      )
+      hits.append((channel, solid, "tip" if "/tip" in probe else "channel", depth, position))
+    return hits
 
   def place(channel: _Channel, position: Vec3) -> None:
     channel.position = position
     for address, value, origin in zip(channel.qpos, position, channel.home):
       data.qpos[address] = (value - origin) * MM
 
+  # The scene never changes, so a move made before (same channels, same tips, same start and
+  # end) hits the same things. A long protocol repeats most of its moves; each is simulated once.
+  seen: Dict[tuple, List[Hit]] = {}
+  ceiling = max((box.hi[2] for box in boxes if box.collides), default=0.0) + 1.0  # mm; clear above this
+
   def move(group: Dict[int, Step], targets: Dict[int, Vec3], phase: str) -> None:
     """Move every channel in the group to its target together, checking along the way."""
-    nonlocal path_length
+    nonlocal path_length, reused
     starts = {c: channels[c].position for c in targets}
     distances = {c: math.dist(starts[c], targets[c]) for c in targets}  # type: ignore[arg-type]
     longest = max(distances.values())
     if longest < 1e-9:
       return
     path_length += sum(distances.values())
-    count = max(1, math.ceil(longest / sample_mm))
-    for i in range(1, count + 1):
-      t = i / count
+    key = tuple(
+      (c, channels[c].tip, tuple(round(v, 3) for v in starts[c]), tuple(round(v, 3) for v in targets[c]))  # type: ignore[union-attr]
+      for c in sorted(targets)
+    )
+    clear = phase == "travel" and all(
+      min(starts[c][2], targets[c][2]) - channels[c].reach > ceiling for c in targets  # type: ignore[index]
+    )
+    if clear and on_sample is None:
+      # Every moving channel stays above the tallest solid in the scene: nothing to run into.
       for c, target in targets.items():
-        start = starts[c]
-        place(channels[c], tuple(a + (b - a) * t for a, b in zip(start, target)))  # type: ignore[arg-type]
-      check(group, phase)
-      if on_sample is not None:
-        on_sample(model, data, list(group.values()), phase)
+        place(channels[c], target)
+      found: List[Hit] = []
+    elif key in seen and on_sample is None:
+      reused += 1
+      for c, target in targets.items():
+        place(channels[c], target)
+      found = seen[key]
+    else:
+      first: Dict[Tuple[int, str, str], Hit] = {}
+      count = max(1, math.ceil(longest / sample_mm))
+      for i in range(1, count + 1):
+        t = i / count
+        for c, target in targets.items():
+          start = starts[c]
+          place(channels[c], tuple(a + (b - a) * t for a, b in zip(start, target)))  # type: ignore[arg-type]
+        for hit in check(list(targets)):
+          where = (hit[0], hit[1], hit[2])
+          if where not in first:
+            first[where] = hit
+          elif hit[3] > first[where][3]:  # keep where the overlap began; only the depth grows
+            first[where] = (*first[where][:3], hit[3], first[where][4])
+        if on_sample is not None:
+          on_sample(model, data, list(group.values()), phase)
+      found = seen[key] = list(first.values())
+    for channel, solid, part, depth, position in found:
+      step = group.get(channel)
+      if step is None:
+        continue
+      at = (step.index, channel, solid)
+      if at in worst:
+        if depth > worst[at].depth:
+          worst[at] = replace(worst[at], depth=round(depth, 4))
+        continue
+      worst[at] = Collision(
+        step=step.index,
+        kind=step.kind,
+        channel=channel,
+        part=part,
+        resource=by_geom[solid].resource,
+        geom=solid,
+        depth=round(depth, 4),
+        at=tuple(round(v, 3) for v in position),  # type: ignore[arg-type]
+        phase=phase,
+      )
 
   # Every channel starts parked above its first target, with no tip.
   for channel in channels.values():
@@ -447,7 +487,7 @@ def rehearse(
       for a, b in zip(ordered, ordered[1:]):
         gap = group[a].reference[1] - group[b].reference[1]  # type: ignore[index]
         short = min_channel_pitch * (b - a) - gap
-        if short > 0.01:
+        if short > SPACING_TOLERANCE:
           worst[(group[b].index, b, f"channel{a}")] = Collision(
             step=group[b].index,
             kind=group[b].kind,

@@ -1,6 +1,6 @@
 # What drybench stops, and what it does not
 
-Written by `drybench faults`, version 0.7.0. Each row is one mistake planted in a short
+Written by `drybench faults`, version 0.8.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **22 of 24 planted mistakes stopped.** The unchanged protocol ran clean.

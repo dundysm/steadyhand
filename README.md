@@ -96,7 +96,10 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 - **Channels.** Consecutive moves share one 8-channel command when their wells sit in one column
   at least 9 mm apart, or all draw from one well wide enough to take them.
 - **Deck.** Tip carriers from rail 1, plate carriers after them. Discarded liquid goes to a
-  `waste` reservoir the planner adds.
+  `waste` reservoir the planner adds, and to `waste_2` and so on as each fills.
+- **Tip reloads.** If the run needs more tip racks than fit beside the plates, the plan keeps
+  what fits and stops for a person to swap in full racks whenever a tip type runs out. The
+  emitted script waits for Enter at each stop.
 
 ### Change what `plan` decided
 
@@ -243,8 +246,9 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 - **A proven intake.** `draft` has been measured four times, all on 13 Nov 2026 and all with
   Claude models. The largest is the acceptance run: twenty notes drawn from public kit manuals,
   drafted by Opus 5.5 agents and then checked, planned and rehearsed with no hand edits.
-  Seventeen of twenty passed every stage at the first attempt; two more pass on 0.7.0 after a
-  lid bug was fixed; the ELISA needs more tips than the deck holds. The table, the notes and
+  Seventeen of twenty passed every stage at the first attempt. The other three were drybench's
+  doing, not the drafts': with lids assumed off, tip reloads and extra waste reservoirs, the same
+  twenty drafts all pass on 0.8.0. The table, the notes and
   their sources are in [evals/acceptance](evals/acceptance). A pass means the file runs, not
   that it matches the note (two were read against their notes and matched). It is one model
   family, driven by agents and not a bare API call, and the guide has been edited since.
@@ -252,10 +256,10 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.
-- **Tip reloads, washers and lids.** The deck holds about 20 tip racks and the planner cannot
-  reload them, so a protocol that needs more (an ELISA with fifteen plate washes) cannot be
-  planned. There is no plate washer, shaker, magnet or gripper: timed steps on them become
-  waits, and a plate that ships with a lid is planned with the lid assumed off.
+- **Washers, shakers, magnets and lids.** There is no plate washer, shaker, magnet or gripper:
+  timed steps on them become waits, washes are done tip by tip, and a plate that ships with a
+  lid is planned with the lid assumed off. When a run needs more tips than fit on the deck, the
+  plan stops for a person to swap in full racks; nothing loads them automatically.
 - **Unskirted plates.** The planner's plate carrier holds skirted plates only, so 25 of
   PyLabRobot's plate definitions (most PCR plates among them) are refused at `plan` and are not
   offered to the model in `draft`. They need an adapter the planner does not place yet.

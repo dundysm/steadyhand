@@ -366,14 +366,48 @@ def test_a_command_pylabrobot_refuses_is_a_clean_failure(tmp_path, capsys):
   assert caught.value.number == 1 and "command 1 (pick_up at tips_300_1)" in str(caught.value)
 
 
-def test_running_out_of_deck_is_explained_in_tips():
+def test_more_tips_than_the_deck_holds_are_planned_with_reloads_and_more_waste():
   from drybench.protocol import check, loads
 
   steps = "".join(
-    "  - transfer: {from: trough/A1, to: plate/A1:H12, volume: 50 uL}\n  - transfer: {from: plate/A1:H12, to: waste, volume: 50 uL}\n"
-    for _ in range(12)
+    f"  - transfer: {{from: {source}/A1, to: plate/A1:H12, volume: 300 uL}}\n"
+    "  - transfer: {from: plate/A1:H12, to: waste, volume: 300 uL}\n"
+    for source in ["trough", "trough_b"] * 6
   )
-  planned = plan(check(loads(LIDDED.split("steps:")[0].replace("PerkinElmer_96_wellplate_400ul_Fb", "Cor_96_wellplate_360ul_Fb") + "steps:\n" + steps)))
-  assert not planned.ok
-  said = str(planned.problems[0])
-  assert "tip carriers" in said and "2304 tips" in said and "cannot reload tips" in said
+  text = """
+drybench: 0.1
+name: twelve washes of a whole plate
+labware:
+  plate:    {type: Cor_96_wellplate_360ul_Fb}
+  trough:   {type: nest_1_troughplate_195000uL_Vb}
+  trough_b: {type: nest_1_troughplate_195000uL_Vb}
+liquids:
+  wash:   {in: trough/A1, volume: 190 mL}
+  wash_b: {in: trough_b/A1, volume: 190 mL}
+steps:
+""" + steps
+  checked = check(loads(text))
+  assert checked.ok, checked.report()
+  planned = plan(checked)
+  assert planned.ok, planned.report()
+  kinds = [c.kind for c in planned.commands]
+  racks = [name for name in planned.labware if name.startswith("tips_")]
+  assert sum(planned.tips.values()) == 2304 and len(racks) == 20  # 24 racks' worth of tips on 20 rack sites
+  assert kinds.count("reload") == 1 and "tip reloads: 1" in planned.report()
+  # 345.6 mL is discarded; one reservoir takes about 188 mL, so a second is added
+  assert {"waste", "waste_2"} <= set(planned.labware) and "waste_3" not in planned.labware
+  assert sum(len(p.sites) for p in planned.placements) <= 30 and max(p.rails for p in planned.placements) <= 25
+  script = emit(planned)
+  assert script.count('  reload(deck, "') == 1 and "def reload(deck, names):" in script
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok, result.report()
+  assert result.volumes["waste_well_A1"] + result.volumes["waste_2_well_A1"] == pytest.approx(345600)
+
+
+def test_a_move_made_before_is_not_simulated_again(dilution):
+  _, planned, _ = dilution
+  once = asyncio.run(rehearse_plan(planned))
+  seen = []
+  again = asyncio.run(rehearse_plan(planned, on_sample=lambda *args: seen.append(1)))  # a callback turns reuse off
+  assert once.ok and again.ok and once.path_length == pytest.approx(again.path_length)
+  assert once.samples < again.samples == len(seen)

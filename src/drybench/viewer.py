@@ -264,7 +264,11 @@ function stateAt(t) {
     for (const [c, x, y, z, reach, name, vol] of command.channels) {
       const s = chan[c];
       s.x = x; s.y = y;
-      if (command.kind === "pick_up_tip") { s.reach = reach; if (name in tip) tip[name] = false; }
+      if (command.kind === "pick_up_tip") {
+        // picking from a spot that is already empty means the racks were swapped for full ones in between
+        if (name in tip && !tip[name]) for (const other in tip) if (cav[other].parent === cav[name].parent) tip[other] = true;
+        s.reach = reach; if (name in tip) tip[name] = false;
+      }
       else if (command.kind === "drop_tip") { s.reach = 0; s.held = 0; if (name in tip) tip[name] = true; }
       else if (command.kind === "aspirate") { s.held += vol || 0; if (name in volume) volume[name] -= vol || 0; }
       else if (command.kind === "dispense") { s.held = Math.max(0, s.held - (vol || 0)); if (name in volume) volume[name] += vol || 0; }
