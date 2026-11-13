@@ -1,0 +1,739 @@
+"""Plan a checked protocol for an Opentrons Flex or OT-2 and write it as an Opentrons protocol.
+
+These robots are driven through Opentrons' own Python API, not through PyLabRobot. The plan is
+a flat list of actions for one or two single-channel pipettes, and it is used two ways:
+
+* `emit` writes it as a protocol file the Opentrons App or `opentrons_execute` runs;
+* `simulate` hands that file to Opentrons' own simulator and reports what it said.
+
+Choices this planner makes, all deterministic:
+
+* **Pipettes.** Up to two, one per mount: the pair that moves every volume in the fewest draws.
+  Each tip's work goes to the smallest pipette that does it without extra draws.
+* **Tips.** Filter tips. Each tip is the smallest that holds the most it will carry; a volume
+  above the largest tip is split into equal parts.
+* **Order.** One pipette holds one tip, so work that the protocol interleaves across tips is put
+  back together tip by tip where that cannot change any well. Where it could, the order is kept
+  and a tip that has to make way is replaced by a fresh one.
+* **Deck.** Plates go in the first free slots in file order, tip racks after them.
+* **Waste and tip reloads.** As on the Hamilton: reservoirs named `waste`, `waste_2`, ..., and
+  a pause for a person to swap in full racks when the deck cannot hold enough.
+
+What it does not use yet: 8-channel pipettes, modules, the gripper.
+"""
+
+from __future__ import annotations
+
+import io
+import json
+import math
+import os
+import re
+import subprocess
+import tempfile
+from dataclasses import dataclass, field
+from itertools import combinations
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Sequence, Tuple
+
+from .protocol import EPS, Check, Labware, Problem, Protocol
+
+# ---------------------------------------------------------------- the robots
+
+
+@dataclass(frozen=True)
+class Pipette:
+  name: str  # what Opentrons calls it
+  low: float  # the least it moves, uL
+  high: float  # the most it moves, uL
+  tips: Tuple[Tuple[float, str], ...]  # (uL a tip holds, tip rack), smallest first
+
+
+@dataclass(frozen=True)
+class Profile:
+  name: str
+  title: str
+  robot_type: str  # what the protocol's `requirements` say
+  api_level: str
+  slots: Tuple[str, ...]  # the deck slots labware may use, in the order they are filled
+  trash_slot: Optional[str]  # where a trash bin is loaded; None when the robot has one built in
+  pipettes: Tuple[Pipette, ...]
+
+
+WASTE_TYPE = "nest_1_reservoir_195ml"
+WASTE_CAPACITY = 195_000.0
+RACK = 96  # tips in a rack
+
+FLEX = Profile(
+  name="opentrons-flex",
+  title="Opentrons Flex",
+  robot_type="Flex",
+  api_level="2.19",
+  slots=("D1", "D2", "D3", "C1", "C2", "C3", "B1", "B2", "B3", "A1", "A2"),
+  trash_slot="A3",
+  pipettes=(
+    Pipette("flex_1channel_50", 1.0, 50.0, ((50.0, "opentrons_flex_96_filtertiprack_50ul"),)),
+    Pipette(
+      "flex_1channel_1000",
+      5.0,
+      1000.0,
+      ((200.0, "opentrons_flex_96_filtertiprack_200ul"), (1000.0, "opentrons_flex_96_filtertiprack_1000ul")),
+    ),
+  ),
+)
+
+OT2 = Profile(
+  name="opentrons-ot2",
+  title="Opentrons OT-2",
+  robot_type="OT-2",
+  api_level="2.19",
+  slots=tuple(str(n) for n in range(1, 12)),
+  trash_slot=None,  # slot 12 is the fixed trash
+  pipettes=(
+    Pipette("p20_single_gen2", 1.0, 20.0, ((20.0, "opentrons_96_filtertiprack_20ul"),)),
+    Pipette("p300_single_gen2", 20.0, 300.0, ((200.0, "opentrons_96_filtertiprack_200ul"),)),
+    Pipette("p1000_single_gen2", 100.0, 1000.0, ((1000.0, "opentrons_96_filtertiprack_1000ul"),)),
+  ),
+)
+
+PROFILES = {profile.name: profile for profile in (FLEX, OT2)}
+
+# ---------------------------------------------------------------- labware
+
+# PyLabRobot plate -> (the same product in Opentrons' library, uL a well holds there).
+# Only pairs whose wells sit in the same places are listed; tests/test_opentrons.py compares them.
+TWINS: Dict[str, Tuple[str, float]] = {
+  "nest_1_troughplate_195000uL_Vb": ("nest_1_reservoir_195ml", 195_000.0),
+  "nest_12_troughplate_15000uL_Vb": ("nest_12_reservoir_15ml", 15_000.0),
+  "Cor_96_wellplate_360ul_Fb": ("corning_96_wellplate_360ul_flat", 360.0),
+  "cor_96_wellplate_360uL_Fb": ("corning_96_wellplate_360ul_flat", 360.0),
+}
+
+_SHIPPED: Dict[str, Optional[Dict[str, Any]]] = {}
+
+
+def _definitions() -> Optional[Path]:
+  """The folder of labware definitions that comes with Opentrons' software, when it is installed."""
+  try:
+    import opentrons_shared_data
+  except ImportError:
+    return None
+  return Path(opentrons_shared_data.__file__).parent / "data" / "labware" / "definitions" / "2"
+
+
+def shipped_labware(load_name: str) -> Optional[Dict[str, Any]]:
+  """Rows, columns, well capacity and well order of a plate or reservoir Opentrons ships; None otherwise."""
+  if load_name not in _SHIPPED:
+    _SHIPPED[load_name] = None
+    root = _definitions()
+    if root is not None and re.fullmatch(r"[a-z0-9_.]+", load_name) and (root / load_name).is_dir():
+      versions = sorted((p for p in (root / load_name).glob("*.json") if p.stem.isdigit()), key=lambda p: int(p.stem))
+      body = json.loads(versions[-1].read_text()) if versions else {}
+      columns = body.get("ordering") or []
+      kind = body.get("parameters", {}).get("format")
+      sizes = {len(column) for column in columns}
+      holds = body.get("metadata", {}).get("displayCategory") in ("wellPlate", "reservoir")
+      if holds and kind != "irregular" and len(sizes) == 1:
+        order = [well for column in columns for well in column]
+        _SHIPPED[load_name] = {
+          "rows": sizes.pop(),
+          "columns": len(columns),
+          "capacity": float(min(body["wells"][well]["totalLiquidVolume"] for well in order)),
+          "order": order,
+        }
+  return _SHIPPED[load_name]
+
+
+def shipped_names() -> List[str]:
+  """Every plate and reservoir Opentrons ships that a protocol file may name."""
+  root = _definitions()
+  if root is None:
+    return []
+  return [p.name for p in sorted(root.iterdir()) if p.is_dir() and shipped_labware(p.name) is not None]
+
+
+def load_name(labware: Labware) -> Optional[Tuple[str, float]]:
+  """What to load on an Opentrons deck for this labware, and what a well holds there; None when unknown."""
+  if labware.library == "opentrons":
+    return labware.type, labware.capacity
+  if labware.type in TWINS:
+    return TWINS[labware.type]
+  found = shipped_labware(labware.type)  # the same name in both libraries
+  return (labware.type, found["capacity"]) if found else None
+
+
+# ---------------------------------------------------------------- the plan
+
+
+@dataclass(frozen=True)
+class Action:
+  kind: str  # "pick_up", "aspirate", "dispense", "drop", "wait" or "reload"
+  mount: str = ""  # "left" or "right"; empty for "wait" and "reload"
+  labware: str = ""
+  well: str = ""
+  amount: float = 0.0  # uL, or seconds for "wait"
+  racks: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps for full ones
+  step: int = -1
+
+
+@dataclass
+class OpentronsPlan:
+  profile: Profile
+  protocol: Protocol
+  labware: Dict[str, str]  # every plate and tip rack on the deck -> Opentrons load name
+  slots: Dict[str, str]  # labware name -> deck slot
+  pipettes: Dict[str, str]  # mount -> pipette
+  actions: List[Action]
+  tips: Dict[str, int]  # tip rack load name -> tips used
+  problems: List[Problem] = field(default_factory=list)
+  pipetting_height: float = 1.0  # mm above the well floor for every aspirate and dispense
+  notes: List[str] = field(default_factory=list)
+
+  @property
+  def ok(self) -> bool:
+    return not self.problems
+
+  def report(self) -> str:
+    lines = [f"drybench plan: {'OK' if self.ok else 'FAIL'}  {self.protocol.name}  ({self.profile.title})"]
+    for mount, pipette in self.pipettes.items():
+      lines.append(f"  {mount:<5} mount: {pipette}")
+    for name, slot in self.slots.items():
+      lines.append(f"  slot {slot:>2}  {name} ({self.labware[name]})")
+    for rack, count in self.tips.items():
+      lines.append(f"  tips: {count} x {rack}")
+    kinds = [a.kind for a in self.actions]
+    if "reload" in kinds:
+      lines.append(f"  tip reloads: {kinds.count('reload')} (the run pauses for a person to swap in full racks)")
+    if "wait" in kinds:
+      waited = sum(a.amount for a in self.actions if a.kind == "wait")
+      lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
+    lines.append(
+      f"  commands: {len(self.actions)} ({kinds.count('aspirate')} aspirates, "
+      f"{kinds.count('dispense')} dispenses), one channel at a time"
+    )
+    lines += [f"  note: {text}" for text in self.notes]
+    if self.problems:
+      lines.append(f"  problems: {len(self.problems)}")
+      lines += [f"    - {p}" for p in self.problems]
+    return "\n".join(lines)
+
+
+@dataclass
+class _Fit:
+  """How one pipette would do one tip's work."""
+
+  pipette: Pipette
+  capacity: float  # of the tip it would use
+  rack: str
+  draws: int
+
+
+def _fit(pipette: Pipette, volumes: Sequence[float], mixes: Sequence[float]) -> Optional[_Fit]:
+  carried = max(list(volumes) + list(mixes))
+  options = [(min(capacity, pipette.high), rack) for capacity, rack in pipette.tips]
+  holding = [option for option in options if option[0] + EPS >= carried]
+  capacity, rack = holding[0] if holding else options[-1]
+  if any(mix > capacity + EPS or mix < pipette.low - EPS for mix in mixes):
+    return None
+  draws = 0
+  for volume in volumes:
+    parts = max(1, math.ceil((volume - EPS) / capacity))
+    if volume / parts < pipette.low - EPS:
+      return None
+    draws += parts
+  return _Fit(pipette, capacity, rack, draws + len(mixes))
+
+
+def _tip_by_tip(units: list, waits: Dict[int, Tuple[float, int]], sinks: Sequence[str]) -> list:
+  """Put each tip's work together where no well can tell the difference; otherwise keep the order.
+
+  Work is only moved inside one step, and never across a wait. Two pieces of work may swap
+  places unless one of them adds to, or mixes in, a well the other one touches. The waste
+  reservoirs in `sinks` only ever take liquid, so the order they are filled in is free.
+  """
+  bounds = sorted(set(waits) | {0, len(units)} | {i for i in range(1, len(units)) if units[i].step != units[i - 1].step})
+  ordered: list = []
+  for start, end in zip(bounds, bounds[1:]):
+    part = units[start:end]
+    first: Dict[int, int] = {}
+    for index, unit in enumerate(part):
+      first.setdefault(unit.tip, index)
+    together = sorted(range(len(part)), key=lambda i: (first[part[i].tip], i))
+    place = {old: new for new, old in enumerate(together)}
+    latest_any: Dict[Any, int] = {}  # well -> the latest new place of anything that touched it
+    latest_added: Dict[Any, int] = {}  # well -> the latest new place of anything that added to it
+    safe = True
+    for old, unit in enumerate(part):
+      new = place[old]
+      adds = unit.destination  # a transfer adds to it; a mix on its own stirs it
+      draws = unit.source if unit.volume else None
+      if adds.labware in sinks:
+        adds = None
+      if (adds is not None and latest_any.get(adds, -1) > new) or (draws is not None and latest_added.get(draws, -1) > new):
+        safe = False
+        break
+      if adds is not None:
+        latest_any[adds] = max(latest_any.get(adds, -1), new)
+        latest_added[adds] = max(latest_added.get(adds, -1), new)
+      if draws is not None:
+        latest_any[draws] = max(latest_any.get(draws, -1), new)
+    ordered += [part[i] for i in together] if safe else part
+  return ordered
+
+
+def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> OpentronsPlan:
+  """Plan a protocol that has passed `check` for the robot `profile` describes."""
+  from .planner import _Unit, _units, send_waste
+
+  protocol = checked.protocol
+  problems: List[Problem] = []
+  notes: List[str] = []
+
+  def failed() -> OpentronsPlan:
+    return OpentronsPlan(profile, protocol, labware, {}, {}, [], {}, problems, pipetting_height, notes)
+
+  labware: Dict[str, str] = {}
+  for name, item in protocol.labware.items():
+    found = load_name(item)
+    if found is None:
+      twins = ", ".join(sorted(set(TWINS)))
+      problems.append(
+        Problem(
+          f"labware.{name}.type",
+          f"{item.type} is a PyLabRobot definition and drybench knows no Opentrons one for the same plate. "
+          f"Name an Opentrons load name here, or one of: {twins}",
+        )
+      )
+      continue
+    labware[name] = found[0]
+    # The check counted volumes against the other library's figure; hold the start to this one's.
+    for liquid, (wells, volume) in protocol.liquids.items():
+      if volume > found[1] + EPS and any(well.labware == name for well in wells):
+        problems.append(
+          Problem(f"liquids.{liquid}", f"{volume:g} uL is more than a well of {found[0]} holds ({found[1]:g} uL)")
+        )
+    for well, volume in checked.volumes.items():
+      if well.labware == name and volume > found[1] + EPS:
+        problems.append(
+          Problem(f"labware.{name}", f"{well} ends with {volume:g} uL; a well of {found[0]} holds {found[1]:g} uL")
+        )
+  if problems:
+    return failed()
+
+  units, waits = _units(checked.moves)
+  reservoirs, refused = send_waste(units, labware, WASTE_CAPACITY)
+  if refused is not None:
+    problems.append(refused)
+    return failed()
+  labware.update({name: WASTE_TYPE for name in reservoirs})
+
+  # What each tip carries, and which pipettes could do it.
+  def carried(by: list) -> Dict[int, Tuple[List[float], List[float], int]]:
+    work: Dict[int, Tuple[List[float], List[float], int]] = {}
+    for unit in by:
+      volumes, mixes, _ = work.setdefault(unit.tip, ([], [], unit.step))
+      if unit.volume:
+        volumes.append(unit.volume)
+      if unit.mix:
+        mixes.append(unit.mix[1])
+    return work
+
+  def fitting(work: Dict[int, Tuple[List[float], List[float], int]]) -> Dict[int, Dict[str, _Fit]]:
+    return {
+      tip: {p.name: fit for p in profile.pipettes if (fit := _fit(p, volumes, mixes)) is not None}
+      for tip, (volumes, mixes, _) in work.items()
+    }
+
+  work = carried(units)
+  fits = fitting(work)
+  stuck = {tip for tip in work if not fits[tip]}
+  if stuck:
+    # No one pipette does everything this tip was given. A fresh tip is always safe, so give each
+    # move and each mix its own, and let each go to the pipette that suits it.
+    fresh = max(work) + 1
+    apart: list = []
+    moved: Dict[int, int] = {}  # where each old unit starts in the new list
+    for index, unit in enumerate(units):
+      moved[index] = len(apart)
+      if unit.tip not in stuck:
+        apart.append(unit)
+        continue
+      if unit.volume:
+        apart.append(_Unit(unit.step, fresh, unit.source, unit.destination, unit.volume, None))
+        fresh += 1
+      if unit.mix:
+        apart.append(_Unit(unit.step, fresh, unit.destination, unit.destination, 0.0, unit.mix))
+        fresh += 1
+    moved[len(units)] = len(apart)
+    extra = len({unit.tip for unit in apart}) - len(work)
+    waits = {moved[index]: wait for index, wait in waits.items()}
+    units = apart
+    work = carried(units)
+    fits = fitting(work)
+    if extra:
+      notes.append(
+        f"{extra} more tips than the check counted: where no one pipette could do everything a tip was "
+        "given, each move and each mix gets a fresh tip"
+      )
+  lowest = min(p.low for p in profile.pipettes)
+  highest = max(min(capacity, p.high) for p in profile.pipettes for capacity, _ in p.tips)
+  for tip, (volumes, mixes, step) in work.items():
+    if not fits[tip]:
+      amounts = volumes + mixes
+      if min(amounts) < lowest - EPS:
+        reason = f"{min(amounts):g} uL is less than any pipette on the {profile.title} moves ({lowest:g} uL)"
+      elif mixes and max(mixes) > highest + EPS:
+        reason = f"mixing {max(mixes):g} uL is more than the largest tip on the {profile.title} holds ({highest:g} uL)"
+      else:
+        reason = f"no pipette on the {profile.title} moves {min(amounts):g} uL"
+      problems.append(Problem(f"steps[{step}]", reason))
+  if problems:
+    return failed()
+
+  def assign(pair: Tuple[Pipette, ...]) -> Optional[Dict[int, _Fit]]:
+    chosen: Dict[int, _Fit] = {}
+    for tip, by_pipette in fits.items():
+      able = [by_pipette[p.name] for p in pair if p.name in by_pipette]
+      if not able:
+        return None
+      chosen[tip] = min(able, key=lambda fit: (fit.draws, fit.pipette.high))
+    return chosen
+
+  best: Optional[Tuple[Tuple[int, int, float], Tuple[Pipette, ...], Dict[int, _Fit]]] = None
+  for size in (1, 2):
+    for pair in combinations(profile.pipettes, size):
+      chosen = assign(pair)
+      if chosen is not None:
+        used = tuple(p for p in pair if any(fit.pipette is p for fit in chosen.values()))
+        score = (sum(fit.draws for fit in chosen.values()), len(used), sum(p.high for p in used))
+        if best is None or score < best[0]:
+          best = (score, used, chosen)
+  if best is None and work:
+    wanted = sorted({min(by, key=lambda n: by[n].draws) for by in fits.values()})
+    problems.append(
+      Problem(
+        "steps",
+        f"the volumes here need {len(wanted)} pipettes ({', '.join(wanted)}) and the {profile.title} holds two",
+      )
+    )
+    return failed()
+  pair, chosen = (best[1], best[2]) if best else ((), {})
+  mounts = {p.name: mount for p, mount in zip(pair, ("left", "right"))}
+
+  # The order of work, then one pass to see when each pipette takes and drops a tip.
+  units = _tip_by_tip(units, waits, reservoirs)
+  last_use = {unit.tip: index for index, unit in enumerate(units)}
+  holding: Dict[str, int] = {}  # mount -> the tip number on it
+  pickups: List[Tuple[int, str]] = []  # (index of the unit it is picked up for, tip rack)
+  spent: Dict[int, int] = {}  # tip number -> times it was put down while still wanted
+  drafts: List[Tuple[str, Any]] = []  # ("pick_up", unit), ("drop", mount, step), ("work", unit), ("wait", ...)
+  for index, unit in enumerate(units):
+    if index in waits:
+      drafts.append(("wait", waits[index]))
+    fit = chosen[unit.tip]
+    mount = mounts[fit.pipette.name]
+    if holding.get(mount) != unit.tip:
+      if mount in holding:
+        spent[holding[mount]] = spent.get(holding[mount], 0) + 1
+        drafts.append(("drop", (mount, unit.step)))
+      drafts.append(("pick_up", unit))
+      pickups.append((index, fit.rack))
+      holding[mount] = unit.tip
+    drafts.append(("work", unit))
+    if last_use[unit.tip] == index:
+      drafts.append(("drop", (mount, unit.step)))
+      del holding[mount]
+  if len(units) in waits:
+    drafts.append(("wait", waits[len(units)]))
+  if spent:
+    notes.append(
+      f"{sum(spent.values())} tips are replaced by fresh ones: one pipette holds one tip, and the order "
+      "of this work could not be changed without changing a well"
+    )
+
+  # Tip racks: as many as it takes, or what fits beside the plates with pauses to reload.
+  used: Dict[str, int] = {}
+  for _, rack in pickups:
+    used[rack] = used.get(rack, 0) + 1
+  order = [rack for p in profile.pipettes for _, rack in p.tips if rack in used]
+  racks = {rack: math.ceil(used[rack] / RACK) for rack in order}
+  free = len(profile.slots) - len(labware)
+  limit = dict(racks)
+  if free < len(racks):
+    problems.append(
+      Problem(
+        "labware",
+        f"{len(labware)} plates and reservoirs and {len(racks)} kinds of tip need {len(labware) + len(racks)} slots; "
+        f"the {profile.title} has {len(profile.slots)} for labware",
+      )
+    )
+    return failed()
+  if sum(racks.values()) > free:
+    limit = {rack: 1 for rack in racks}
+    spare = free - len(racks)
+    total = sum(racks.values())
+    for rack in sorted(racks, key=lambda r: -racks[r]):  # share the rest by need, biggest first
+      extra = min(spare, max(0, round(free * racks[rack] / total) - 1), racks[rack] - 1)
+      limit[rack] += extra
+      spare -= extra
+    for rack in sorted(racks, key=lambda r: -racks[r]):  # hand out what rounding left over
+      extra = min(spare, racks[rack] - limit[rack])
+      limit[rack] += extra
+      spare -= extra
+
+  def rack_name(rack: str, number: int) -> str:
+    capacity = next(c for p in profile.pipettes for c, r in p.tips if r == rack)
+    return f"tips_{capacity:g}_{number}"
+
+  for rack in order:
+    for number in range(1, limit[rack] + 1):
+      labware[rack_name(rack, number)] = rack
+  slots = dict(zip(labware, profile.slots))
+
+  actions: List[Action] = []
+  taken: Dict[str, int] = {}
+  for kind, body in drafts:
+    if kind == "wait":
+      actions.append(Action("wait", amount=body[0], step=body[1]))
+    elif kind == "drop":
+      actions.append(Action("drop", body[0], step=body[1]))
+    elif kind == "pick_up":
+      fit = chosen[body.tip]
+      count = taken.get(fit.rack, 0)
+      on_deck = limit[fit.rack] * RACK
+      if count and count % on_deck == 0:  # every rack of this kind on the deck is used up
+        names = tuple(rack_name(fit.rack, n) for n in range(1, limit[fit.rack] + 1))
+        actions.append(Action("reload", racks=names, step=body.step))
+      spot = count % on_deck
+      column, row = (spot % RACK) // 8, (spot % RACK) % 8
+      actions.append(
+        Action(
+          "pick_up",
+          mounts[fit.pipette.name],
+          rack_name(fit.rack, spot // RACK + 1),
+          f"{'ABCDEFGH'[row]}{column + 1}",
+          step=body.step,
+        )
+      )
+      taken[fit.rack] = count + 1
+    else:
+      fit = chosen[body.tip]
+      mount = mounts[fit.pipette.name]
+      if body.volume:
+        parts = max(1, math.ceil((body.volume - EPS) / fit.capacity))
+        for _ in range(parts):
+          amount = round(body.volume / parts, 4)
+          actions.append(Action("aspirate", mount, body.source.labware, body.source.well, amount, step=body.step))
+          actions.append(
+            Action("dispense", mount, body.destination.labware, body.destination.well, amount, step=body.step)
+          )
+      if body.mix:
+        times, volume = body.mix
+        for _ in range(times):
+          for action in ("aspirate", "dispense"):
+            actions.append(
+              Action(action, mount, body.destination.labware, body.destination.well, volume, step=body.step)
+            )
+
+  return OpentronsPlan(
+    profile=profile,
+    protocol=protocol,
+    labware=labware,
+    slots=slots,
+    pipettes={mount: name for name, mount in mounts.items()},
+    actions=actions,
+    tips={rack: used[rack] for rack in order},
+    problems=problems,
+    pipetting_height=pipetting_height,
+    notes=notes,
+  )
+
+
+# ---------------------------------------------------------------- writing a protocol
+
+_COLOURS = ("#4477aa", "#ee6677", "#228833", "#ccbb44", "#66ccee", "#aa3377", "#bbbbbb")
+
+
+def emit(planned: OpentronsPlan, *, source: str = "") -> str:
+  """The plan as an Opentrons protocol file."""
+  from . import __version__
+
+  profile, protocol = planned.profile, planned.protocol
+  lines = [
+    f'"""{protocol.name}',
+    "",
+    f"Written by drybench {__version__}" + (f" from {source}" if source else "") + f" for an {profile.title}.",
+    "Change the protocol file and write this again; edits made here are lost.",
+    '"""',
+    "",
+    "from opentrons import protocol_api",
+    "",
+    f'metadata = {{"protocolName": {json.dumps(protocol.name)}, "author": "drybench {__version__}"}}',
+    f'requirements = {{"robotType": "{profile.robot_type}", "apiLevel": "{profile.api_level}"}}',
+    "",
+    f"HEIGHT = {planned.pipetting_height!r}  # mm above the well floor for every aspirate and dispense",
+    "",
+    "",
+    "def run(protocol: protocol_api.ProtocolContext):",
+  ]
+  if profile.trash_slot:
+    lines.append(f'  protocol.load_trash_bin("{profile.trash_slot}")')
+  lines.append("  deck = {}")
+  for name, slot in planned.slots.items():
+    lines.append(
+      f'  deck[{json.dumps(name)}] = protocol.load_labware("{planned.labware[name]}", "{slot}", label={json.dumps(name)})'
+    )
+  for mount, pipette in planned.pipettes.items():
+    lines.append(f'  {mount} = protocol.load_instrument("{pipette}", "{mount}")')
+  if protocol.liquids:
+    lines += ["", "  # What a person puts on the deck before the run."]
+  for number, (liquid, (wells, volume)) in enumerate(protocol.liquids.items()):
+    colour = _COLOURS[number % len(_COLOURS)]
+    lines.append(
+      f"  liquid = protocol.define_liquid({json.dumps(liquid)}, description={json.dumps(liquid)}, "
+      f'display_color="{colour}")'
+    )
+    by_labware: Dict[str, List[str]] = {}
+    for well in wells:
+      by_labware.setdefault(well.labware, []).append(well.well)
+    for name, names in by_labware.items():
+      lines.append(f'  for well in "{" ".join(names)}".split():')
+      lines.append(f"    deck[{json.dumps(name)}][well].load_liquid(liquid, {round(volume, 4)!r})")
+  lines.append("")
+  step = None
+  for action in planned.actions:
+    if action.step != step:
+      step = action.step
+      lines.append(f"  # step {step}")
+    if action.kind == "wait":
+      lines.append(f"  protocol.delay(seconds={action.amount:g})  # {action.amount / 60:g} min")
+    elif action.kind == "reload":
+      where = ", ".join(f"{name} in slot {planned.slots[name]}" for name in action.racks)
+      lines.append(f"  protocol.pause({json.dumps('Swap in full tip racks: ' + where)})")
+      lines += [f"  deck[{json.dumps(name)}].reset()" for name in action.racks]
+    elif action.kind == "drop":
+      lines.append(f"  {action.mount}.drop_tip()")
+    elif action.kind == "pick_up":
+      lines.append(f'  {action.mount}.pick_up_tip(deck[{json.dumps(action.labware)}]["{action.well}"])')
+    else:
+      lines.append(
+        f"  {action.mount}.{action.kind}({action.amount!r}, "
+        f'deck[{json.dumps(action.labware)}]["{action.well}"].bottom(HEIGHT))'
+      )
+  return "\n".join(lines) + "\n"
+
+
+# ---------------------------------------------------------------- Opentrons' own simulator
+
+OT2_SIMULATOR = "DRYBENCH_OT2_SIMULATE"  # environment variable: an opentrons_simulate that still takes OT-2 files
+
+
+@dataclass
+class Simulation:
+  """What Opentrons' simulator made of an emitted protocol."""
+
+  title: str  # the robot
+  ran: bool  # False when no simulator here could take the file
+  log: List[str] = field(default_factory=list)  # one line for everything the robot would do
+  error: str = ""  # why the simulator stopped
+  why_not: str = ""  # why it could not be run
+  by: str = ""  # which simulator ran it
+
+  @property
+  def ok(self) -> bool:
+    return self.ran and not self.error
+
+  def report(self) -> str:
+    if not self.ran:
+      return "\n".join([f"drybench rehearsal: NOT RUN  ({self.title})", f"  {self.why_not}"])
+    lines = [f"drybench rehearsal: {'PASS' if self.ok else 'FAIL'}  ({self.title}, simulated by {self.by})"]
+    if self.error:
+      lines.append(f"  stopped: {self.error}")
+    else:
+      lines.append(f"  robot actions simulated: {len(self.log)}")
+    lines.append(
+      "  not checked on this robot: collisions, tip depth against the liquid. "
+      "The physics replay only knows the Hamilton deck so far."
+    )
+    return "\n".join(lines)
+
+  def to_dict(self) -> Dict[str, Any]:
+    return {
+      "robot": self.title,
+      "ran": self.ran,
+      "pass": self.ok,
+      "simulated_by": self.by,
+      "actions": len(self.log),
+      "error": self.error,
+      "why_not": self.why_not,
+    }
+
+
+_AT_LINE = re.compile(r"\[line (\d+)\]: (.*?)(?:['\"], errorInfo|$)", re.S)
+
+
+def _reason(text: str, script: str) -> str:
+  """The simulator's own sentence, and the line of the protocol it was on."""
+  found = _AT_LINE.search(text)
+  if not found:
+    return " ".join(text.split())[:400]
+  number, said = int(found.group(1)), found.group(2)
+  said = re.sub(r"^Error \d+ \w+ \(\w+\): ", "", " ".join(said.split()))
+  lines = script.splitlines()
+  at = lines[number - 1].strip() if 0 < number <= len(lines) else ""
+  return f"{said} (line {number}: {at})" if at else said
+
+
+def simulate(script: str, profile: Profile) -> Simulation:
+  """Run an emitted protocol through Opentrons' simulator, here or in the one the environment names."""
+  import contextlib
+
+  result = Simulation(title=profile.title, ran=False)
+  try:
+    import opentrons
+    from opentrons import simulate as simulator
+  except ImportError:
+    simulator = None
+  if simulator is not None:
+    result.by = f"opentrons {opentrons.__version__}"
+    try:
+      with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+        log, _ = simulator.simulate(io.StringIO(script), "protocol.py")
+      result.ran = True
+      result.log = [line for line in simulator.format_runlog(log).splitlines() if line.strip()]
+      return result
+    except RuntimeError as error:
+      if "designed for an OT-2" not in str(error):  # anything else is the protocol's fault
+        result.ran, result.error = True, _reason(str(error), script)
+        return result
+    except Exception as error:
+      result.ran, result.error = True, _reason(str(error), script)
+      return result
+
+  command = os.environ.get(OT2_SIMULATOR if profile is OT2 else "", "")
+  if command:
+    with tempfile.TemporaryDirectory() as folder:
+      path = Path(folder) / "protocol.py"
+      path.write_text(script)
+      try:
+        done = subprocess.run([command, str(path)], capture_output=True, text=True, timeout=1800)
+      except (OSError, subprocess.TimeoutExpired) as error:
+        result.why_not = f"could not run {command}: {error}"
+        return result
+    result.ran, result.by = True, command
+    result.log = [line for line in done.stdout.splitlines() if line.strip()]
+    if done.returncode != 0:
+      result.error = _reason(done.stderr.strip().splitlines()[-1] if done.stderr.strip() else "it stopped", script)
+    return result
+
+  if simulator is None:
+    result.why_not = (
+      "Opentrons' software is not installed here, so nothing simulated the protocol. "
+      "Install it with: pip install 'drybench[opentrons]'"
+    )
+  else:
+    result.why_not = (
+      f"{result.by} no longer simulates OT-2 protocols; Opentrons moved the OT-2 to its own software. "
+      f"Install opentrons==9.0.0 in a separate environment and set {OT2_SIMULATOR} to its opentrons_simulate."
+    )
+  return result

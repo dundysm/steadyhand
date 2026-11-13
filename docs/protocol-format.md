@@ -26,7 +26,8 @@ This is a draft. Nothing here is frozen.
 | `name` | yes | A title |
 | `description` | no | Free text |
 | `notes` | no | A list of sentences recording choices that the source text did not settle |
-| `labware` | yes | A name for each plate and its PyLabRobot definition, e.g. `plate: {type: Cor_96_wellplate_360ul_Fb}` |
+| `robot` | no | The robot to plan for: `hamilton-starlet`, `opentrons-flex` or `opentrons-ot2`. Left out, the command line decides |
+| `labware` | yes | A name for each plate and its definition: a PyLabRobot name, e.g. `plate: {type: Cor_96_wellplate_360ul_Fb}`, or an Opentrons load name, e.g. `corning_96_wellplate_360ul_flat` |
 | `liquids` | no | Where each liquid starts and how much is in each well, e.g. `buffer: {in: reservoir/A1, volume: 20 mL}` |
 | `samples` | no | A CSV of per-sample values: `file`, `labware`, the `well` column, the `concentration` column and its `unit` |
 | `limits` | no | `min_volume`, the smallest volume a move may have. Default `1 uL` |

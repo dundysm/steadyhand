@@ -3,6 +3,18 @@
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## The same drafts on the Opentrons robots (0.12.0)
+
+No model was asked again. The 28 drafts below that rehearse on the Hamilton were planned as written
+for an Opentrons Flex and an OT-2, and each plan that came out was run through Opentrons' simulator
+(opentrons 10.1.0 for the Flex, 9.0.0 for the OT-2).
+
+- **4 of 28 plan for both robots, and all 4 pass the simulator on both**: `mtt_assay`, `reagent_add`,
+  `serial_dilution`, `vague`.
+- **24 are refused at the plan, all for the same reason**: they name PyLabRobot plates with no known
+  Opentrons twin. The drafting guide only offers PyLabRobot labware, so this measures the labware gap,
+  not the planner. Drafting for an Opentrons robot is not built yet.
+
 ## Full run (31 notes), on the code released as 0.10.0
 
 Two Claude Opus 5.5 agents played the model through `evals/step_intake.py`: the 20 kit-protocol notes in

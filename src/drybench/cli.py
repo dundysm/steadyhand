@@ -113,10 +113,15 @@ def _check(args: argparse.Namespace) -> int:
   return 0 if result.ok else 1
 
 
-def _planned(path: str, choices_path: Optional[str] = None):
-  """Check and plan a protocol file. Prints both reports; returns the plan, or None when either fails."""
-  from .planner import load_choices, plan
+def _planned(path: str, choices_path: Optional[str] = None, robot_name: Optional[str] = None):
+  """Check and plan a protocol file for a robot. Prints both reports.
+
+  Returns the robot and its plan, or None when the check or the plan fails. The robot is the one
+  asked for, else the one the file names, else the Hamilton STARlet.
+  """
+  from .planner import load_choices
   from .protocol import ProtocolError
+  from .robots import choose
 
   checked = _load_checked(path)
   if checked is None:
@@ -124,7 +129,11 @@ def _planned(path: str, choices_path: Optional[str] = None):
   print(checked.report())
   if not checked.ok:
     return None
+  robot = choose(robot_name, checked.protocol.robot)
   choices = None
+  if choices_path and not robot.takes_plan_file:
+    print(f"drybench plan: a plan file cannot replace the planner's choices for the {robot.title} yet; leave --plan out")
+    return None
   if choices_path:
     try:
       choices = load_choices(choices_path)
@@ -137,18 +146,22 @@ def _planned(path: str, choices_path: Optional[str] = None):
       for problem in error.problems:
         print(f"    - {problem}")
       return None
-  planned = plan(checked, choices)
+  planned = robot.plan(checked, choices)
   print(planned.report())
   if choices_path:
     print(f"  using choices from {choices_path}")
-  return planned if planned.ok else None
+  return (robot, planned) if planned.ok else None
 
 
 def _plan(args: argparse.Namespace) -> int:
   from .planner import dump_choices
 
-  planned = _planned(args.file, args.plan)
-  if planned is None:
+  found = _planned(args.file, args.plan, args.robot)
+  if found is None:
+    return 1
+  robot, planned = found
+  if args.output and not robot.takes_plan_file:
+    print(f"drybench plan: no plan file was written; the choices for the {robot.title} cannot be edited yet")
     return 1
   if args.output:
     Path(args.output).write_text(dump_choices(planned, source=args.file), encoding="utf-8")
@@ -156,12 +169,37 @@ def _plan(args: argparse.Namespace) -> int:
   return 0
 
 
+def _rehearse_opentrons(planned, source: str, out: Path) -> int:
+  """Write the Opentrons protocol and run it through Opentrons' own simulator."""
+  from .opentrons_robots import emit, simulate
+
+  script = emit(planned, source=source)
+  result = simulate(script, planned.profile)
+  print(result.report())
+  out.mkdir(parents=True, exist_ok=True)
+  (out / "protocol.py").write_text(script)
+  (out / "report.txt").write_text(result.report() + "\n")
+  (out / "report.json").write_text(json.dumps(result.to_dict(), indent=2) + "\n")
+  (out / "run_log.txt").write_text("\n".join(result.log) + "\n")
+  print(f"wrote {out / 'report.txt'}, {out / 'report.json'}, {out / 'run_log.txt'}")
+  if result.ok:
+    print(f"wrote {out / 'protocol.py'}")
+  elif not result.ran:
+    print(f"wrote {out / 'protocol.py'}; nothing has simulated it yet")
+  else:
+    print(f"wrote {out / 'protocol.py'} so you can see the line it stopped at; do not run it")
+  return 0 if result.ok else 1
+
+
 def _rehearse(args: argparse.Namespace) -> int:
   from .planner import RunRefused, emit, rehearse_plan
 
-  planned = _planned(args.file, args.plan)
-  if planned is None:
+  found = _planned(args.file, args.plan, args.robot)
+  if found is None:
     return 1
+  robot, planned = found
+  if not robot.takes_plan_file:  # an Opentrons robot: no physics scene for its deck yet
+    return _rehearse_opentrons(planned, args.file, Path(args.out))
   kept, keep = _keeper()
   try:
     result = asyncio.run(rehearse_plan(planned, on_sample=None if args.no_render else keep))
@@ -179,13 +217,24 @@ def _rehearse(args: argparse.Namespace) -> int:
   return 0 if result.ok else 1
 
 
-def _emit(args: argparse.Namespace) -> int:
-  from .planner import emit
+def _robots(args: argparse.Namespace) -> int:
+  from .robots import DEFAULT, ROBOTS
 
-  planned = _planned(args.file, args.plan)
-  if planned is None:
+  for robot in ROBOTS.values():
+    print(f"{robot.name}{'  (used when none is named)' if robot.name == DEFAULT else ''}")
+    print(f"  {robot.title}, driven through {robot.through}; emit writes {robot.program}")
+    print("  rehearse checks:")
+    for line in robot.rehearsal:
+      print(f"    - {line}")
+  return 0
+
+
+def _emit(args: argparse.Namespace) -> int:
+  found = _planned(args.file, args.plan, args.robot)
+  if found is None:
     return 1
-  script = emit(planned, source=args.file)
+  robot, planned = found
+  script = robot.emit(planned, source=args.file)
   if args.output:
     Path(args.output).write_text(script)
     print(f"wrote {args.output}")
@@ -249,8 +298,10 @@ def _draft(args: argparse.Namespace) -> int:
 
 
 def main(argv: Optional[List[str]] = None) -> int:
+  from .robots import ROBOTS
+
   parser = argparse.ArgumentParser(
-    prog="drybench", description="Rehearse a lab-robot protocol in a physics scene."
+    prog="drybench", description="Turn a written lab protocol into a robot program and rehearse it without the robot."
   )
   parser.add_argument("--version", action="version", version=f"drybench {__version__}")
   commands = parser.add_subparsers(dest="command", required=True)
@@ -277,14 +328,19 @@ def main(argv: Optional[List[str]] = None) -> int:
   plan.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   plan.set_defaults(run=_plan)
 
-  rehearse_ = commands.add_parser("rehearse", help="check and plan a protocol, then replay it in the physics scene")
+  robots = commands.add_parser("robots", help="list the robots a protocol can be planned for")
+  robots.set_defaults(run=_robots)
+
+  rehearse_ = commands.add_parser(
+    "rehearse", help="check and plan a protocol, then run the plan through everything that can check it off the robot"
+  )
   rehearse_.add_argument("file", help="a drybench protocol file (YAML)")
   rehearse_.add_argument("--out", default="drybench-out", help="folder for the scene, the report and the script")
   rehearse_.add_argument("--no-render", action="store_true", help="skip the PNG pictures")
   rehearse_.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   rehearse_.set_defaults(run=_rehearse)
 
-  emit = commands.add_parser("emit", help="check and plan a protocol, then write it as a PyLabRobot script")
+  emit = commands.add_parser("emit", help="check and plan a protocol, then write the program for the robot")
   emit.add_argument("file", help="a drybench protocol file (YAML)")
   emit.add_argument("-o", "--output", help="where to write the script; printed when left out")
   emit.add_argument("--plan", help="a plan file whose choices replace the planner's own")
@@ -299,6 +355,11 @@ def main(argv: Optional[List[str]] = None) -> int:
   faults = commands.add_parser("faults", help="plant known mistakes in a working protocol and list which are stopped")
   faults.add_argument("-o", "--output", help="also write the table as Markdown")
   faults.set_defaults(run=_faults)
+
+  for command in (plan, rehearse_, emit):
+    command.add_argument(
+      "--robot", choices=sorted(ROBOTS), help="the robot to plan for; default: what the file says, else hamilton-starlet"
+    )
 
   args = parser.parse_args(argv)
   return args.run(args)

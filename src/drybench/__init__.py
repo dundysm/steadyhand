@@ -1,6 +1,6 @@
-"""drybench: rehearse a lab-robot protocol in a physics scene before it touches a real bench."""
+"""drybench: turn a written lab protocol into a robot program and rehearse it before it touches a real bench."""
 
-__version__ = "0.11.0"
+__version__ = "0.12.0"
 
 from . import _gl  # noqa: F401  (must come before anything imports mujoco)
 from .record import RecordingBackend, Step

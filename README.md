@@ -1,16 +1,19 @@
 # drybench
 
-Rehearse a lab-robot protocol in a physics scene before it touches a real bench.
+Turn a written lab protocol into a robot program, and rehearse it before it touches a real bench.
 
-Write what you want done in a short protocol file. drybench checks that the liquid adds up,
-chooses tips, channels and a deck layout, replays every move in a [MuJoCo](https://mujoco.org)
-scene built from the same deck, and writes a [PyLabRobot](https://github.com/PyLabRobot/pylabrobot)
-script that does exactly what was rehearsed.
+Write what you want done in a short protocol file that names no robot. drybench checks that the
+liquid adds up, then plans it for the robot you pick: tips, pipettes or channels, and a deck
+layout. On a Hamilton STARlet it replays every move in a [MuJoCo](https://mujoco.org) scene built
+from the same deck and writes a [PyLabRobot](https://github.com/PyLabRobot/pylabrobot) script
+that does exactly what was rehearsed. On an Opentrons Flex or OT-2 it writes a protocol for
+Opentrons' own Python API and runs it through Opentrons' own simulator. See [Robots](#robots).
 
 ![Eight channels drawing buffer from a reservoir on a Hamilton STARlet deck, next to a 96-well plate](docs/reservoir.png)
 
-**Status: pre-alpha.** The whole path runs for pipetting protocols on a Hamilton STARlet deck.
-Nothing has been compared with a real robot yet, so it is not a tool to trust with a real run.
+**Status: pre-alpha.** The whole path runs for pipetting protocols on a Hamilton STARlet deck,
+and a shorter one for the two Opentrons robots. Nothing has been compared with a real robot yet,
+so it is not a tool to trust with a real run.
 See [What it does not do yet](#what-it-does-not-do-yet).
 
 ## Try it
@@ -79,8 +82,12 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 | `drybench check FILE` | Reads the file and follows the liquid through every move. Add `--moves` to list them. |
 | `drybench plan FILE` | Also chooses tips, groups moves into 8-channel commands and lays out the deck. |
 | `drybench rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
-| `drybench emit FILE -o script.py` | Writes the PyLabRobot script without rehearsing. |
+| `drybench emit FILE -o script.py` | Writes the robot's program without rehearsing. |
+| `drybench robots` | Lists the robots, and what `rehearse` checks on each. |
 | `drybench faults` | Plants 24 known mistakes in a working protocol and lists which are stopped. |
+
+`plan`, `rehearse` and `emit` take `--robot`. The rows above describe the Hamilton STARlet, which
+is used when no robot is named; the others are under [Robots](#robots).
 
 ### What `check` catches
 
@@ -101,6 +108,8 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 - **Tip reloads.** If the run needs more tip racks than fit beside the plates, the plan keeps
   what fits and stops for a person to swap in full racks whenever a tip type runs out. The
   emitted script waits for Enter at each stop.
+- **Waits.** A `wait` step is a command in the plan, between the moves it separates. The script
+  sleeps for it on a robot and skips it when it only prints what it would do.
 
 ### Change what `plan` decided
 
@@ -162,6 +171,49 @@ volume, and every command takes the same time on screen. It is 2D; for 3D open `
 
 A test also confirms that PyLabRobot's own volume trackers end the run with the same volume in
 every well that `check` predicted.
+
+## Robots
+
+```
+drybench rehearse examples/serial_dilution.yaml --robot opentrons-flex
+```
+
+| `--robot` | Driven through | `emit` writes | `rehearse` checks |
+| --- | --- | --- | --- |
+| `hamilton-starlet` (when none is named) | PyLabRobot | A PyLabRobot script | Everything under [What `rehearse` checks](#what-rehearse-checks) |
+| `opentrons-flex` | Opentrons' Python API | An Opentrons protocol | Opentrons' own simulator runs the protocol |
+| `opentrons-ot2` | Opentrons' Python API | An Opentrons protocol | The same, where a simulator still takes OT-2 files |
+
+A file can also say `robot: opentrons-flex` at the top; `--robot` wins over it. `check` is the
+same for every robot.
+
+**What the Opentrons plan decides.** Up to two single-channel pipettes, one per mount: the pair
+that moves every volume in the fewest draws, with filter tips. One pipette holds one tip, so work
+that a protocol interleaves across tips (a dilution down eight rows) is put back together tip by
+tip where no well can tell the difference; where one could, the order is kept and a fresh tip is
+used. Volumes below what any pipette moves are refused, which Opentrons' simulator does not do.
+Plates go in the first free slots, tip racks after them; waste reservoirs, tip reloads and waits
+work as on the Hamilton.
+
+**Labware.** A protocol file may name a plate or reservoir by its Opentrons load name
+(`corning_96_wellplate_360ul_flat`) when Opentrons' software is installed. Three plates are known
+to be the same product in both libraries, and a file that uses only those plans for all three
+robots: the Corning 96-well 360 uL flat plate and the NEST 1-well 195 mL and 12-well 15 mL
+reservoirs. A test compares every well position of each pair. Any other PyLabRobot plate is
+refused for an Opentrons robot, by name.
+
+**Simulating.** `pip install 'drybench[opentrons]'` brings Opentrons' software. Its current
+releases simulate Flex protocols only: Opentrons moved the OT-2 to its own software line. To
+simulate an OT-2 protocol, install `opentrons==9.0.0` in a separate environment and set
+`DRYBENCH_OT2_SIMULATE` to its `opentrons_simulate`; without that, `rehearse` writes the protocol,
+says nothing simulated it, and exits with status 1.
+
+**What is missing on the Opentrons robots.** No physics replay: nothing checks collisions or
+whether the tip reaches the liquid, and there is no `replay.html`. No 8-channel pipettes, so a
+full plate is 96 moves. No modules or gripper. No plan file to edit. `draft` does not know
+Opentrons labware yet: of the 28 drafts in the intake run that rehearse on the Hamilton, 4 plan
+for the Opentrons robots as written (and pass the simulator on both); the other 24 name plates
+with no known Opentrons twin.
 
 ## What it stops, measured
 
@@ -289,7 +341,8 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   following or level detection) and knows the liquid height only in flat-bottom wells. Nothing
   models dead volume, viscosity, droplets or carry-over. The planner pipettes 1 mm above the
   floor everywhere, which is too high for a few microlitres in a flat-bottom well.
-- **Other robots.** The planner targets a Hamilton STARlet. The rehearsal alone works on any
+- **Other robots.** Three are planned for: a Hamilton STARlet, fully, and an Opentrons Flex and
+  OT-2 with the gaps listed under [Robots](#robots). The physics rehearsal alone works on any
   PyLabRobot deck.
 - **PyLabRobot 1.0.** drybench targets the 0.2 line, the current stable release.
 - **Exact shapes.** Round wells are treated as square, tip-rack holes are not modelled, and a

@@ -61,11 +61,12 @@ WASTE = Well("waste", "-")
 @dataclass
 class Labware:
   name: str
-  type: str  # a PyLabRobot definition name
+  type: str  # a definition name in `library`
   rows: int
   columns: int
   capacity: float  # uL per well
-  order: List[str]  # every well name, in PyLabRobot's order
+  order: List[str]  # every well name, down each column in turn
+  library: str = "pylabrobot"  # whose definition `type` names: "pylabrobot" or "opentrons"
 
   def at(self, column: int, row: int) -> Optional[str]:
     if 0 <= column < self.columns and 0 <= row < self.rows:
@@ -135,6 +136,7 @@ class Protocol:
   steps: List[Step]
   path: Optional[Path] = None
   notes: List[str] = field(default_factory=list)
+  robot: str = ""  # the robot the file asks for; empty leaves it to whoever plans it
 
 
 # ---------------------------------------------------------------- moves
@@ -300,8 +302,16 @@ class _Reader:
         except Exception:
           plate = None
       if not isinstance(plate, Plate):
-        if "type" in body:
-          self.fail(f"{where}.type", f"{body.get('type')!r} is not a plate definition in PyLabRobot")
+        from .opentrons_robots import shipped_labware
+
+        found = shipped_labware(str(body.get("type")))
+        if found is not None:
+          self.labware[str(name)] = Labware(name=str(name), type=str(body["type"]), library="opentrons", **found)
+        elif "type" in body:
+          self.fail(
+            f"{where}.type",
+            f"{body.get('type')!r} is not a plate definition in PyLabRobot, nor a plate or reservoir Opentrons ships",
+          )
         continue
       wells = plate.get_all_items()
       self.labware[str(name)] = Labware(
@@ -460,8 +470,14 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     raise ProtocolError([Problem("file", f"not valid YAML: {error}")]) from error
 
   top = reader.keys(
-    raw, "file", ("drybench", "name", "labware", "steps"), ("description", "notes", "liquids", "samples", "limits")
+    raw, "file", ("drybench", "name", "labware", "steps"), ("description", "notes", "robot", "liquids", "samples", "limits")
   )
+  robot = str(top.get("robot", ""))
+  if robot:
+    from .robots import ROBOTS
+
+    if robot not in ROBOTS:
+      reader.fail("robot", f"no robot called {robot!r}; known: {', '.join(ROBOTS)}")
   notes = top.get("notes", [])
   if not isinstance(notes, list) or not all(isinstance(note, str) for note in notes):
     reader.fail("notes", "expected a list of sentences")
@@ -502,6 +518,7 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     steps=steps,
     path=path,
     notes=list(notes),
+    robot=robot,
   )
 
 

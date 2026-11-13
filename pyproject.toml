@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "drybench"
-version = "0.11.0"
-description = "Rehearse a lab-robot protocol in a physics scene before it touches a real bench."
+version = "0.12.0"
+description = "Turn a written lab protocol into a robot program and rehearse it before it touches a real bench."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 authors = [{ name = "Dundy Pasupuleti" }]
-keywords = ["lab automation", "liquid handling", "simulation", "mujoco", "pylabrobot"]
+keywords = ["lab automation", "liquid handling", "simulation", "mujoco", "pylabrobot", "opentrons"]
 classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Science/Research",
@@ -28,8 +28,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pypdf>=4"]
+dev = ["pytest>=8", "pypdf>=4", "opentrons>=9.1"]
 pdf = ["pypdf>=4"]
+# Opentrons' own software: its labware definitions and its simulator, for the Flex and OT-2.
+opentrons = ["opentrons>=9.1"]
 
 [project.scripts]
 drybench = "drybench.cli:main"

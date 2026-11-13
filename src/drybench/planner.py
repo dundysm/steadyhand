@@ -1,8 +1,8 @@
 """Turn a checked protocol into commands a Hamilton STARlet can run.
 
 The protocol says what to do. The plan adds how: which tips, which channels move together,
-where every plate and tip rack sits on the deck. A plan is a flat list of four commands
-(pick up tips, aspirate, dispense, discard tips), and the same list is used three ways:
+where every plate and tip rack sits on the deck. A plan is a flat list of commands (pick up
+tips, aspirate, dispense, discard tips, wait, reload tips), and the same list is used three ways:
 
 * `run` executes it on any PyLabRobot `LiquidHandler`;
 * `rehearse_plan` executes it on a recording backend and replays it in the physics scene;
@@ -60,11 +60,11 @@ TIP_TYPES: List[Tuple[float, str]] = [
 
 @dataclass(frozen=True)
 class Command:
-  kind: str  # "pick_up", "aspirate", "dispense", "discard" or "reload"
+  kind: str  # "pick_up", "aspirate", "dispense", "discard", "wait" or "reload"
   channels: Tuple[int, ...]
-  resource: str = ""  # the plate or tip rack; empty for "discard" and "reload"
+  resource: str = ""  # the plate or tip rack; empty for "discard", "wait" and "reload"
   wells: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps for full ones
-  volumes: Tuple[float, ...] = ()
+  volumes: Tuple[float, ...] = ()  # for "wait", the one number is seconds
   step: int = -1
 
 
@@ -111,6 +111,9 @@ class Plan:
     kinds = [c.kind for c in self.commands]
     if "reload" in kinds:
       lines.append(f"  tip reloads: {kinds.count('reload')} (the run stops for a person to swap in full racks)")
+    if "wait" in kinds:
+      waited = sum(c.volumes[0] for c in self.commands if c.kind == "wait")
+      lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
     widest = max((len(c.channels) for c in self.commands), default=0)
     lines.append(
       f"  commands: {len(self.commands)} ({kinds.count('aspirate')} aspirates, "
@@ -261,20 +264,49 @@ class _Unit:
   mix: Optional[Tuple[int, float]]  # (times, volume), done in `destination`
 
 
-def _units(moves: Sequence[Move]) -> List[_Unit]:
+def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, Tuple[float, int]]]:
+  """The work, one tip's worth at a time, and the waits: unit index a wait comes before -> (seconds, step)."""
   units: List[_Unit] = []
+  waits: Dict[int, Tuple[float, int]] = {}
   for move in moves:
+    if move.kind == "wait":
+      before = waits.get(len(units), (0.0, move.step))
+      waits[len(units)] = (before[0] + move.seconds, before[1])
+      continue
     if move.kind == "transfer":
       assert move.source is not None and move.destination is not None
       units.append(_Unit(move.step, move.tip, move.source, move.destination, move.volume, None))
     elif move.kind == "mix":
       assert move.source is not None
       last = units[-1] if units else None
-      if last and last.tip == move.tip and last.destination == move.source and last.mix is None and last.volume:
+      joins = last and last.tip == move.tip and last.destination == move.source and last.mix is None and last.volume
+      if joins and len(units) not in waits:  # a mix that comes after a wait stays after it
         last.mix = (move.times, move.volume)
       else:
         units.append(_Unit(move.step, move.tip, move.source, move.source, 0.0, (move.times, move.volume)))
-  return units
+  return units, waits
+
+
+def send_waste(units: List[_Unit], taken, capacity: float) -> Tuple[List[str], Optional[Problem]]:
+  """Point every discarded volume at a waste reservoir: `waste`, then `waste_2` and so on.
+
+  Each reservoir takes 90% of the `capacity` its one well holds. Returns the reservoirs to add,
+  or a problem when the protocol already uses one of those names.
+  """
+  if not any(unit.destination == WASTE for unit in units):
+    return [], None
+  if any(name == "waste" or name.startswith("waste_") for name in taken):
+    return [], Problem("labware.waste", "names starting with 'waste' are kept for the planner's waste reservoirs")
+  room = 0.9 * capacity
+  names, filled = ["waste"], 0.0
+  for unit in units:
+    if unit.destination == WASTE:
+      if filled + unit.volume > room:
+        names.append(f"waste_{len(names) + 1}")
+        filled = 0.0
+      filled += unit.volume
+      unit.destination = Well(names[-1], "A1")
+  return names, None
 
 
 def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
@@ -284,24 +316,30 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
   tip_types = sorted(choices.tip_types)
   problems: List[Problem] = []
   geometry = _Geometry()
-  units = _units(checked.moves)
+  units, waits = _units(checked.moves)
 
   labware = {name: item.type for name, item in protocol.labware.items()}
-  if any(u.destination == WASTE for u in units):
-    if any(name == "waste" or name.startswith("waste_") for name in labware):
-      problems.append(Problem("labware.waste", "names starting with 'waste' are kept for the planner's waste reservoirs"))
-      return Plan(protocol=protocol, labware=labware, placements=[], commands=[], tips={}, problems=problems)
-    # Discarded liquid fills one reservoir after another; each takes 90% of what it holds.
-    room = 0.9 * _waste_capacity()
-    name, filled = "waste", 0.0
-    labware[name] = WASTE_TYPE
-    for unit in units:
-      if unit.destination == WASTE:
-        if filled + unit.volume > room:
-          name, filled = f"waste_{sum(1 for n in labware if n.startswith('waste')) + 1}", 0.0
-          labware[name] = WASTE_TYPE
-        filled += unit.volume
-        unit.destination = Well(name, "A1")
+  for name, item in protocol.labware.items():
+    if item.library != "pylabrobot":  # named the Opentrons way: use the same plate from PyLabRobot, if there is one
+      from .opentrons_robots import TWINS
+
+      same = [plr for plr, (opentrons, _) in TWINS.items() if opentrons == item.type]
+      if same:
+        labware[name] = same[0]
+      else:
+        problems.append(
+          Problem(
+            f"labware.{name}.type",
+            f"{item.type} is an Opentrons definition and drybench knows no PyLabRobot one for the same plate; "
+            "the Hamilton STARlet needs a PyLabRobot definition here",
+          )
+        )
+  if problems:
+    return Plan(protocol=protocol, labware=labware, placements=[], commands=[], tips={}, problems=problems)
+  reservoirs, refused = send_waste(units, labware, _waste_capacity())
+  if refused is not None:
+    return Plan(protocol=protocol, labware=labware, placements=[], commands=[], tips={}, problems=[refused])
+  labware.update({name: WASTE_TYPE for name in reservoirs})
 
   for name, definition in labware.items():
     refusal = carrier_refusal(definition)
@@ -399,6 +437,8 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
     holding: Dict[int, int] = {}  # channel -> the tip number it has on
     position = 0
     for batch in batches:
+      if position in waits:
+        commands.append(Command("wait", (), volumes=(waits[position][0],), step=waits[position][1]))
       channels = tuple(range(len(batch)))
       kind = tip_type[batch[0].tip]
       step = batch[0].step
@@ -447,6 +487,8 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
         for c in done:
           del holding[c]
 
+    if position in waits:  # a wait after the last move
+      commands.append(Command("wait", (), volumes=(waits[position][0],), step=waits[position][1]))
     return commands, most, used
 
   # First with as many racks as it takes. If they do not fit beside the plates, plan again with
@@ -742,11 +784,13 @@ def build_deck(planned: Plan):
   return deck
 
 
-async def run(planned: Plan, handler, *, on_reload=None) -> None:
+async def run(planned: Plan, handler, *, on_reload=None, on_wait=None) -> None:
   """Send every command in the plan to a PyLabRobot LiquidHandler.
 
   At a tip reload, `on_reload` is called with the names of the racks to swap; give one that
   waits for the operator when running on a robot. The racks are then counted as full again.
+  At a wait, `on_wait` is awaited with the seconds to wait; with none given the run does not
+  pause, which is what a rehearsal wants.
   """
   deck = handler.deck
   height = planned.pipetting_height
@@ -756,6 +800,10 @@ async def run(planned: Plan, handler, *, on_reload=None) -> None:
         on_reload(command.wells)
       for name in command.wells:
         deck.get_resource(name).fill()
+      continue
+    if command.kind == "wait":
+      if on_wait is not None:
+        await on_wait(command.volumes[0])
       continue
     try:
       await _send(command, handler, deck, height)
@@ -878,6 +926,12 @@ def emit(planned: Plan, *, source: str = "") -> str:
     "    deck.get_resource(name).fill()",
     "",
     "",
+    "async def wait(lh, seconds):",
+    "  # A timed step. Kept on a robot; skipped when this only prints what it would do.",
+    "  if not isinstance(lh.backend, LiquidHandlerChatterboxBackend):",
+    "    await asyncio.sleep(seconds)",
+    "",
+    "",
     "def wells(deck, resource, names):",
     "  return [deck.get_resource(resource).get_item(name) for name in names.split()]",
     "",
@@ -893,6 +947,9 @@ def emit(planned: Plan, *, source: str = "") -> str:
     channels = list(command.channels)
     if command.kind == "reload":
       lines.append(f'  reload(deck, "{" ".join(command.wells)}")')
+      continue
+    if command.kind == "wait":
+      lines.append(f"  await wait(lh, {command.volumes[0]:g})  # {command.volumes[0] / 60:g} min")
       continue
     if command.kind == "discard":
       lines.append(f"  await lh.discard_tips(use_channels={channels})")
