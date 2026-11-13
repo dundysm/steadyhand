@@ -192,3 +192,105 @@ def test_pcr_setup_example_rehearses_and_keeps_tips_on_idle_channels():
   assert result.ok, result.report()
   for well, volume in checked.volumes.items():
     assert result.volumes[f"{well.labware}_well_{well.well}"] == pytest.approx(volume, abs=1e-3)
+
+
+# ---------------------------------------------------------------- the editable plan file
+
+EDITED = """
+drybench_plan: "0.1"
+pipetting_height: 2.5 mm
+tips:
+  - {type: hamilton_96_tiprack_1000uL, capacity: 1000 uL}
+deck:
+  - carrier: plates
+    type: PLT_CAR_L5AC_A00
+    rails: 3
+    sites: [waste, null, reservoir, null, plate]
+  - carrier: tips
+    type: TIP_CAR_480_A00
+    rails: 20
+    sites: [null, null, tips_1000_1]
+"""
+
+
+def test_a_dumped_plan_file_read_back_gives_the_same_plan(dilution):
+  from drybench.planner import dump_choices, loads_choices
+
+  checked, planned, _ = dilution
+  again = plan(checked, loads_choices(dump_choices(planned)))
+  assert again.ok
+  assert (again.commands, again.placements, again.tips) == (planned.commands, planned.placements, planned.tips)
+
+
+def test_an_edited_plan_file_changes_tips_deck_and_height_and_still_rehearses(dilution):
+  from drybench.planner import loads_choices
+
+  checked, _, _ = dilution
+  planned = plan(checked, loads_choices(EDITED))
+  assert planned.ok, planned.report()
+  assert planned.tips == {"hamilton_96_tiprack_1000uL": 96}
+  assert [(p.carrier, p.rails) for p in planned.placements] == [("plates", 3), ("tips", 20)]
+  assert planned.pipetting_height == 2.5
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok, result.report()
+  for well, volume in checked.volumes.items():
+    assert result.volumes[f"{well.labware}_well_{well.well}"] == pytest.approx(volume, abs=1e-3)
+  assert "HEIGHT = 2.5" in emit(planned) and "rails=20" in emit(planned)
+
+
+def test_a_plan_file_is_read_strictly_and_every_problem_is_listed():
+  from drybench.planner import loads_choices
+  from drybench.protocol import ProtocolError
+
+  bad = """
+drybench_plan: "0.1"
+pipetting_height: 2
+speed: fast
+tips:
+  - {type: hamilton_96_tiprack_300uL_filter, capacity: 500 uL}
+  - {type: Cor_96_wellplate_360ul_Fb, capacity: 300 uL}
+deck:
+  - {carrier: b, type: TIP_CAR_480_A00, rails: 1.5, sites: [plate]}
+"""
+  with pytest.raises(ProtocolError) as caught:
+    loads_choices(bad)
+  where = {problem.where for problem in caught.value.problems}
+  assert where == {"plan file.speed", "pipetting_height", "tips[0].capacity", "tips[1].type", "deck[0].rails"}
+  with pytest.raises(ProtocolError, match="below the well floor"):
+    loads_choices('drybench_plan: "0.1"\npipetting_height: -3 mm\n')
+
+
+def test_a_deck_that_does_not_hold_the_plan_is_refused(dilution):
+  from drybench.planner import loads_choices
+
+  checked, _, _ = dilution
+  deck = """
+drybench_plan: "0.1"
+deck:
+  - {carrier: a, type: PLT_CAR_L5AC_A00, rails: 28, sites: [plate, tips_300_1, plate]}
+  - {carrier: b, type: TIP_CAR_480_A00, rails: 30, sites: [ghost]}
+"""
+  planned = plan(checked, loads_choices(deck))
+  assert not planned.ok
+  said = "\n".join(str(problem) for problem in planned.problems)
+  for expected in ("is a tip rack", "already on a", "does not fit", "no labware named 'ghost'", "overlaps a", "nothing places reservoir, waste"):
+    assert expected in said, expected
+
+
+def test_fewer_tip_sizes_split_big_transfers_and_refuse_big_mixes(dilution):
+  from drybench.planner import Choices
+
+  checked, _, _ = dilution
+  small = plan(checked, Choices(tip_types=[(50.0, "hamilton_96_tiprack_50uL_filter")]))
+  assert not small.ok and any("more than the largest tip holds" in str(p) for p in small.problems)
+
+
+def test_cli_writes_a_plan_file_and_takes_it_back(tmp_path, capsys):
+  chosen = tmp_path / "plan.yaml"
+  assert main(["plan", str(EXAMPLES / "pcr_setup.yaml"), "-o", str(chosen)]) == 0
+  chosen.write_text(chosen.read_text().replace("pipetting_height: 1 mm", "pipetting_height: 0.5 mm"))
+  assert main(["emit", str(EXAMPLES / "pcr_setup.yaml"), "--plan", str(chosen), "-o", str(tmp_path / "s.py")]) == 0
+  assert "HEIGHT = 0.5" in (tmp_path / "s.py").read_text()
+  chosen.write_text("drybench_plan: \"0.1\"\nspeed: fast\n")
+  assert main(["plan", str(EXAMPLES / "pcr_setup.yaml"), "--plan", str(chosen)]) == 1
+  assert "cannot be read as a plan file" in capsys.readouterr().out

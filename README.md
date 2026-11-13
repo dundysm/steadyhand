@@ -96,6 +96,39 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 - **Deck.** Tip carriers from rail 1, plate carriers after them. Discarded liquid goes to a
   `waste` reservoir the planner adds.
 
+### Change what `plan` decided
+
+Three of the planner's choices are yours to override: the tips, the deck layout and how far above
+the well floor the tip stops. Write them to a file, edit it, and hand it back:
+
+```
+drybench plan examples/serial_dilution.yaml -o plan.yaml
+drybench rehearse examples/serial_dilution.yaml --plan plan.yaml
+```
+
+```yaml
+drybench_plan: "0.1"
+pipetting_height: 1 mm
+tips:                 # the planner takes the smallest that holds each volume
+  - {type: hamilton_96_tiprack_300uL_filter, capacity: 300 uL}
+  - {type: hamilton_96_tiprack_1000uL_filter, capacity: 1000 uL}
+deck:                 # rails count from the left; a carrier is 6 rails wide
+  - carrier: tip_carrier_1
+    type: TIP_CAR_480_A00
+    rails: 1
+    sites: [tips_300_1, null, null, null, null]
+  - carrier: plate_carrier_1
+    type: PLT_CAR_L5AC_A00
+    rails: 7
+    sites: [plate, reservoir, waste, null, null]
+```
+
+`tips` takes any 96-tip rack PyLabRobot defines, with a capacity no larger than PyLabRobot says the
+tip holds. Delete a section to have it chosen again; do that for `deck` after changing `tips`,
+because the tip racks on it are named after the tips. The file is read as strictly as a protocol
+file, and `plan`, `rehearse` and `emit` all take `--plan`. Which channels move together is not in
+the file: that follows from where the wells are.
+
 ### What `rehearse` checks
 
 Whether a channel or its tip would be driven into the deck, a carrier, a plate's floor or the
@@ -170,7 +203,9 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   two needed a second round. That is four notes and one model, and a pass means the file runs,
   not that it matches the notes: given a vague note the model fills the gaps with guesses and
   lists them under `notes`. It does not write `normalize` steps or read PDFs.
-- **An editable plan.** The planner's choices are printed, but cannot yet be overridden.
+- **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
+  whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
+  the planner uses are accepted.
 - **Other robots.** The planner targets a Hamilton STARlet. The rehearsal alone works on any
   PyLabRobot deck.
 - **PyLabRobot 1.0.** drybench targets the 0.2 line, the current stable release.

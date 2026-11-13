@@ -99,9 +99,10 @@ def _check(args: argparse.Namespace) -> int:
   return 0 if result.ok else 1
 
 
-def _planned(path: str):
+def _planned(path: str, choices_path: Optional[str] = None):
   """Check and plan a protocol file. Prints both reports; returns the plan, or None when either fails."""
-  from .planner import plan
+  from .planner import load_choices, plan
+  from .protocol import ProtocolError
 
   checked = _load_checked(path)
   if checked is None:
@@ -109,19 +110,42 @@ def _planned(path: str):
   print(checked.report())
   if not checked.ok:
     return None
-  planned = plan(checked)
+  choices = None
+  if choices_path:
+    try:
+      choices = load_choices(choices_path)
+    except FileNotFoundError:
+      print(f"drybench: cannot find {choices_path}")
+      return None
+    except ProtocolError as error:
+      print(f"drybench plan: FAIL  {choices_path} cannot be read as a plan file")
+      print(f"  problems: {len(error.problems)}")
+      for problem in error.problems:
+        print(f"    - {problem}")
+      return None
+  planned = plan(checked, choices)
   print(planned.report())
+  if choices_path:
+    print(f"  using choices from {choices_path}")
   return planned if planned.ok else None
 
 
 def _plan(args: argparse.Namespace) -> int:
-  return 0 if _planned(args.file) is not None else 1
+  from .planner import dump_choices
+
+  planned = _planned(args.file, args.plan)
+  if planned is None:
+    return 1
+  if args.output:
+    Path(args.output).write_text(dump_choices(planned, source=args.file), encoding="utf-8")
+    print(f"wrote {args.output}; edit it and pass it back with --plan")
+  return 0
 
 
 def _rehearse(args: argparse.Namespace) -> int:
   from .planner import emit, rehearse_plan
 
-  planned = _planned(args.file)
+  planned = _planned(args.file, args.plan)
   if planned is None:
     return 1
   kept, keep = _keeper()
@@ -138,7 +162,7 @@ def _rehearse(args: argparse.Namespace) -> int:
 def _emit(args: argparse.Namespace) -> int:
   from .planner import emit
 
-  planned = _planned(args.file)
+  planned = _planned(args.file, args.plan)
   if planned is None:
     return 1
   script = emit(planned, source=args.file)
@@ -211,17 +235,21 @@ def main(argv: Optional[List[str]] = None) -> int:
 
   plan = commands.add_parser("plan", help="check a protocol, then choose tips, channels and a deck layout")
   plan.add_argument("file", help="a drybench protocol file (YAML)")
+  plan.add_argument("-o", "--output", help="write the tips, deck and pipetting height to a plan file you can edit")
+  plan.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   plan.set_defaults(run=_plan)
 
   rehearse_ = commands.add_parser("rehearse", help="check and plan a protocol, then replay it in the physics scene")
   rehearse_.add_argument("file", help="a drybench protocol file (YAML)")
   rehearse_.add_argument("--out", default="drybench-out", help="folder for the scene, the report and the script")
   rehearse_.add_argument("--no-render", action="store_true", help="skip the PNG pictures")
+  rehearse_.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   rehearse_.set_defaults(run=_rehearse)
 
   emit = commands.add_parser("emit", help="check and plan a protocol, then write it as a PyLabRobot script")
   emit.add_argument("file", help="a drybench protocol file (YAML)")
   emit.add_argument("-o", "--output", help="where to write the script; printed when left out")
+  emit.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   emit.set_defaults(run=_emit)
 
   demo = commands.add_parser("demo", help="rehearse a built-in transfer on a Hamilton STARlet deck")

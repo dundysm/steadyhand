@@ -16,16 +16,23 @@ Choices this planner makes, all deterministic:
   column at least 9 mm apart, or when they all draw from one well wide enough to take them.
 * **Deck.** Tip carriers go on the left from rail 1, plate carriers after them, in file order.
 * **Waste.** Discarded liquid goes to a reservoir named `waste`, which the planner adds.
+
+Three of these can be overridden. `dump_choices` writes the tips, the deck layout and the
+pipetting height of a plan as a small YAML file; edit it and hand it back through
+`load_choices` and `plan(checked, choices)`. Which channels move together is not a choice.
 """
 
 from __future__ import annotations
 
 import math
+import re
 import warnings
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from .protocol import EPS, WASTE, Check, Move, Problem, Protocol, Well, check
+import yaml
+
+from .protocol import EPS, WASTE, Check, Move, Problem, Protocol, ProtocolError, Well, check
 from .record import RecordingBackend
 from .replay import Rehearsal, rehearse
 
@@ -66,6 +73,15 @@ class Placement:
 
 
 @dataclass
+class Choices:
+  """What a person may decide in place of the planner. The defaults are the planner's own choices."""
+
+  pipetting_height: float = 1.0  # mm above the well floor for every aspirate and dispense
+  tip_types: List[Tuple[float, str]] = field(default_factory=lambda: list(TIP_TYPES))  # smallest first
+  deck: Optional[List[Placement]] = None  # None lets the planner lay the deck out
+
+
+@dataclass
 class Plan:
   protocol: Protocol
   labware: Dict[str, str]  # every plate and tip rack on the deck -> PyLabRobot definition
@@ -74,6 +90,7 @@ class Plan:
   tips: Dict[str, int]  # tip rack definition -> tips used
   problems: List[Problem] = field(default_factory=list)
   pipetting_height: float = 1.0  # mm above the well floor for every aspirate and dispense
+  tip_types: List[Tuple[float, str]] = field(default_factory=lambda: list(TIP_TYPES))  # what it could choose from
 
   @property
   def ok(self) -> bool:
@@ -178,9 +195,11 @@ def _units(moves: Sequence[Move]) -> List[_Unit]:
   return units
 
 
-def plan(checked: Check) -> Plan:
-  """Plan a protocol that has passed `check`."""
+def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
+  """Plan a protocol that has passed `check`. `choices` overrides the tips, the deck and the height."""
   protocol = checked.protocol
+  choices = choices or Choices()
+  tip_types = sorted(choices.tip_types)
   problems: List[Problem] = []
   geometry = _Geometry()
   units = _units(checked.moves)
@@ -201,10 +220,10 @@ def plan(checked: Check) -> Plan:
     largest[unit.tip] = max(largest.get(unit.tip, 0.0), carried)
   tip_type: Dict[int, int] = {}
   for tip, volume in largest.items():
-    fits = [i for i, (capacity, _) in enumerate(TIP_TYPES) if capacity + EPS >= volume]
-    tip_type[tip] = fits[0] if fits else len(TIP_TYPES) - 1
+    fits = [i for i, (capacity, _) in enumerate(tip_types) if capacity + EPS >= volume]
+    tip_type[tip] = fits[0] if fits else len(tip_types) - 1
   for unit in units:
-    capacity = TIP_TYPES[tip_type[unit.tip]][0]
+    capacity = tip_types[tip_type[unit.tip]][0]
     if unit.mix and unit.mix[1] > capacity + EPS:
       problems.append(
         Problem(f"steps[{unit.step}]", f"mixing {unit.mix[1]:g} uL is more than the largest tip holds ({capacity:g} uL)")
@@ -265,7 +284,7 @@ def plan(checked: Check) -> Plan:
       column, row = 0, 0
     cursor[kind] = (column, row + count)
     used[kind] = used.get(kind, 0) + count
-    name = f"tips_{TIP_TYPES[kind][0]:g}_{racks[kind]}"
+    name = f"tips_{tip_types[kind][0]:g}_{racks[kind]}"
     return name, tuple(f"{'ABCDEFGH'[row + i]}{column + 1}" for i in range(count))
 
   commands: List[Command] = []
@@ -290,7 +309,7 @@ def plan(checked: Check) -> Plan:
       for c in need:
         holding[c] = batch[c].tip
 
-    capacity = TIP_TYPES[kind][0]
+    capacity = tip_types[kind][0]
     if batch[0].volume:
       parts = [max(1, math.ceil((u.volume - EPS) / capacity)) for u in batch]
       for cycle in range(max(parts)):
@@ -324,31 +343,228 @@ def plan(checked: Check) -> Plan:
   tip_racks: List[str] = []
   for kind in sorted(racks):
     for number in range(1, racks[kind] + 1):
-      name = f"tips_{TIP_TYPES[kind][0]:g}_{number}"
-      labware[name] = TIP_TYPES[kind][1]
+      name = f"tips_{tip_types[kind][0]:g}_{number}"
+      labware[name] = tip_types[kind][1]
       tip_racks.append(name)
   plates = [name for name in labware if name not in tip_racks]
 
   placements: List[Placement] = []
-  rails = 1
-  for label, carrier_type, items in (("tip_carrier", TIP_CARRIER, tip_racks), ("plate_carrier", PLATE_CARRIER, plates)):
-    for number, start in enumerate(range(0, len(items), SITES), start=1):
-      sites = tuple(items[start : start + SITES]) + (None,) * (SITES - len(items[start : start + SITES]))
-      placements.append(Placement(f"{label}_{number}", carrier_type, rails, sites))
-      rails += CARRIER_RAILS
-  if rails - 1 > DECK_RAILS:
-    problems.append(
-      Problem("labware", f"{len(placements)} carriers need {rails - 1} rails; a STARlet deck has {DECK_RAILS}")
-    )
+  if choices.deck is not None:
+    placements = list(choices.deck)
+    problems += _deck_problems(placements, tip_racks, plates)
+  else:
+    rails = 1
+    for label, carrier_type, items in (("tip_carrier", TIP_CARRIER, tip_racks), ("plate_carrier", PLATE_CARRIER, plates)):
+      for number, start in enumerate(range(0, len(items), SITES), start=1):
+        sites = tuple(items[start : start + SITES]) + (None,) * (SITES - len(items[start : start + SITES]))
+        placements.append(Placement(f"{label}_{number}", carrier_type, rails, sites))
+        rails += CARRIER_RAILS
+    if rails - 1 > DECK_RAILS:
+      problems.append(
+        Problem("labware", f"{len(placements)} carriers need {rails - 1} rails; a STARlet deck has {DECK_RAILS}")
+      )
 
   return Plan(
     protocol=protocol,
     labware=labware,
     placements=placements,
     commands=commands,
-    tips={TIP_TYPES[kind][1]: count for kind, count in sorted(used.items())},
+    tips={tip_types[kind][1]: count for kind, count in sorted(used.items())},
     problems=problems,
+    pipetting_height=choices.pipetting_height,
+    tip_types=tip_types,
   )
+
+
+def _deck_problems(placements: List[Placement], tip_racks: List[str], plates: List[str]) -> List[Problem]:
+  """What is wrong with a deck layout a person wrote, given the labware this plan needs on it."""
+  problems: List[Problem] = []
+  placed: Dict[str, str] = {}
+  taken: Dict[int, str] = {}  # rail -> the carrier on it
+  for index, placement in enumerate(placements):
+    where = f"deck[{index}]"
+    if placement.carrier in tip_racks or placement.carrier in plates:
+      problems.append(Problem(f"{where}.carrier", f"'{placement.carrier}' is also the name of labware in this plan"))
+    wanted = tip_racks if placement.carrier_type == TIP_CARRIER else plates
+    for site, name in enumerate(placement.sites):
+      if name is None:
+        continue
+      if name in placed:
+        problems.append(Problem(f"{where}.sites[{site}]", f"'{name}' is already on {placed[name]}"))
+      elif name not in tip_racks and name not in plates:
+        problems.append(Problem(f"{where}.sites[{site}]", f"this plan has no labware named '{name}'"))
+      elif name not in wanted:
+        kind = "tip rack" if name in tip_racks else "plate"
+        problems.append(Problem(f"{where}.sites[{site}]", f"'{name}' is a {kind}; it cannot sit on a {placement.carrier_type}"))
+      placed.setdefault(name, placement.carrier)
+    last = placement.rails + CARRIER_RAILS - 1
+    if placement.rails < 1 or last > DECK_RAILS:
+      problems.append(
+        Problem(f"{where}.rails", f"a carrier is {CARRIER_RAILS} rails wide; from rail {placement.rails} it does not fit on rails 1 to {DECK_RAILS}")
+      )
+    for rail in range(placement.rails, last + 1):
+      if rail in taken and taken[rail] != placement.carrier:
+        problems.append(Problem(f"{where}.rails", f"overlaps {taken[rail]}, which covers rail {rail}"))
+        break
+      taken.setdefault(rail, placement.carrier)
+  missing = [name for name in tip_racks + plates if name not in placed]
+  if missing:
+    problems.append(
+      Problem("deck", f"nothing places {', '.join(missing)}; add them, or delete the deck section to have it laid out again")
+    )
+  return problems
+
+
+# ---------------------------------------------------------------- choices a person can edit
+
+CHOICES_VERSION = "0.1"
+_LENGTH = re.compile(r"^\s*(-?[0-9]+(?:\.[0-9]+)?)\s*mm\s*$")
+_VOLUME = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*(uL|µL|μL|mL)\s*$")
+
+
+def dump_choices(planned: Plan, *, source: str = "") -> str:
+  """The tips, deck and pipetting height of a plan as a YAML file a person can edit."""
+  lines = [
+    f"# Choices drybench made for {source or planned.protocol.name}.",
+    "# Edit this file and hand it back with --plan FILE. Delete a section to have it chosen again.",
+    f'drybench_plan: "{CHOICES_VERSION}"',
+    "",
+    "# How far above the well floor the tip stops for every aspirate and dispense.",
+    f"pipetting_height: {planned.pipetting_height:g} mm",
+    "",
+    "# Tip racks the planner may use. It takes the smallest that holds each volume.",
+    "tips:",
+    *[f"  - {{type: {definition}, capacity: {capacity:g} uL}}" for capacity, definition in planned.tip_types],
+    "",
+    "# Where everything sits. Rails count from the left; a carrier is 6 rails wide; sites run front to back.",
+    "deck:",
+  ]
+  for placement in planned.placements:
+    sites = ", ".join(name or "null" for name in placement.sites)
+    lines += [
+      f"  - carrier: {placement.carrier}",
+      f"    type: {placement.carrier_type}",
+      f"    rails: {placement.rails}",
+      f"    sites: [{sites}]",
+    ]
+  return "\n".join(lines) + "\n"
+
+
+def loads_choices(text: str) -> Choices:
+  """Read a choices file. Raises ProtocolError listing everything wrong with it."""
+  problems: List[Problem] = []
+
+  def fail(where: str, message: str) -> None:
+    problems.append(Problem(where, message))
+
+  def keys(value: Any, where: str, required: Tuple[str, ...], optional: Tuple[str, ...] = ()) -> dict:
+    if not isinstance(value, dict):
+      fail(where, f"expected a mapping with {', '.join(required + optional)}")
+      return {}
+    for key in value:
+      if key not in required + optional:
+        fail(f"{where}.{key}", f"unknown field; allowed here: {', '.join(required + optional)}")
+    for key in required:
+      if key not in value:
+        fail(where, f"missing required field '{key}'")
+    return value
+
+  try:
+    data = yaml.safe_load(text)
+  except yaml.YAMLError as error:
+    raise ProtocolError([Problem("plan file", f"not valid YAML: {error}")]) from error
+  top = keys(data, "plan file", ("drybench_plan",), ("pipetting_height", "tips", "deck"))
+  if "drybench_plan" in top and str(top["drybench_plan"]) != CHOICES_VERSION:
+    fail("drybench_plan", f"this drybench reads plan files of version {CHOICES_VERSION}, got {top['drybench_plan']!r}")
+  choices = Choices()
+
+  if "pipetting_height" in top:
+    match = _LENGTH.match(top["pipetting_height"]) if isinstance(top["pipetting_height"], str) else None
+    if match is None:
+      fail("pipetting_height", f"expected a height such as '1 mm', got {top['pipetting_height']!r}")
+    elif float(match.group(1)) < 0:
+      fail("pipetting_height", "a height below the well floor would drive the tip into the plate")
+    else:
+      choices.pipetting_height = float(match.group(1))
+
+  if "tips" in top:
+    tip_types: List[Tuple[float, str]] = []
+    if not isinstance(top["tips"], list) or not top["tips"]:
+      fail("tips", "expected a list with at least one tip rack")
+    else:
+      for index, entry in enumerate(top["tips"]):
+        where = f"tips[{index}]"
+        body = keys(entry, where, ("type", "capacity"))
+        match = _VOLUME.match(body["capacity"]) if isinstance(body.get("capacity"), str) else None
+        if "capacity" in body and match is None:
+          fail(f"{where}.capacity", f"expected a volume such as '300 uL', got {body['capacity']!r}")
+        capacity = float(match.group(1)) * (1000.0 if match.group(2) == "mL" else 1.0) if match else None
+        holds = _tip_rack_holds(body.get("type")) if "type" in body else None
+        if "type" in body and holds is None:
+          fail(f"{where}.type", f"{body['type']!r} is not a 96-tip rack PyLabRobot knows")
+        if capacity is not None and holds is not None:
+          if capacity <= 0 or capacity > holds + EPS:
+            fail(f"{where}.capacity", f"PyLabRobot says this tip holds at most {holds:g} uL")
+          elif any(abs(capacity - other) < EPS for other, _ in tip_types):
+            fail(f"{where}.capacity", f"another tip rack in this list already has capacity {capacity:g} uL")
+          else:
+            tip_types.append((capacity, body["type"]))
+      if tip_types:
+        choices.tip_types = sorted(tip_types)
+
+  if "deck" in top:
+    deck: List[Placement] = []
+    names: List[str] = []
+    if not isinstance(top["deck"], list) or not top["deck"]:
+      fail("deck", "expected a list with at least one carrier")
+    else:
+      for index, entry in enumerate(top["deck"]):
+        where = f"deck[{index}]"
+        body = keys(entry, where, ("carrier", "type", "rails", "sites"))
+        name, kind, rails, sites = body.get("carrier"), body.get("type"), body.get("rails"), body.get("sites")
+        if "carrier" in body and (not isinstance(name, str) or not name.isidentifier() or name in names):
+          fail(f"{where}.carrier", "expected a name of letters, digits and _ that no other carrier has")
+        if "type" in body and kind not in (TIP_CARRIER, PLATE_CARRIER):
+          fail(f"{where}.type", f"expected {TIP_CARRIER} or {PLATE_CARRIER}, got {kind!r}")
+        if "rails" in body and (not isinstance(rails, int) or isinstance(rails, bool)):
+          fail(f"{where}.rails", f"expected a whole number, got {rails!r}")
+        if "sites" in body and not (
+          isinstance(sites, list) and len(sites) <= SITES and all(s is None or isinstance(s, str) for s in sites)
+        ):
+          fail(f"{where}.sites", f"expected up to {SITES} labware names, with null for an empty site")
+          sites = None
+        names.append(name if isinstance(name, str) else "")
+        if isinstance(sites, list) and isinstance(rails, int):
+          deck.append(Placement(str(name), str(kind), rails, tuple(sites) + (None,) * (SITES - len(sites))))
+      choices.deck = deck
+
+  if problems:
+    raise ProtocolError(problems)
+  return choices
+
+
+def load_choices(path) -> Choices:
+  from pathlib import Path
+
+  return loads_choices(Path(path).read_text(encoding="utf-8"))
+
+
+def _tip_rack_holds(definition: Any) -> Optional[float]:
+  """The most one tip of this PyLabRobot rack holds in uL, or None when it is not a 96-tip rack."""
+  import pylabrobot.resources as resources
+
+  maker = getattr(resources, definition, None) if isinstance(definition, str) else None
+  if not callable(maker):
+    return None
+  try:
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore")
+      rack = maker(name="probe")
+      if not isinstance(rack, resources.TipRack) or (rack.num_items_x, rack.num_items_y) != (12, 8):
+        return None
+      return float(rack.get_item("A1").get_tip().maximal_volume)
+  except Exception:
+    return None
 
 
 # ---------------------------------------------------------------- running a plan
@@ -500,9 +716,10 @@ def emit(planned: Plan, *, source: str = "") -> str:
   return "\n".join(lines)
 
 
-def plan_file(path) -> Tuple[Check, Optional[Plan]]:
-  """Read, check and plan a protocol file. The plan is None when the check fails."""
+def plan_file(path, choices=None) -> Tuple[Check, Optional[Plan]]:
+  """Read, check and plan a protocol file. `choices` is a plan file to apply. The plan is None when the check fails."""
   from .protocol import load
 
   checked = check(load(path))
-  return checked, (plan(checked) if checked.ok else None)
+  chosen = load_choices(choices) if choices is not None else None
+  return checked, (plan(checked, chosen) if checked.ok else None)
