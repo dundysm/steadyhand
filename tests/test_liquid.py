@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from drybench.planner import plan_file, record_plan, rehearse_plan
-from drybench.replay import rehearse
+from steadyhand.planner import plan_file, record_plan, rehearse_plan
+from steadyhand.replay import rehearse
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 

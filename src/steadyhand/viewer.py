@@ -132,7 +132,7 @@ def replay_html(rehearsal: "Rehearsal", *, title: str = "") -> str:
   """The rehearsal as a self-contained HTML page."""
   data = json.dumps(replay_data(rehearsal, title=title), separators=(",", ":"))
   # "</" inside a script block would end it early; JSON allows the escaped form.
-  return _PAGE.replace("__TITLE__", _escape(title or "drybench replay")).replace("__DATA__", data.replace("</", "<\\/"))
+  return _PAGE.replace("__TITLE__", _escape(title or "steadyhand replay")).replace("__DATA__", data.replace("</", "<\\/"))
 
 
 def _escape(text: str) -> str:
@@ -224,7 +224,7 @@ _PAGE = r"""<!DOCTYPE html>
     <div id="now"></div>
   </div>
   <div id="hitbox"></div>
-  <footer>Written by drybench. Liquid height is drawn in proportion to volume, wells as the boxes the physics scene uses, and every command takes the same time on screen.</footer>
+  <footer>Written by steadyhand. Liquid height is drawn in proportion to volume, wells as the boxes the physics scene uses, and every command takes the same time on screen.</footer>
 </main>
 <script>
 const D = __DATA__;
@@ -524,7 +524,7 @@ document.addEventListener("keydown", event => {
   if (event.key === "ArrowRight") $("next").onclick();
 });
 
-$("title").textContent = D.title || "drybench replay";
+$("title").textContent = D.title || "steadyhand replay";
 $("badge").textContent = D.ok ? "PASS" : "FAIL"; $("badge").className = "badge " + (D.ok ? "pass" : "fail");
 $("facts").textContent = N + " commands, " + D.steps + " channel moves, " + D.path_m + " m travelled, " +
   D.collisions.length + (D.collisions.length === 1 ? " collision" : " collisions") + ", " + (D.liquid || []).length + " tips out of the liquid" + (D.skipped ? ", " + D.skipped + " moves not rehearsed" : "");

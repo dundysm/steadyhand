@@ -1,6 +1,6 @@
-# What drybench stops, and what it does not
+# What steadyhand stops, and what it does not
 
-Written by `drybench faults`, version 0.9.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.9.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **22 of 24 planted mistakes stopped.** The unchanged protocol ran clean.
@@ -37,4 +37,4 @@ deck), `run` (PyLabRobot's own tip and volume trackers refused a command), `rehe
 the physics scene).
 
 A mistake that is not stopped runs to the end with every stage passing. Those rows are the checks
-drybench does not have yet.
+steadyhand does not have yet.

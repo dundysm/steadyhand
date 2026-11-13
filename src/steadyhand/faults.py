@@ -1,4 +1,4 @@
-"""Plant known mistakes in a protocol that works, and see which ones drybench stops.
+"""Plant known mistakes in a protocol that works, and see which ones steadyhand stops.
 
 A rehearsal that passes says little unless you know what it would have failed on. Each fault
 here is one specific mistake, made to a short dilution that otherwise runs clean. The suite
@@ -32,7 +32,7 @@ from .replay import rehearse, volumes
 from .scene import bounds
 
 BASE = """\
-drybench: 0.1
+steadyhand: 0.1
 name: Fault-suite base, a short dilution
 labware:
   plate:     {type: Cor_96_wellplate_360ul_Fb}
@@ -312,7 +312,7 @@ class Report:
 
   def text(self) -> str:
     lines = [
-      f"drybench faults: {len(self.caught)} of {len(self.results)} planted mistakes stopped",
+      f"steadyhand faults: {len(self.caught)} of {len(self.results)} planted mistakes stopped",
       f"  the unchanged protocol: {'ran clean' if not self.clean.caught else 'FAILED at ' + self.clean.stage + ': ' + self.clean.detail}",
     ]
     width = max(len(r.fault.name) for r in self.results)
@@ -327,9 +327,9 @@ class Report:
     from . import __version__
 
     lines = [
-      "# What drybench stops, and what it does not",
+      "# What steadyhand stops, and what it does not",
       "",
-      f"Written by `drybench faults`, version {__version__}. Each row is one mistake planted in a short",
+      f"Written by `steadyhand faults`, version {__version__}. Each row is one mistake planted in a short",
       "dilution that otherwise runs clean. \"Stopped at\" is the first stage that refused it.",
       "",
       f"**{len(self.caught)} of {len(self.results)} planted mistakes stopped.** The unchanged protocol "
@@ -348,7 +348,7 @@ class Report:
       "the physics scene).",
       "",
       "A mistake that is not stopped runs to the end with every stage passing. Those rows are the checks",
-      "drybench does not have yet.",
+      "steadyhand does not have yet.",
       "",
     ]
     return "\n".join(lines)

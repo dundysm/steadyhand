@@ -4,9 +4,9 @@ import asyncio
 
 import pytest
 
-from drybench import Step, rehearse
-from drybench.cli import main
-from drybench.demo import run_demo
+from steadyhand import Step, rehearse
+from steadyhand.cli import main
+from steadyhand.demo import run_demo
 
 
 def run(fault):

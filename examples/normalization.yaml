@@ -1,4 +1,4 @@
-drybench: 0.1
+steadyhand: 0.1
 name: Normalize DNA to 10 ng/uL
 description: >
   Each sample's volume is worked out from its measured concentration, then topped

@@ -8,17 +8,17 @@ from types import SimpleNamespace
 
 import pytest
 
-from drybench import opentrons_robots as ot
-from drybench.cli import main
-from drybench.planner import emit as hamilton_emit
-from drybench.planner import plan as hamilton_plan
-from drybench.protocol import ProtocolError, Well, check, loads
-from drybench.robots import DEFAULT, ROBOTS, choose
+from steadyhand import opentrons_robots as ot
+from steadyhand.cli import main
+from steadyhand.planner import emit as hamilton_emit
+from steadyhand.planner import plan as hamilton_plan
+from steadyhand.protocol import ProtocolError, Well, check, loads
+from steadyhand.robots import DEFAULT, ROBOTS, choose
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 HEAD = """
-drybench: 0.1
+steadyhand: 0.1
 name: test
 labware:
   plate: {type: corning_96_wellplate_360ul_flat}
@@ -208,7 +208,7 @@ def test_ot2_pipettes_are_chosen_by_volume_and_small_volumes_are_refused():
 
 @needs_opentrons
 def test_a_move_and_a_mix_no_one_pipette_can_both_do_get_a_tip_each():
-  from drybench.protocol import load
+  from steadyhand.protocol import load
 
   # Each sample tip moves a few microlitres and then mixes 25 uL. On an OT-2 the p20 cannot mix
   # 25 uL and the p300 cannot move less than 20, so the mix gets its own tip on the p300.
@@ -361,7 +361,7 @@ def test_without_opentrons_software_a_file_with_twins_still_plans_and_emits_for_
   # An Opentrons load name cannot be looked up, and the reader says what would let it.
   with pytest.raises(ProtocolError) as refused:
     loads(DILUTION)
-  assert "pip install 'drybench[opentrons]'" in str(refused.value)
+  assert "pip install 'steadyhand[opentrons]'" in str(refused.value)
 
 
 @pytest.mark.skipif(not simulator_here(), reason="Opentrons' simulator is not installed")
@@ -372,7 +372,7 @@ def test_cli_plans_rehearses_and_emits_for_the_robot_named(tmp_path, capsys, mon
   out = tmp_path / "out"
   assert main(["rehearse", str(path), "--out", str(out)]) == 0
   said = capsys.readouterr().out
-  assert "(Opentrons Flex)" in said and "drybench rehearsal: PASS" in said
+  assert "(Opentrons Flex)" in said and "steadyhand rehearsal: PASS" in said
   assert sorted(p.name for p in out.iterdir()) == ["protocol.py", "report.json", "report.txt", "run_log.txt"]
   assert json.loads((out / "report.json").read_text())["pass"] is True
   assert len((out / "run_log.txt").read_text().splitlines()) == 1107
@@ -394,7 +394,7 @@ def test_cli_plans_rehearses_and_emits_for_the_robot_named(tmp_path, capsys, mon
 # ---------------------------------------------------------------- waits on the Hamilton
 
 WAITS = """
-drybench: 0.1
+steadyhand: 0.1
 name: waits
 labware:
   plate: {type: Cor_96_wellplate_360ul_Fb}
@@ -430,7 +430,7 @@ def test_a_timed_wait_is_in_the_hamilton_plan_and_its_script():
 def test_a_run_waits_only_when_it_is_told_how():
   import asyncio
 
-  from drybench.planner import record_plan, run
+  from steadyhand.planner import record_plan, run
 
   planned = hamilton_plan(checked_from(WAITS))
   asyncio.run(record_plan(planned))  # a rehearsal: returns at once
@@ -449,7 +449,7 @@ def test_a_run_waits_only_when_it_is_told_how():
 
       return nothing
 
-  from drybench.planner import build_deck
+  from steadyhand.planner import build_deck
 
   handler = Quiet()
   handler.deck = build_deck(planned)
@@ -461,7 +461,7 @@ def test_a_run_waits_only_when_it_is_told_how():
 
 
 def test_the_hamilton_prompt_is_the_one_the_intake_runs_were_measured_with():
-  from drybench.intake import GUIDE, guide_for, labware_catalogue, messages_for
+  from steadyhand.intake import GUIDE, guide_for, labware_catalogue, messages_for
 
   plain = messages_for("text")
   assert plain == messages_for("text", None, "hamilton-starlet")
@@ -471,7 +471,7 @@ def test_the_hamilton_prompt_is_the_one_the_intake_runs_were_measured_with():
 
 @needs_opentrons
 def test_a_draft_for_an_opentrons_robot_is_offered_opentrons_labware_and_examples_that_run():
-  from drybench.intake import GUIDE, _problems_of, guide_for, labware_catalogue, messages_for
+  from steadyhand.intake import GUIDE, _problems_of, guide_for, labware_catalogue, messages_for
 
   for profile in (ot.FLEX, ot.OT2):
     guide = guide_for(profile.name)
@@ -520,7 +520,7 @@ def test_every_plate_offered_for_a_flex_loads_in_opentrons_simulator():
 
 @needs_opentrons
 def test_a_draft_without_the_robot_line_is_sent_back():
-  from drybench.intake import draft
+  from steadyhand.intake import draft
 
   body = """labware:
   plate: {type: corning_96_wellplate_360ul_flat}
@@ -529,7 +529,7 @@ liquids:
 steps:
   - transfer: {from: plate/A1, to: plate/A2, volume: 50 uL}
 """
-  replies = iter(["drybench: 0.1\nname: move\n" + body, "drybench: 0.1\nname: move\nrobot: opentrons-flex\n" + body])
+  replies = iter(["steadyhand: 0.1\nname: move\n" + body, "steadyhand: 0.1\nname: move\nrobot: opentrons-flex\n" + body])
   sent = []
 
   def model(messages):

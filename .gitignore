@@ -5,5 +5,5 @@ __pycache__/
 dist/
 build/
 out/
-drybench-out/
+steadyhand-out/
 evals/out/

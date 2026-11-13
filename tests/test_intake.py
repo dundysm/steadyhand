@@ -7,8 +7,8 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from drybench.cli import main
-from drybench.intake import (
+from steadyhand.cli import main
+from steadyhand.intake import (
   GUIDE,
   ModelError,
   anthropic_model,
@@ -19,7 +19,7 @@ from drybench.intake import (
   openai_model,
 )
 
-GOOD = """drybench: 0.1
+GOOD = """steadyhand: 0.1
 name: Simple transfer
 notes: ["Assumed a Corning 96-well plate; the text did not name one."]
 labware:
@@ -184,7 +184,7 @@ def test_command_model_reports_an_error_printed_on_stdout():
 
 
 def test_draft_keeps_the_problems_found_after_each_round():
-  replies = iter(["drybench: 0.1\nname: x\n", GOOD])
+  replies = iter(["steadyhand: 0.1\nname: x\n", GOOD])
   result = draft("anything", lambda messages: next(replies))
   assert result.ok and result.rounds == 2
   assert len(result.history) == 2 and result.history[0] and not result.history[1]
@@ -193,8 +193,8 @@ def test_draft_keeps_the_problems_found_after_each_round():
 def test_the_catalogue_offers_only_plates_the_deck_can_hold_and_the_guide_examples_run():
   import asyncio
 
-  from drybench.intake import GUIDE, _problems_of, labware_catalogue
-  from drybench.planner import plan, rehearse_plan
+  from steadyhand.intake import GUIDE, _problems_of, labware_catalogue
+  from steadyhand.planner import plan, rehearse_plan
 
   offered = labware_catalogue()
   assert "Cor_96_wellplate_360ul_Fb:" in offered and "thermo_AB_96_wellplate_300ul_Vb_MicroAmp:" in offered
@@ -206,7 +206,7 @@ def test_the_catalogue_offers_only_plates_the_deck_can_hold_and_the_guide_exampl
     assert asyncio.run(rehearse_plan(plan(checked))).ok
 
 
-NORMALIZE = """drybench: 0.1
+NORMALIZE = """steadyhand: 0.1
 name: Normalize DNA
 labware:
   stock:      {type: Azenta4titudeFrameStar_96_wellplate_200ul_Vb}
@@ -221,8 +221,8 @@ steps:
 """
 
 
-def test_a_samples_file_is_described_to_the_model_and_read_by_drybench(tmp_path):
-  from drybench.intake import describe_samples
+def test_a_samples_file_is_described_to_the_model_and_read_by_steadyhand(tmp_path):
+  from steadyhand.intake import describe_samples
 
   table = tmp_path / "readings.csv"
   table.write_text("Well,ng per uL,note\nA1,80\nB1,40\nC1,100\nD1,25\n")
@@ -307,7 +307,7 @@ def tiny_pdf(path, pages):
 
 
 def test_a_pdf_is_read_page_by_page_and_pages_can_be_chosen(tmp_path):
-  from drybench.intake import SourceError, pages_from, read_source
+  from steadyhand.intake import SourceError, pages_from, read_source
 
   manual = tmp_path / "manual.pdf"
   tiny_pdf(manual, ["Kit contents and storage", "Add 50 uL reagent to each well", "", "Troubleshooting"])
@@ -330,7 +330,7 @@ def test_a_pdf_is_read_page_by_page_and_pages_can_be_chosen(tmp_path):
 
 
 def test_a_long_pdf_is_refused_until_pages_are_named(tmp_path):
-  from drybench.intake import MAX_SOURCE, SourceError, read_source
+  from steadyhand.intake import MAX_SOURCE, SourceError, read_source
 
   manual = tmp_path / "long.pdf"
   tiny_pdf(manual, ["x" * 900] * (MAX_SOURCE // 900 + 2))

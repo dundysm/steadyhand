@@ -1,12 +1,15 @@
 # Intake, measured
 
+The tool was called drybench when every run below was made. The prompts a model sees now differ from
+those runs only in that one word; no run has been repeated under the new name.
+
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
 ## Drafted for an Opentrons Flex (31 notes), on the code released as 0.13.0
 
 Two Claude Opus 5.5 agents played the model through `evals/step_intake.py` with
-`DRYBENCH_EVAL_ROBOT=opentrons-flex`, on the same 31 notes as the full run below. The model was offered
+`STEADYHAND_EVAL_ROBOT=opentrons-flex`, on the same 31 notes as the full run below. The model was offered
 Opentrons' labware in place of PyLabRobot's. Nothing it wrote was edited by hand.
 
 - **27 of 31 passed draft, check, plan and Opentrons' simulator at the first attempt.**
@@ -61,7 +64,7 @@ wrote was edited by hand.
 | run | notes | first-attempt pass | what it led to |
 |---|---|---|---|
 | `claude -p`, through `run_intake.py` | 4 | 4 drafted, 2 after a second round | the first proof that a real model can follow the format |
-| Opus agents, run 1 | 8 | 7; 1 crashed drybench | unskirted plates refused at plan, `to: waste`, repeated problems folded, fuller guide |
+| Opus agents, run 1 | 8 | 7; 1 crashed steadyhand | unskirted plates refused at plan, `to: waste`, repeated problems folded, fuller guide |
 | Opus agents, run 2 | 8 | 8 | small guide fixes |
 | Opus agents, acceptance (0.6.0) | 20 | 17; 2 crashed, 1 would not plan | lids assumed off, tip reloads, extra waste reservoirs; see `acceptance/RESULTS.md` |
 

@@ -19,7 +19,7 @@ from pylabrobot.resources.hamilton import (
   hamilton_96_tiprack_300uL_filter,
 )
 
-from drybench import RecordingBackend, rehearse
+from steadyhand import RecordingBackend, rehearse
 
 
 def plate_makers():

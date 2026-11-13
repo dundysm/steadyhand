@@ -1,12 +1,12 @@
-"""Run the `drybench draft` conversation one turn at a time, for a model that is driven by hand or by an agent.
+"""Run the `steadyhand draft` conversation one turn at a time, for a model that is driven by hand or by an agent.
 
   python evals/step_intake.py prompt CASE          print what the model is sent next
   python evals/step_intake.py submit CASE REPLY    hand in the model's reply (a file); it is checked as draft checks it
 
-Set DRYBENCH_EVAL_ROBOT to draft for another robot, such as opentrons-flex. A draft that passes is
+Set STEADYHAND_EVAL_ROBOT to draft for another robot, such as opentrons-flex. A draft that passes is
 then planned for that robot and run through whatever rehearses it.
 
-The messages, the checking and the limit of three rounds are the ones `drybench.intake.draft` uses.
+The messages, the checking and the limit of three rounds are the ones `steadyhand.intake.draft` uses.
 State is kept in evals/out/agents/CASE/, or evals/out/agents-ROBOT/CASE/ for a named robot.
 """
 
@@ -16,12 +16,12 @@ import os
 import sys
 from pathlib import Path
 
-from drybench.intake import _problems_of, extract_yaml, feedback, messages_for
-from drybench.planner import RunRefused, plan, rehearse_plan
+from steadyhand.intake import _problems_of, extract_yaml, feedback, messages_for
+from steadyhand.planner import RunRefused, plan, rehearse_plan
 
 HERE = Path(__file__).parent
 ROUNDS = 3
-ROBOT = os.environ.get("DRYBENCH_EVAL_ROBOT", "")
+ROBOT = os.environ.get("STEADYHAND_EVAL_ROBOT", "")
 
 
 def state_of(case: str):
@@ -72,7 +72,7 @@ def main() -> int:
     state["done"], state["draft"] = True, "pass"
     try:
       if ROBOT and ROBOT != "hamilton-starlet":
-        from drybench import opentrons_robots
+        from steadyhand import opentrons_robots
 
         planned = opentrons_robots.plan(checked, opentrons_robots.PROFILES[ROBOT])
         state["plan"] = "pass" if planned.ok else "fail"
@@ -89,7 +89,7 @@ def main() -> int:
           state["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
     except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
       state["rehearse"] = f"fail ({refused})"
-    except Exception as error:  # a crash here is a drybench bug, and worth recording as one
+    except Exception as error:  # a crash here is a steadyhand bug, and worth recording as one
       state["rehearse"] = f"crash ({type(error).__name__}: {error})"
     state["notes"] = list(checked.protocol.notes)
     print(f"FINISHED: draft passed in round {number}; plan {state['plan']}; rehearse {state['rehearse']}")

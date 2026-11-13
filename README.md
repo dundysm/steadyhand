@@ -1,8 +1,10 @@
-# drybench
+# steadyhand
 
 Turn a written lab protocol into a robot program, and rehearse it before it touches a real bench.
 
-Write what you want done in a short protocol file that names no robot. drybench checks that the
+Earlier commits and notes call this project drybench; it was renamed at 0.14.0.
+
+Write what you want done in a short protocol file that names no robot. steadyhand checks that the
 liquid adds up, then plans it for the robot you pick: tips, pipettes or channels, and a deck
 layout. On a Hamilton STARlet it replays every move in a [MuJoCo](https://mujoco.org) scene built
 from the same deck and writes a [PyLabRobot](https://github.com/PyLabRobot/pylabrobot) script
@@ -20,30 +22,30 @@ See [What it does not do yet](#what-it-does-not-do-yet).
 
 ```bash
 pip install -e .
-drybench rehearse examples/serial_dilution.yaml
+steadyhand rehearse examples/serial_dilution.yaml
 ```
 
 ```
-drybench check: PASS  Two-fold serial dilution across a 96-well plate
+steadyhand check: PASS  Two-fold serial dilution across a 96-well plate
   moves: 184 transfers, 88 mixes, 89 tips
   buffer: uses 8800 uL of 20000 uL supplied
   sample: uses 800 uL of 1600 uL supplied
   discarded: 800 uL
   problems: 0
-drybench plan: OK  Two-fold serial dilution across a 96-well plate
+steadyhand plan: OK  Two-fold serial dilution across a 96-well plate
   rails  1  TIP_CAR_480_A00: tips_300_1
   rails  7  PLT_CAR_L5AC_A00: plate, reservoir, waste
   tips: 96 x hamilton_96_tiprack_300uL_filter
   commands: 136 (56 aspirates, 56 dispenses), up to 8 channels at once
-drybench rehearsal: PASS
+steadyhand rehearsal: PASS
   steps rehearsed: 1088 (path 269.44 m, 3104 samples)
   collisions: 0
   tips out of the liquid or the well: 0
-wrote drybench-out/protocol.py
+wrote steadyhand-out/protocol.py
 ```
 
-`drybench-out/` then holds `protocol.py` (the PyLabRobot script), `replay.html` (the run played
-back, below), `scene.xml` (open it with `python -m mujoco.viewer --mjcf drybench-out/scene.xml`),
+`steadyhand-out/` then holds `protocol.py` (the PyLabRobot script), `replay.html` (the run played
+back, below), `scene.xml` (open it with `python -m mujoco.viewer --mjcf steadyhand-out/scene.xml`),
 a report as text and JSON, and two pictures when the machine can render offscreen. Every command exits with status 1 when
 something is wrong, so it can gate a script or a CI job.
 
@@ -52,7 +54,7 @@ something is wrong, so it can gate a script or a CI job.
 The protocol in the run above is this file:
 
 ```yaml
-drybench: 0.1
+steadyhand: 0.1
 name: Two-fold serial dilution across a 96-well plate
 labware:
   plate:     {type: Cor_96_wellplate_360ul_Fb}
@@ -78,13 +80,13 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 
 | Command | What it does |
 | --- | --- |
-| `drybench draft NOTES -o FILE` | Has a language model write the protocol file from plain text. See below. |
-| `drybench check FILE` | Reads the file and follows the liquid through every move. Add `--moves` to list them. |
-| `drybench plan FILE` | Also chooses tips, groups moves into 8-channel commands and lays out the deck. |
-| `drybench rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
-| `drybench emit FILE -o script.py` | Writes the robot's program without rehearsing. |
-| `drybench robots` | Lists the robots, and what `rehearse` checks on each. |
-| `drybench faults` | Plants 24 known mistakes in a working protocol and lists which are stopped. |
+| `steadyhand draft NOTES -o FILE` | Has a language model write the protocol file from plain text. See below. |
+| `steadyhand check FILE` | Reads the file and follows the liquid through every move. Add `--moves` to list them. |
+| `steadyhand plan FILE` | Also chooses tips, groups moves into 8-channel commands and lays out the deck. |
+| `steadyhand rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
+| `steadyhand emit FILE -o script.py` | Writes the robot's program without rehearsing. |
+| `steadyhand robots` | Lists the robots, and what `rehearse` checks on each. |
+| `steadyhand faults` | Plants 24 known mistakes in a working protocol and lists which are stopped. |
 
 `plan`, `rehearse` and `emit` take `--robot`. The rows above describe the Hamilton STARlet, which
 is used when no robot is named; the others are under [Robots](#robots).
@@ -117,12 +119,12 @@ Three of the planner's choices are yours to override: the tips, the deck layout 
 the well floor the tip stops. Write them to a file, edit it, and hand it back:
 
 ```
-drybench plan examples/serial_dilution.yaml -o plan.yaml
-drybench rehearse examples/serial_dilution.yaml --plan plan.yaml
+steadyhand plan examples/serial_dilution.yaml -o plan.yaml
+steadyhand rehearse examples/serial_dilution.yaml --plan plan.yaml
 ```
 
 ```yaml
-drybench_plan: "0.1"
+steadyhand_plan: "0.1"
 pipetting_height: 1 mm
 tips:                 # the planner takes the smallest that holds each volume
   - {type: hamilton_96_tiprack_300uL_filter, capacity: 300 uL}
@@ -150,7 +152,7 @@ the file: that follows from where the wells are.
 attach it to a ticket. It shows the deck from above and a cross-section through the wells being
 worked on, steps through every command with the liquid moving, and marks each collision where
 it happened. Here a planted fault puts the tips over the wall between wells
-(`drybench demo --fault offset`):
+(`steadyhand demo --fault offset`):
 
 ![The replay page showing eight tips stopped on the wall of a plate](docs/replay.png)
 
@@ -175,7 +177,7 @@ every well that `check` predicted.
 ## Robots
 
 ```
-drybench rehearse examples/serial_dilution.yaml --robot opentrons-flex
+steadyhand rehearse examples/serial_dilution.yaml --robot opentrons-flex
 ```
 
 | `--robot` | Driven through | `emit` writes | `rehearse` checks |
@@ -202,10 +204,10 @@ robots: the Corning 96-well 360 uL flat plate and the NEST 1-well 195 mL and 12-
 reservoirs. A test compares every well position of each pair. Any other PyLabRobot plate is
 refused for an Opentrons robot, by name.
 
-**Simulating.** `pip install 'drybench[opentrons]'` brings Opentrons' software. Its current
+**Simulating.** `pip install 'steadyhand[opentrons]'` brings Opentrons' software. Its current
 releases simulate Flex protocols only: Opentrons moved the OT-2 to its own software line. To
 simulate an OT-2 protocol, install `opentrons==9.0.0` in a separate environment and set
-`DRYBENCH_OT2_SIMULATE` to its `opentrons_simulate`; without that, `rehearse` writes the protocol,
+`STEADYHAND_OT2_SIMULATE` to its `opentrons_simulate`; without that, `rehearse` writes the protocol,
 says nothing simulated it, and exits with status 1.
 
 **What is missing on the Opentrons robots.** No physics replay: nothing checks collisions or
@@ -214,7 +216,7 @@ full plate is 96 moves. No modules or gripper. No plan file to edit. Eleven slot
 than a Hamilton deck: a full ELISA with its wash buffer and waste leaves no slot for tips and is
 refused at the plan.
 
-**Drafting for them.** `drybench draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
+**Drafting for them.** `steadyhand draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
 the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
 has it write the `robot:` line. On the 31 intake notes, 27 went from text to a protocol that
 passes Opentrons' simulator at the first attempt, and the same 27 drafts also plan and simulate
@@ -222,7 +224,7 @@ for the OT-2. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
-A dry run that passes says little unless you know what it would have failed on. `drybench faults`
+A dry run that passes says little unless you know what it would have failed on. `steadyhand faults`
 plants 24 specific mistakes in a short dilution that otherwise runs clean, and records the first
 stage that stops each one. Today **22 of 24 are stopped**; the full table is in
 [docs/faults.md](docs/faults.md), and a test pins it so a change in either direction shows.
@@ -232,7 +234,7 @@ The two that get through:
 - The same tip is carried down each dilution series, so sample carries over. Nothing checks
   what a tip has touched.
 - A 2 mL deep-well plate is on the deck where the plan expects the shallow plate. The wells line
-  up and the tips reach the liquid, so nothing is hit; drybench cannot know the deck differs
+  up and the tips reach the liquid, so nothing is hit; steadyhand cannot know the deck differs
   from the plan unless it is told.
 
 The suite is one protocol on one deck, so it shows which kinds of mistake are stopped, not how
@@ -240,17 +242,17 @@ often.
 
 ## Draft a protocol from plain text
 
-`draft` is the only place a language model is used. It writes the protocol file; drybench then
+`draft` is the only place a language model is used. It writes the protocol file; steadyhand then
 reads and checks that file exactly as if you had written it, and sends any problems back to the
 model, up to three times. Nothing a model writes reaches a plan without passing `check`.
 
 ```bash
 # any command that reads a prompt on stdin and prints a reply
-drybench draft notes.txt -o protocol.yaml --model-command "my-local-model"
+steadyhand draft notes.txt -o protocol.yaml --model-command "my-local-model"
 
 # or an API, with the key in ANTHROPIC_API_KEY or OPENAI_API_KEY
-drybench draft notes.txt -o protocol.yaml --provider anthropic --model MODEL_NAME
-drybench draft notes.txt -o protocol.yaml --provider openai --model MODEL_NAME
+steadyhand draft notes.txt -o protocol.yaml --provider anthropic --model MODEL_NAME
+steadyhand draft notes.txt -o protocol.yaml --provider openai --model MODEL_NAME
 ```
 
 `--provider openai` works with any OpenAI-compatible server; point `OPENAI_BASE_URL` at it.
@@ -259,17 +261,17 @@ record the choice under `notes` in the file. Read the file against your source b
 
 To normalize samples to a common concentration, give it the readings as a CSV. The model is shown
 the column names and the first few rows, so it can tell which column is which; the protocol it
-writes names the file, and drybench reads the numbers from the file itself.
+writes names the file, and steadyhand reads the numbers from the file itself.
 
 ```bash
-drybench draft notes.txt --samples readings.csv -o protocol.yaml --model-command "my-local-model"
+steadyhand draft notes.txt --samples readings.csv -o protocol.yaml --model-command "my-local-model"
 ```
 
-The source can be a PDF, with `pip install drybench[pdf]`. Name the pages the protocol is on;
+The source can be a PDF, with `pip install steadyhand[pdf]`. Name the pages the protocol is on;
 a whole manual is refused as too long.
 
 ```bash
-drybench draft kit-manual.pdf --pages 4-6 -o protocol.yaml --model-command "my-local-model"
+steadyhand draft kit-manual.pdf --pages 4-6 -o protocol.yaml --model-command "my-local-model"
 ```
 
 The text is taken as the PDF stores it, so tables come out as runs of words and a scanned page
@@ -287,7 +289,7 @@ Swap your backend for `RecordingBackend`, run the protocol, then rehearse what i
 ```python
 import asyncio
 from pylabrobot.liquid_handling import LiquidHandler
-from drybench import RecordingBackend, rehearse
+from steadyhand import RecordingBackend, rehearse
 
 async def main():
     deck = build_my_deck()                      # your usual PyLabRobot deck
@@ -303,14 +305,14 @@ async def main():
 asyncio.run(main())
 ```
 
-`drybench demo` runs a built-in example of this, and `drybench demo --fault offset` or
+`steadyhand demo` runs a built-in example of this, and `steadyhand demo --fault offset` or
 `--fault depth` plants a mistake to show a failing rehearsal.
 
 ## How the scene is built
 
 PyLabRobot describes a deck as a tree of resources, each with a position and a bounding box.
 A bounding box is not a solid: a carrier's box reaches above the plates standing on it, and a
-plate's box contains its wells. drybench keeps only what the tree lets it know is solid.
+plate's box contains its wells. steadyhand keeps only what the tree lets it know is solid.
 
 | Resource | Becomes |
 | --- | --- |
@@ -350,7 +352,7 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 - **Other robots.** Three are planned for: a Hamilton STARlet, fully, and an Opentrons Flex and
   OT-2 with the gaps listed under [Robots](#robots). The physics rehearsal alone works on any
   PyLabRobot deck.
-- **PyLabRobot 1.0.** drybench targets the 0.2 line, the current stable release.
+- **PyLabRobot 1.0.** steadyhand targets the 0.2 line, the current stable release.
 - **Exact shapes.** Round wells are treated as square, tip-rack holes are not modelled, and a
   tip's width is a nominal cone because PyLabRobot stores tip length but not width.
 - **The 96-channel head, plate moves and other instruments.** A rehearsal lists such steps as

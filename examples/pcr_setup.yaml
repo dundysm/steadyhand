@@ -1,4 +1,4 @@
-drybench: 0.1
+steadyhand: 0.1
 name: PCR plate setup, 24 reactions
 description: >
   20 uL reactions in the first three columns of a PCR plate: 15 uL of master mix

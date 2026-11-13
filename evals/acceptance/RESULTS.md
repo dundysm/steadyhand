@@ -2,7 +2,7 @@
 
 Twenty notes drawn from public kit manuals (see SOURCES.md), each drafted by a Claude Opus 5.5 agent
 playing the model through `evals/step_intake.py`, then checked, planned and rehearsed with no hand
-edits to what the model wrote. Run on drybench 0.6.0.
+edits to what the model wrote. Run on steadyhand 0.6.0.
 
 | note | draft | rounds | plan | rehearse | same draft on 0.8.0 |
 |---|---|---|---|---|---|

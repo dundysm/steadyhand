@@ -161,7 +161,7 @@ class Rehearsal:
   def report(self) -> str:
     rehearsed = [s for s in self.steps if s.simulated]
     lines = [
-      f"drybench rehearsal: {'PASS' if self.ok else 'FAIL'}",
+      f"steadyhand rehearsal: {'PASS' if self.ok else 'FAIL'}",
       f"  steps rehearsed: {len(rehearsed)} (path {self.path_length / 1000:.2f} m, {self.samples} samples)",
       f"  collisions: {len(self.collisions)}",
     ]

@@ -4,13 +4,13 @@ from pathlib import Path
 
 import pytest
 
-from drybench.cli import main
-from drybench.protocol import WASTE, ProtocolError, Well, check, load, loads
+from steadyhand.cli import main
+from steadyhand.protocol import WASTE, ProtocolError, Well, check, load, loads
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 HEAD = """
-drybench: 0.1
+steadyhand: 0.1
 name: test
 labware:
   plate: {type: Cor_96_wellplate_360ul_Fb}
@@ -116,7 +116,7 @@ def normalization_with(rows, tmp_path):
   (tmp_path / "samples.csv").write_text("well,conc\n" + rows)
   (tmp_path / "protocol.yaml").write_text(
     """
-drybench: 0.1
+steadyhand: 0.1
 name: normalize
 labware:
   stock: {type: Cor_96_wellplate_360ul_Fb}
@@ -151,10 +151,10 @@ def test_check_command(capsys):
 
 
 def test_transfer_to_waste_discards_without_any_waste_labware():
-  from drybench.protocol import check, loads
+  from steadyhand.protocol import check, loads
 
   text = """
-drybench: 0.1
+steadyhand: 0.1
 name: remove supernatant
 labware:
   plate: {type: Cor_96_wellplate_360ul_Fb}
@@ -171,10 +171,10 @@ steps:
 
 
 def test_a_problem_repeated_in_every_well_is_reported_once():
-  from drybench.protocol import check, loads
+  from steadyhand.protocol import check, loads
 
   checked = check(loads("""
-drybench: 0.1
+steadyhand: 0.1
 name: overflow
 labware:
   plate: {type: Cor_96_wellplate_360ul_Fb}
@@ -191,10 +191,10 @@ steps:
 
 
 def test_a_liquid_no_step_touches_is_a_problem():
-  from drybench.protocol import check, loads
+  from steadyhand.protocol import check, loads
 
   text = """
-drybench: 0.1
+steadyhand: 0.1
 name: wrong column
 labware:
   plate: {type: Cor_96_wellplate_360ul_Fb}
@@ -210,10 +210,10 @@ steps:
 
 
 def test_one_well_running_dry_again_and_again_is_one_line():
-  from drybench.protocol import check, loads
+  from steadyhand.protocol import check, loads
 
   checked = check(loads("""
-drybench: 0.1
+steadyhand: 0.1
 name: dry
 labware:
   plate: {type: Cor_96_wellplate_360ul_Fb}

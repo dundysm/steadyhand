@@ -1,4 +1,4 @@
-"""Command line for drybench."""
+"""Command line for steadyhand."""
 
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def _demo(args: argparse.Namespace) -> int:
   result = rehearse(deck, backend.steps, on_sample=None if args.no_render else keep)
   print(f"demo: {FAULTS[args.fault]}")
   print(result.report())
-  _write(result, Path(args.out), kept, not args.no_render, f"drybench demo: {FAULTS[args.fault]}")
+  _write(result, Path(args.out), kept, not args.no_render, f"steadyhand demo: {FAULTS[args.fault]}")
   return 0 if result.ok else 1
 
 
@@ -85,10 +85,10 @@ def _load_checked(path: str):
   try:
     protocol = load(path)
   except FileNotFoundError:
-    print(f"drybench: cannot find {path}")
+    print(f"steadyhand: cannot find {path}")
     return None
   except ProtocolError as error:
-    print(f"drybench check: FAIL  {path} cannot be read as a protocol")
+    print(f"steadyhand check: FAIL  {path} cannot be read as a protocol")
     print(f"  problems: {len(error.problems)}")
     for problem in error.problems:
       print(f"    - {problem}")
@@ -132,16 +132,16 @@ def _planned(path: str, choices_path: Optional[str] = None, robot_name: Optional
   robot = choose(robot_name, checked.protocol.robot)
   choices = None
   if choices_path and not robot.takes_plan_file:
-    print(f"drybench plan: a plan file cannot replace the planner's choices for the {robot.title} yet; leave --plan out")
+    print(f"steadyhand plan: a plan file cannot replace the planner's choices for the {robot.title} yet; leave --plan out")
     return None
   if choices_path:
     try:
       choices = load_choices(choices_path)
     except FileNotFoundError:
-      print(f"drybench: cannot find {choices_path}")
+      print(f"steadyhand: cannot find {choices_path}")
       return None
     except ProtocolError as error:
-      print(f"drybench plan: FAIL  {choices_path} cannot be read as a plan file")
+      print(f"steadyhand plan: FAIL  {choices_path} cannot be read as a plan file")
       print(f"  problems: {len(error.problems)}")
       for problem in error.problems:
         print(f"    - {problem}")
@@ -161,7 +161,7 @@ def _plan(args: argparse.Namespace) -> int:
     return 1
   robot, planned = found
   if args.output and not robot.takes_plan_file:
-    print(f"drybench plan: no plan file was written; the choices for the {robot.title} cannot be edited yet")
+    print(f"steadyhand plan: no plan file was written; the choices for the {robot.title} cannot be edited yet")
     return 1
   if args.output:
     Path(args.output).write_text(dump_choices(planned, source=args.file), encoding="utf-8")
@@ -204,7 +204,7 @@ def _rehearse(args: argparse.Namespace) -> int:
   try:
     result = asyncio.run(rehearse_plan(planned, on_sample=None if args.no_render else keep))
   except RunRefused as refused:
-    print("drybench rehearsal: FAIL")
+    print("steadyhand rehearsal: FAIL")
     print(f"  {refused}")
     print("  Nothing was replayed: the run stops at the first command PyLabRobot will not accept.")
     return 1
@@ -249,37 +249,37 @@ def _draft(args: argparse.Namespace) -> int:
   try:
     source = sys.stdin.read() if args.source == "-" else read_source(Path(args.source), args.pages)
   except OSError as error:
-    print(f"drybench draft: cannot read {args.source}: {error}")
+    print(f"steadyhand draft: cannot read {args.source}: {error}")
     return 1
   except SourceError as error:
-    print(f"drybench draft: {error}")
+    print(f"steadyhand draft: {error}")
     return 1
   if args.source.lower().endswith(".pdf"):
-    print(f"drybench draft: read {len(source):,} characters from {args.source}" + (f", pages {args.pages}" if args.pages else ""))
+    print(f"steadyhand draft: read {len(source):,} characters from {args.source}" + (f", pages {args.pages}" if args.pages else ""))
   try:
     if args.model_command:
       model = command_model(args.model_command)
     elif args.provider and args.model:
       model = (anthropic_model if args.provider == "anthropic" else openai_model)(args.model)
     else:
-      print("drybench draft: say which model to use, with --model-command CMD or --provider NAME --model NAME")
+      print("steadyhand draft: say which model to use, with --model-command CMD or --provider NAME --model NAME")
       return 1
     samples = Path(args.samples) if args.samples else None
     if samples is not None and not samples.is_file():
-      print(f"drybench draft: cannot find {samples}")
+      print(f"steadyhand draft: cannot find {samples}")
       return 1
     if samples is not None and samples.resolve().parent != Path(args.output).resolve().parent:
-      print(f"drybench draft: the protocol names its samples file by name, so write it next to {samples}")
+      print(f"steadyhand draft: the protocol names its samples file by name, so write it next to {samples}")
       print(f"  for example: -o {samples.parent / Path(args.output).name}")
       return 1
     result = draft(source, model, samples=samples, max_rounds=args.rounds, robot=args.robot or "")
   except ModelError as error:
-    print(f"drybench draft: {error}")
+    print(f"steadyhand draft: {error}")
     return 1
 
   Path(args.output).write_text(result.text)
   asked = "once" if result.rounds == 1 else f"{result.rounds} times"
-  print(f"drybench draft: {'PASS' if result.ok else 'FAIL'}  the model was asked {asked}")
+  print(f"steadyhand draft: {'PASS' if result.ok else 'FAIL'}  the model was asked {asked}")
   if result.checked is not None:
     print(result.checked.report())
   else:
@@ -291,9 +291,9 @@ def _draft(args: argparse.Namespace) -> int:
     print("A model wrote this file. Read it against your source before you rehearse or run it.")
   elif result.left_for_a_person:
     print("The model kept the file as it is: fixing these problems means changing what your text says,")
-    print("or supplying something it does not have. Decide what to change, then run drybench check.")
+    print("or supplying something it does not have. Decide what to change, then run steadyhand check.")
   else:
-    print("The file still has problems after the last try. Fix it by hand, then run drybench check.")
+    print("The file still has problems after the last try. Fix it by hand, then run steadyhand check.")
   return 0 if result.ok else 1
 
 
@@ -301,9 +301,9 @@ def main(argv: Optional[List[str]] = None) -> int:
   from .robots import ROBOTS
 
   parser = argparse.ArgumentParser(
-    prog="drybench", description="Turn a written lab protocol into a robot program and rehearse it without the robot."
+    prog="steadyhand", description="Turn a written lab protocol into a robot program and rehearse it without the robot."
   )
-  parser.add_argument("--version", action="version", version=f"drybench {__version__}")
+  parser.add_argument("--version", action="version", version=f"steadyhand {__version__}")
   commands = parser.add_subparsers(dest="command", required=True)
 
   draft = commands.add_parser("draft", help="have a language model write a protocol file from plain text")
@@ -321,12 +321,12 @@ def main(argv: Optional[List[str]] = None) -> int:
   draft.set_defaults(run=_draft)
 
   check = commands.add_parser("check", help="read a protocol file and follow its liquid through every move")
-  check.add_argument("file", help="a drybench protocol file (YAML)")
+  check.add_argument("file", help="a steadyhand protocol file (YAML)")
   check.add_argument("--moves", action="store_true", help="also list every move the steps expand into")
   check.set_defaults(run=_check)
 
   plan = commands.add_parser("plan", help="check a protocol, then choose tips, channels and a deck layout")
-  plan.add_argument("file", help="a drybench protocol file (YAML)")
+  plan.add_argument("file", help="a steadyhand protocol file (YAML)")
   plan.add_argument("-o", "--output", help="write the tips, deck and pipetting height to a plan file you can edit")
   plan.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   plan.set_defaults(run=_plan)
@@ -337,21 +337,21 @@ def main(argv: Optional[List[str]] = None) -> int:
   rehearse_ = commands.add_parser(
     "rehearse", help="check and plan a protocol, then run the plan through everything that can check it off the robot"
   )
-  rehearse_.add_argument("file", help="a drybench protocol file (YAML)")
-  rehearse_.add_argument("--out", default="drybench-out", help="folder for the scene, the report and the script")
+  rehearse_.add_argument("file", help="a steadyhand protocol file (YAML)")
+  rehearse_.add_argument("--out", default="steadyhand-out", help="folder for the scene, the report and the script")
   rehearse_.add_argument("--no-render", action="store_true", help="skip the PNG pictures")
   rehearse_.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   rehearse_.set_defaults(run=_rehearse)
 
   emit = commands.add_parser("emit", help="check and plan a protocol, then write the program for the robot")
-  emit.add_argument("file", help="a drybench protocol file (YAML)")
+  emit.add_argument("file", help="a steadyhand protocol file (YAML)")
   emit.add_argument("-o", "--output", help="where to write the script; printed when left out")
   emit.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   emit.set_defaults(run=_emit)
 
   demo = commands.add_parser("demo", help="rehearse a built-in transfer on a Hamilton STARlet deck")
   demo.add_argument("--fault", choices=sorted(FAULTS), default="none", help="a mistake to plant in the protocol")
-  demo.add_argument("--out", default="drybench-out", help="folder for the scene and the report")
+  demo.add_argument("--out", default="steadyhand-out", help="folder for the scene and the report")
   demo.add_argument("--no-render", action="store_true", help="skip the PNG picture")
   demo.set_defaults(run=_demo)
 

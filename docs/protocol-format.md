@@ -1,11 +1,11 @@
-# The drybench protocol file (draft 0.1)
+# The steadyhand protocol file (draft 0.1)
 
 A protocol file says **what** to do: which labware, where the liquids start, and the steps.
 It says nothing about **how** a robot does it. Deck positions, tip types and channels are chosen
-by the planner (`drybench plan FILE`). An editable plan file for overriding those choices is not built yet.
+by the planner (`steadyhand plan FILE`). An editable plan file for overriding those choices is not built yet.
 
 The file is YAML so that a person can read it, a language model can write it, and everything
-after it can be exact. `drybench check FILE` reads it and follows the liquid through every move.
+after it can be exact. `steadyhand check FILE` reads it and follows the liquid through every move.
 
 This is a draft. Nothing here is frozen.
 
@@ -15,14 +15,14 @@ This is a draft. Nothing here is frozen.
 2. **Unknown fields are errors.** A misspelt field is reported, never ignored.
 3. **Every problem is reported at once**, each with its place in the file, such as `steps[2].transfer.volume`.
 4. **Steps state intent.** `serial_dilution` and `normalize` expand into plain transfers and
-   mixes by fixed rules. `drybench check FILE --moves` shows the expansion.
+   mixes by fixed rules. `steadyhand check FILE --moves` shows the expansion.
 5. **The same file always gives the same moves.** Nothing in reading or expanding is random.
 
 ## Sections
 
 | Section | Required | Holds |
 | --- | --- | --- |
-| `drybench` | yes | The format version, `0.1` |
+| `steadyhand` | yes | The format version, `0.1` |
 | `name` | yes | A title |
 | `description` | no | Free text |
 | `notes` | no | A list of sentences recording choices that the source text did not settle |
@@ -81,4 +81,4 @@ labware and is not declared; the planner adds a reservoir for it.
 1. Should `normalize` and `serial_dilution` stay built in, or should the format offer a general
    way to define such steps?
 2. Is YAML the right surface, or should the same model also be writable as a small Python API?
-3. Should an export to an existing format such as Autoprotocol be a goal, so other tools can read drybench protocols?
+3. Should an export to an existing format such as Autoprotocol be a goal, so other tools can read steadyhand protocols?

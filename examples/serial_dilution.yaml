@@ -1,4 +1,4 @@
-drybench: 0.1
+steadyhand: 0.1
 name: Two-fold serial dilution across a 96-well plate
 description: >
   Eight samples in column 1 are diluted two-fold, eleven times, left to right.

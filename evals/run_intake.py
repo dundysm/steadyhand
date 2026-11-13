@@ -1,4 +1,4 @@
-"""Run `drybench draft` on every note in evals/intake with a real model, then plan and rehearse what it wrote.
+"""Run `steadyhand draft` on every note in evals/intake with a real model, then plan and rehearse what it wrote.
 
   python evals/run_intake.py --model-command "claude -p"
   python evals/run_intake.py --provider anthropic --model NAME      (reads ANTHROPIC_API_KEY)
@@ -15,8 +15,8 @@ import sys
 import time
 from pathlib import Path
 
-from drybench.intake import ModelError, anthropic_model, command_model, draft, openai_model
-from drybench.planner import RunRefused, plan, rehearse_plan
+from steadyhand.intake import ModelError, anthropic_model, command_model, draft, openai_model
+from steadyhand.planner import RunRefused, plan, rehearse_plan
 
 HERE = Path(__file__).parent
 
@@ -47,7 +47,7 @@ def one(note: Path, model, rounds: int, out: Path) -> dict:
         row["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
     except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
       row["rehearse"] = f"fail ({refused})"
-    except Exception as error:  # a crash here is a drybench bug, and worth recording as one
+    except Exception as error:  # a crash here is a steadyhand bug, and worth recording as one
       row["rehearse"] = f"crash ({type(error).__name__}: {error})"
   row["seconds"] = round(time.time() - started, 1)
   return row

@@ -1,4 +1,4 @@
-"""The drybench protocol file: what to do, with no word about how a robot does it.
+"""The steadyhand protocol file: what to do, with no word about how a robot does it.
 
 A protocol file is YAML. It names the labware, says where liquids start, and lists steps.
 Loading one checks every field strictly and reports every problem it finds, each with the
@@ -316,7 +316,7 @@ class _Reader:
           self.fail(
             f"{where}.type",
             f"{body.get('type')!r} is not a plate definition in PyLabRobot. Opentrons load names can be used "
-            "once Opentrons' software is installed: pip install 'drybench[opentrons]'",
+            "once Opentrons' software is installed: pip install 'steadyhand[opentrons]'",
           )
         continue
       wells = plate.get_all_items()
@@ -476,7 +476,7 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     raise ProtocolError([Problem("file", f"not valid YAML: {error}")]) from error
 
   top = reader.keys(
-    raw, "file", ("drybench", "name", "labware", "steps"), ("description", "notes", "robot", "liquids", "samples", "limits")
+    raw, "file", ("steadyhand", "name", "labware", "steps"), ("description", "notes", "robot", "liquids", "samples", "limits")
   )
   robot = str(top.get("robot", ""))
   if robot:
@@ -488,8 +488,8 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
   if not isinstance(notes, list) or not all(isinstance(note, str) for note in notes):
     reader.fail("notes", "expected a list of sentences")
     notes = []
-  if str(top.get("drybench")) != FORMAT_VERSION and "drybench" in top:
-    reader.fail("drybench", f"this reader understands format {FORMAT_VERSION}, the file says {top['drybench']!r}")
+  if str(top.get("steadyhand")) != FORMAT_VERSION and "steadyhand" in top:
+    reader.fail("steadyhand", f"this reader understands format {FORMAT_VERSION}, the file says {top['steadyhand']!r}")
 
   reader.read_labware(top.get("labware"))
   liquids = reader.read_liquids(top.get("liquids"))
@@ -661,7 +661,7 @@ class Check:
     transfers = sum(1 for m in self.moves if m.kind == "transfer")
     mixes = sum(1 for m in self.moves if m.kind == "mix")
     lines = [
-      f"drybench check: {'PASS' if self.ok else 'FAIL'}  {self.protocol.name}",
+      f"steadyhand check: {'PASS' if self.ok else 'FAIL'}  {self.protocol.name}",
       f"  moves: {transfers} transfers, {mixes} mixes, {self.tips} tips",
     ]
     if self.wait_seconds:

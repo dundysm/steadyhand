@@ -10,15 +10,15 @@ import pytest
 from pylabrobot.liquid_handling import LiquidHandler
 from pylabrobot.resources import Plate, set_tip_tracking, set_volume_tracking
 
-from drybench import RecordingBackend
-from drybench.cli import main
-from drybench.planner import build_deck, emit, plan, plan_file, rehearse_plan, run
-from drybench.protocol import check, loads
+from steadyhand import RecordingBackend
+from steadyhand.cli import main
+from steadyhand.planner import build_deck, emit, plan, plan_file, rehearse_plan, run
+from steadyhand.protocol import check, loads
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
 
 HEAD = """
-drybench: 0.1
+steadyhand: 0.1
 name: test
 labware:
   plate: {type: Cor_96_wellplate_360ul_Fb}
@@ -61,8 +61,8 @@ def test_serial_dilution_rehearses_cleanly(dilution):
   assert result.not_rehearsed == []
 
 
-def test_pylabrobot_and_drybench_agree_on_every_volume(dilution):
-  """Two independent ledgers: drybench's check, and PyLabRobot's trackers after the plan ran."""
+def test_pylabrobot_and_steadyhand_agree_on_every_volume(dilution):
+  """Two independent ledgers: steadyhand's check, and PyLabRobot's trackers after the plan ran."""
   checked, _, result = dilution
   for well, volume in checked.volumes.items():
     assert result.volumes[f"{well.labware}_well_{well.well}"] == pytest.approx(volume, abs=1e-3)
@@ -122,7 +122,7 @@ def test_wells_closer_than_the_channel_pitch_are_not_put_in_one_command():
     and _rows(name) == 16
   )
   text = f"""
-drybench: 0.1
+steadyhand: 0.1
 name: dense
 labware:
   plate: {{type: {dense}}}
@@ -161,7 +161,7 @@ def test_smallest_tip_that_fits_is_chosen():
 
 def test_too_much_labware_for_one_deck_is_reported():
   plates = "\n".join(f"  p{i}: {{type: Cor_96_wellplate_360ul_Fb}}" for i in range(26))
-  text = f"drybench: 0.1\nname: crowded\nlabware:\n{plates}\nliquids:\n  s: {{in: p0/A1, volume: 100 uL}}\nsteps:\n  - transfer: {{from: p0/A1, to: p1/A1, volume: 10 uL}}\n"
+  text = f"steadyhand: 0.1\nname: crowded\nlabware:\n{plates}\nliquids:\n  s: {{in: p0/A1, volume: 100 uL}}\nsteps:\n  - transfer: {{from: p0/A1, to: p1/A1, volume: 10 uL}}\n"
   planned = planned_from(text)
   assert any("a STARlet deck has 30" in str(p) for p in planned.problems)
 
@@ -199,7 +199,7 @@ def test_pcr_setup_example_rehearses_and_keeps_tips_on_idle_channels():
 # ---------------------------------------------------------------- the editable plan file
 
 EDITED = """
-drybench_plan: "0.1"
+steadyhand_plan: "0.1"
 pipetting_height: 2.5 mm
 tips:
   - {type: hamilton_96_tiprack_1000uL, capacity: 1000 uL}
@@ -216,7 +216,7 @@ deck:
 
 
 def test_a_dumped_plan_file_read_back_gives_the_same_plan(dilution):
-  from drybench.planner import dump_choices, loads_choices
+  from steadyhand.planner import dump_choices, loads_choices
 
   checked, planned, _ = dilution
   again = plan(checked, loads_choices(dump_choices(planned)))
@@ -225,7 +225,7 @@ def test_a_dumped_plan_file_read_back_gives_the_same_plan(dilution):
 
 
 def test_an_edited_plan_file_changes_tips_deck_and_height_and_still_rehearses(dilution):
-  from drybench.planner import loads_choices
+  from steadyhand.planner import loads_choices
 
   checked, _, _ = dilution
   planned = plan(checked, loads_choices(EDITED))
@@ -241,11 +241,11 @@ def test_an_edited_plan_file_changes_tips_deck_and_height_and_still_rehearses(di
 
 
 def test_a_plan_file_is_read_strictly_and_every_problem_is_listed():
-  from drybench.planner import loads_choices
-  from drybench.protocol import ProtocolError
+  from steadyhand.planner import loads_choices
+  from steadyhand.protocol import ProtocolError
 
   bad = """
-drybench_plan: "0.1"
+steadyhand_plan: "0.1"
 pipetting_height: 2
 speed: fast
 tips:
@@ -259,15 +259,15 @@ deck:
   where = {problem.where for problem in caught.value.problems}
   assert where == {"plan file.speed", "pipetting_height", "tips[0].capacity", "tips[1].type", "deck[0].rails"}
   with pytest.raises(ProtocolError, match="below the well floor"):
-    loads_choices('drybench_plan: "0.1"\npipetting_height: -3 mm\n')
+    loads_choices('steadyhand_plan: "0.1"\npipetting_height: -3 mm\n')
 
 
 def test_a_deck_that_does_not_hold_the_plan_is_refused(dilution):
-  from drybench.planner import loads_choices
+  from steadyhand.planner import loads_choices
 
   checked, _, _ = dilution
   deck = """
-drybench_plan: "0.1"
+steadyhand_plan: "0.1"
 deck:
   - {carrier: a, type: PLT_CAR_L5AC_A00, rails: 28, sites: [plate, tips_300_1, plate]}
   - {carrier: b, type: TIP_CAR_480_A00, rails: 30, sites: [ghost]}
@@ -280,7 +280,7 @@ deck:
 
 
 def test_fewer_tip_sizes_split_big_transfers_and_refuse_big_mixes(dilution):
-  from drybench.planner import Choices
+  from steadyhand.planner import Choices
 
   checked, _, _ = dilution
   small = plan(checked, Choices(tip_types=[(50.0, "hamilton_96_tiprack_50uL_filter")]))
@@ -293,17 +293,17 @@ def test_cli_writes_a_plan_file_and_takes_it_back(tmp_path, capsys):
   chosen.write_text(chosen.read_text().replace("pipetting_height: 1 mm", "pipetting_height: 0.5 mm"))
   assert main(["emit", str(EXAMPLES / "pcr_setup.yaml"), "--plan", str(chosen), "-o", str(tmp_path / "s.py")]) == 0
   assert "HEIGHT = 0.5" in (tmp_path / "s.py").read_text()
-  chosen.write_text("drybench_plan: \"0.1\"\nspeed: fast\n")
+  chosen.write_text("steadyhand_plan: \"0.1\"\nspeed: fast\n")
   assert main(["plan", str(EXAMPLES / "pcr_setup.yaml"), "--plan", str(chosen)]) == 1
   assert "cannot be read as a plan file" in capsys.readouterr().out
 
 
 def test_a_plate_with_no_skirt_is_planned_in_an_adapter_and_says_so():
-  from drybench.planner import needs_adapter
-  from drybench.protocol import check, loads
+  from steadyhand.planner import needs_adapter
+  from steadyhand.protocol import check, loads
 
   checked = check(loads("""
-drybench: 0.1
+steadyhand: 0.1
 name: unskirted pcr plate
 labware:
   pcr:    {type: thermo_AB_96_wellplate_300ul_Vb_MicroAmp}
@@ -336,7 +336,7 @@ steps:
 
 
 LIDDED = """
-drybench: 0.1
+steadyhand: 0.1
 name: reagent into a plate that ships with a lid
 labware:
   plate:  {type: PerkinElmer_96_wellplate_400ul_Fb}
@@ -349,7 +349,7 @@ steps:
 
 
 def test_a_plate_that_comes_with_a_lid_is_planned_with_the_lid_off_and_says_so():
-  from drybench.protocol import check, loads
+  from steadyhand.protocol import check, loads
 
   planned = plan(check(loads(LIDDED)))
   assert planned.ok and planned.assumptions == ["the lid is off plate (PerkinElmer_96_wellplate_400ul_Fb comes with one)"]
@@ -371,8 +371,8 @@ def test_a_plate_that_comes_with_a_lid_is_planned_with_the_lid_off_and_says_so()
 
 
 def test_a_command_pylabrobot_refuses_is_a_clean_failure(tmp_path, capsys):
-  from drybench.planner import RunRefused, record_plan
-  from drybench.protocol import check, loads
+  from steadyhand.planner import RunRefused, record_plan
+  from steadyhand.protocol import check, loads
 
   planned = plan(check(loads(LIDDED)))
 
@@ -386,7 +386,7 @@ def test_a_command_pylabrobot_refuses_is_a_clean_failure(tmp_path, capsys):
 
 
 def test_more_tips_than_the_deck_holds_are_planned_with_reloads_and_more_waste():
-  from drybench.protocol import check, loads
+  from steadyhand.protocol import check, loads
 
   steps = "".join(
     f"  - transfer: {{from: {source}/A1, to: plate/A1:H12, volume: 300 uL}}\n"
@@ -394,7 +394,7 @@ def test_more_tips_than_the_deck_holds_are_planned_with_reloads_and_more_waste()
     for source in ["trough", "trough_b"] * 6
   )
   text = """
-drybench: 0.1
+steadyhand: 0.1
 name: twelve washes of a whole plate
 labware:
   plate:    {type: Cor_96_wellplate_360ul_Fb}

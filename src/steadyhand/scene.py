@@ -262,7 +262,7 @@ def _fmt(values: Iterable[float]) -> str:
 def boxes_to_mjcf(
   boxes: Sequence[Box],
   *,
-  model_name: str = "drybench",
+  model_name: str = "steadyhand",
   extra_bodies: Optional[Sequence[ET.Element]] = None,
 ) -> str:
   """Write the boxes as a MuJoCo XML document (MJCF), in metres."""
@@ -328,6 +328,6 @@ def boxes_to_mjcf(
   return ET.tostring(mujoco, encoding="unicode") + "\n"
 
 
-def export_scene(root: Resource, *, model_name: str = "drybench") -> str:
+def export_scene(root: Resource, *, model_name: str = "steadyhand") -> str:
   """The MuJoCo XML for the resource tree under `root`, as it stands right now."""
   return boxes_to_mjcf(collect_boxes(root), model_name=model_name)

@@ -1,4 +1,4 @@
-"""The robots drybench can plan for, and the software each one is driven through.
+"""The robots steadyhand can plan for, and the software each one is driven through.
 
 A protocol file says what to do. A robot here says how that becomes a program: `plan` makes the
 choices, `emit` writes the program, and `rehearse` runs the plan through whatever can check it

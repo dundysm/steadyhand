@@ -1,7 +1,7 @@
 """Draft a protocol file from plain text with a language model.
 
-This is the only place drybench uses a model. The model reads notes, a kit manual or a
-sentence and writes a protocol file. drybench then reads that file exactly as it would read
+This is the only place steadyhand uses a model. The model reads notes, a kit manual or a
+sentence and writes a protocol file. steadyhand then reads that file exactly as it would read
 one written by hand; if it does not hold up, the problems go back to the model for another
 try. Nothing the model writes reaches a plan or a robot without passing `check`.
 
@@ -32,7 +32,7 @@ Message = Dict[str, str]  # {"role": "system" | "user" | "assistant", "content":
 Model = Callable[[List[Message]], str]
 
 GUIDE = """\
-You write protocol files for drybench, a tool that checks and rehearses liquid-handling
+You write protocol files for steadyhand, a tool that checks and rehearses liquid-handling
 protocols. Read the text the user gives you and write the protocol it describes.
 
 Reply with one YAML document and nothing else.
@@ -77,7 +77,7 @@ RULES
   problem to them.
 
 SECTIONS
-drybench: 0.1            (required, exactly this)
+steadyhand: 0.1            (required, exactly this)
 name: <title>            (required)
 description: <text>      (optional)
 notes: [<sentence>, ...] (optional; see above)
@@ -105,14 +105,14 @@ STEPS
     mix, discard and tips are optional.
 - normalize: {from: <labware>, to: <labware>, diluent: <one well>, target: <concentration>, final_volume: <volume>, mix: {times: <n>, volume: <volume>}}
     Brings every sample listed in the samples file to `target` in `final_volume`, in the same
-    well of `to`: diluent first, then sample. drybench works both volumes out from the file, so
+    well of `to`: diluent first, then sample. steadyhand works both volumes out from the file, so
     never copy concentrations into the protocol. `from` and `to` are labware names, not wells.
     Needs the `samples` section, and the samples declared under `liquids` like any other
     liquid. mix is optional.
 - wait: {duration: <time>}
 
 EXAMPLE 1 (for a text that states every plate, volume and mix)
-drybench: 0.1
+steadyhand: 0.1
 name: Two-fold serial dilution across a 96-well plate
 labware:
   plate:     {type: Cor_96_wellplate_360ul_Fb}
@@ -130,7 +130,7 @@ steps:
       mix: {times: 3, volume: 80 uL}
 
 EXAMPLE 2 (for the text: "wash the 8 samples in column 1 once with buffer, 1 mL plate")
-drybench: 0.1
+steadyhand: 0.1
 name: One wash of column 1
 notes:
   - The text does not name the plate, so a 2 mL deep-well plate was chosen to hold 1 mL wells.
@@ -227,7 +227,7 @@ def extract_yaml(reply: str) -> str:
   fenced = re.search(r"```(?:yaml|yml)?\s*\n(.*?)```", reply, flags=re.DOTALL)
   if fenced:
     return fenced.group(1).strip() + "\n"
-  start = re.search(r"^drybench\s*:", reply, flags=re.MULTILINE)
+  start = re.search(r"^steadyhand\s*:", reply, flags=re.MULTILINE)
   return (reply[start.start() :] if start else reply).strip() + "\n"
 
 
@@ -283,7 +283,7 @@ def pages_from(spec: str, count: int) -> List[int]:
 def read_source(path: Path, pages: Optional[str] = None) -> str:
   """The text of a notes file or of a PDF, ready to draft from.
 
-  A PDF needs the `pypdf` package (`pip install drybench[pdf]`). Its text is taken as the file
+  A PDF needs the `pypdf` package (`pip install steadyhand[pdf]`). Its text is taken as the file
   stores it: tables come out as runs of words, and a scanned page has no text at all. Give
   `pages` to send only the pages with the protocol on them.
   """
@@ -295,7 +295,7 @@ def read_source(path: Path, pages: Optional[str] = None) -> str:
   try:
     from pypdf import PdfReader
   except ImportError as error:
-    raise SourceError("reading a PDF needs the pypdf package: pip install drybench[pdf]") from error
+    raise SourceError("reading a PDF needs the pypdf package: pip install steadyhand[pdf]") from error
   try:
     reader = PdfReader(str(path))
     numbers = pages_from(pages, len(reader.pages)) if pages else list(range(1, len(reader.pages) + 1))
@@ -310,7 +310,7 @@ def read_source(path: Path, pages: Optional[str] = None) -> str:
   text = "\n\n".join(f"[page {n}]\n{text}" for n, text in texts if text)
   if len(text) > MAX_SOURCE:
     raise SourceError(
-      f"{path.name} gives {len(text):,} characters from {len(texts)} pages, more than the {MAX_SOURCE:,} drybench sends; "
+      f"{path.name} gives {len(text):,} characters from {len(texts)} pages, more than the {MAX_SOURCE:,} steadyhand sends; "
       "name the pages with the protocol on them, for example --pages 4-6"
     )
   return text
@@ -320,7 +320,7 @@ def describe_samples(path: Path, rows: int = 4) -> str:
   """What a model needs to know about a samples file: its name, its columns and its first rows.
 
   The model is shown a few rows so it can tell which column is which and in what unit; the
-  protocol it writes names the file, and drybench reads the numbers from the file itself.
+  protocol it writes names the file, and steadyhand reads the numbers from the file itself.
   """
   with Path(path).open(newline="", encoding="utf-8") as handle:
     table = list(csv.reader(handle))
@@ -339,7 +339,7 @@ def messages_for(source: str, samples: Optional[Path] = None, robot: str = "") -
   offered = "\n" + describe_samples(samples) + "\n" if samples is not None else ""
   return [
     {"role": "system", "content": guide_for(robot) + "\nLABWARE\n" + labware_catalogue(robot) + "\n"},
-    {"role": "user", "content": "Write the drybench protocol file for this:\n\n" + source.strip() + "\n" + offered},
+    {"role": "user", "content": "Write the steadyhand protocol file for this:\n\n" + source.strip() + "\n" + offered},
   ]
 
 

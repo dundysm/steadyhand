@@ -102,7 +102,7 @@ class Plan:
     return not self.problems
 
   def report(self) -> str:
-    lines = [f"drybench plan: {'OK' if self.ok else 'FAIL'}  {self.protocol.name}"]
+    lines = [f"steadyhand plan: {'OK' if self.ok else 'FAIL'}  {self.protocol.name}"]
     for placement in self.placements:
       held = ", ".join(s for s in placement.sites if s)
       lines.append(f"  rails {placement.rails:>2}  {placement.carrier_type}: {held}")
@@ -330,7 +330,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
         problems.append(
           Problem(
             f"labware.{name}.type",
-            f"{item.type} is an Opentrons definition and drybench knows no PyLabRobot one for the same plate; "
+            f"{item.type} is an Opentrons definition and steadyhand knows no PyLabRobot one for the same plate; "
             "the Hamilton STARlet needs a PyLabRobot definition here",
           )
         )
@@ -612,9 +612,9 @@ _VOLUME = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*(uL|µL|μL|mL)\s*$")
 def dump_choices(planned: Plan, *, source: str = "") -> str:
   """The tips, deck and pipetting height of a plan as a YAML file a person can edit."""
   lines = [
-    f"# Choices drybench made for {source or planned.protocol.name}.",
+    f"# Choices steadyhand made for {source or planned.protocol.name}.",
     "# Edit this file and hand it back with --plan FILE. Delete a section to have it chosen again.",
-    f'drybench_plan: "{CHOICES_VERSION}"',
+    f'steadyhand_plan: "{CHOICES_VERSION}"',
     "",
     "# How far above the well floor the tip stops for every aspirate and dispense.",
     f"pipetting_height: {planned.pipetting_height:g} mm",
@@ -660,9 +660,9 @@ def loads_choices(text: str) -> Choices:
     data = yaml.safe_load(text)
   except yaml.YAMLError as error:
     raise ProtocolError([Problem("plan file", f"not valid YAML: {error}")]) from error
-  top = keys(data, "plan file", ("drybench_plan",), ("pipetting_height", "tips", "deck"))
-  if "drybench_plan" in top and str(top["drybench_plan"]) != CHOICES_VERSION:
-    fail("drybench_plan", f"this drybench reads plan files of version {CHOICES_VERSION}, got {top['drybench_plan']!r}")
+  top = keys(data, "plan file", ("steadyhand_plan",), ("pipetting_height", "tips", "deck"))
+  if "steadyhand_plan" in top and str(top["steadyhand_plan"]) != CHOICES_VERSION:
+    fail("steadyhand_plan", f"this steadyhand reads plan files of version {CHOICES_VERSION}, got {top['steadyhand_plan']!r}")
   choices = Choices()
 
   if "pipetting_height" in top:
@@ -871,7 +871,7 @@ def emit(planned: Plan, *, source: str = "") -> str:
   lines = [
     f'"""{planned.protocol.name}',
     "",
-    f"Written by drybench {__version__}" + (f" from {source}." if source else "."),
+    f"Written by steadyhand {__version__}" + (f" from {source}." if source else "."),
     "Change the protocol file and write this again; edits made here are lost.",
     '"""',
     "",

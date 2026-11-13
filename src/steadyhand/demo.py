@@ -1,4 +1,4 @@
-"""A small transfer on a Hamilton STARlet deck, used by `drybench demo` and by the tests.
+"""A small transfer on a Hamilton STARlet deck, used by `steadyhand demo` and by the tests.
 
 Eight channels pick up tips, take 100 uL from column 1 of a source plate, put it in column 1
 of a destination plate, and return the tips. Two deliberate mistakes can be switched on to

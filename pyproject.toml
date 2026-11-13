@@ -3,8 +3,8 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "drybench"
-version = "0.13.0"
+name = "steadyhand"
+version = "0.14.0"
 description = "Turn a written lab protocol into a robot program and rehearse it before it touches a real bench."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -34,10 +34,10 @@ pdf = ["pypdf>=4"]
 opentrons = ["opentrons>=9.1"]
 
 [project.scripts]
-drybench = "drybench.cli:main"
+steadyhand = "steadyhand.cli:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/drybench"]
+packages = ["src/steadyhand"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

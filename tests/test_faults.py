@@ -1,13 +1,13 @@
-"""The seeded-fault suite. The table below is what drybench stops today.
+"""The seeded-fault suite. The table below is what steadyhand stops today.
 
 When a new check closes a gap, the suite's outcome changes and this test fails: update the
-table here and regenerate docs/faults.md with `drybench faults -o docs/faults.md`.
+table here and regenerate docs/faults.md with `steadyhand faults -o docs/faults.md`.
 """
 
 import pytest
 
-from drybench.cli import main
-from drybench.faults import FAULTS, run_suite
+from steadyhand.cli import main
+from steadyhand.faults import FAULTS, run_suite
 
 STOPPED_AT = {
   "source-runs-dry": "check",

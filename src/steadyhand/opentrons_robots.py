@@ -219,7 +219,7 @@ class OpentronsPlan:
     return not self.problems
 
   def report(self) -> str:
-    lines = [f"drybench plan: {'OK' if self.ok else 'FAIL'}  {self.protocol.name}  ({self.profile.title})"]
+    lines = [f"steadyhand plan: {'OK' if self.ok else 'FAIL'}  {self.protocol.name}  ({self.profile.title})"]
     for mount, pipette in self.pipettes.items():
       lines.append(f"  {mount:<5} mount: {pipette}")
     for name, slot in self.slots.items():
@@ -325,7 +325,7 @@ def plan(checked: Check, profile: Profile, *, pipetting_height: float = 1.0) -> 
       problems.append(
         Problem(
           f"labware.{name}.type",
-          f"{item.type} is a PyLabRobot definition and drybench knows no Opentrons one for the same plate. "
+          f"{item.type} is a PyLabRobot definition and steadyhand knows no Opentrons one for the same plate. "
           f"Name an Opentrons load name here, or one of: {twins}",
         )
       )
@@ -587,13 +587,13 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
   lines = [
     f'"""{protocol.name}',
     "",
-    f"Written by drybench {__version__}" + (f" from {source}" if source else "") + f" for an {profile.title}.",
+    f"Written by steadyhand {__version__}" + (f" from {source}" if source else "") + f" for an {profile.title}.",
     "Change the protocol file and write this again; edits made here are lost.",
     '"""',
     "",
     "from opentrons import protocol_api",
     "",
-    f'metadata = {{"protocolName": {json.dumps(protocol.name)}, "author": "drybench {__version__}"}}',
+    f'metadata = {{"protocolName": {json.dumps(protocol.name)}, "author": "steadyhand {__version__}"}}',
     f'requirements = {{"robotType": "{profile.robot_type}", "apiLevel": "{profile.api_level}"}}',
     "",
     f"HEIGHT = {planned.pipetting_height!r}  # mm above the well floor for every aspirate and dispense",
@@ -650,7 +650,7 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
 
 # ---------------------------------------------------------------- Opentrons' own simulator
 
-OT2_SIMULATOR = "DRYBENCH_OT2_SIMULATE"  # environment variable: an opentrons_simulate that still takes OT-2 files
+OT2_SIMULATOR = "STEADYHAND_OT2_SIMULATE"  # environment variable: an opentrons_simulate that still takes OT-2 files
 
 
 @dataclass
@@ -670,8 +670,8 @@ class Simulation:
 
   def report(self) -> str:
     if not self.ran:
-      return "\n".join([f"drybench rehearsal: NOT RUN  ({self.title})", f"  {self.why_not}"])
-    lines = [f"drybench rehearsal: {'PASS' if self.ok else 'FAIL'}  ({self.title}, simulated by {self.by})"]
+      return "\n".join([f"steadyhand rehearsal: NOT RUN  ({self.title})", f"  {self.why_not}"])
+    lines = [f"steadyhand rehearsal: {'PASS' if self.ok else 'FAIL'}  ({self.title}, simulated by {self.by})"]
     if self.error:
       lines.append(f"  stopped: {self.error}")
     else:
@@ -754,7 +754,7 @@ def simulate(script: str, profile: Profile) -> Simulation:
   if simulator is None:
     result.why_not = (
       "Opentrons' software is not installed here, so nothing simulated the protocol. "
-      "Install it with: pip install 'drybench[opentrons]'"
+      "Install it with: pip install 'steadyhand[opentrons]'"
     )
   else:
     result.why_not = (

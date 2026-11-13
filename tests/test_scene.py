@@ -4,8 +4,8 @@ import mujoco
 import numpy as np
 import pytest
 
-from drybench.demo import build_deck
-from drybench.scene import MM, boxes_to_mjcf, collect_boxes, export_scene, liquid_height
+from steadyhand.demo import build_deck
+from steadyhand.scene import MM, boxes_to_mjcf, collect_boxes, export_scene, liquid_height
 
 
 @pytest.fixture(scope="module")

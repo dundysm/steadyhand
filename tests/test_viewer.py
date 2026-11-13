@@ -4,10 +4,10 @@ import asyncio
 import json
 from pathlib import Path
 
-from drybench import rehearse
-from drybench.cli import main
-from drybench.demo import run_demo
-from drybench.viewer import replay_data, replay_html
+from steadyhand import rehearse
+from steadyhand.cli import main
+from steadyhand.demo import run_demo
+from steadyhand.viewer import replay_data, replay_html
 
 EXAMPLES = Path(__file__).parent.parent / "examples"
 
