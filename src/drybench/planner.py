@@ -164,6 +164,26 @@ class _Geometry:
     return self._shared[definition]
 
 
+_REFUSALS: Dict[str, Optional[str]] = {}
+
+
+def carrier_refusal(definition: str) -> Optional[str]:
+  """Why the plate carrier cannot hold this PyLabRobot plate, or None when it can."""
+  if definition not in _REFUSALS:
+    import pylabrobot.resources as resources
+    from pylabrobot.resources import hamilton
+
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore")
+      try:
+        carrier = getattr(hamilton, PLATE_CARRIER)(name="probe_carrier")
+        carrier[0] = getattr(resources, definition)(name="probe")
+        _REFUSALS[definition] = None
+      except Exception as error:  # PyLabRobot says why in the message
+        _REFUSALS[definition] = str(error)
+  return _REFUSALS[definition]
+
+
 # ---------------------------------------------------------------- units of work
 
 
@@ -209,6 +229,11 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
     if "waste" in labware:
       problems.append(Problem("labware.waste", "the name 'waste' is kept for the planner's waste reservoir"))
     labware["waste"] = WASTE_TYPE
+
+  for name, definition in labware.items():
+    refusal = carrier_refusal(definition)
+    if refusal:
+      problems.append(Problem(f"labware.{name}", f"{definition} cannot sit on a {PLATE_CARRIER}: {refusal}"))
 
   def place(well: Well) -> Tuple[str, str]:
     return ("waste", "A1") if well == WASTE else (well.labware, well.well)

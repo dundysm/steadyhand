@@ -24,6 +24,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
+from .planner import carrier_refusal
 from .protocol import Check, Problem, ProtocolError, check, loads
 
 Message = Dict[str, str]  # {"role": "system" | "user" | "assistant", "content": ...}
@@ -41,13 +42,25 @@ RULES
 - Wells are written labware/well, such as plate/A1. A range such as plate/A1:H1 runs from its
   top-left well to its bottom-right well. On a 96-well plate, A1:H1 is column 1 (8 wells) and
   A1:A12 is row A (12 wells).
-- Every liquid that is drawn from must be declared under `liquids`, with the wells it starts
-  in and the volume in each. Supply about 20% more than the steps use.
-- Labware types must come from the LABWARE list, spelled exactly.
+- Declare under `liquids` every liquid that is in a well before the first step, whether the
+  steps draw from it, add to it or mix it, with the wells it starts in and the volume in each.
+  Use the volume the text gives. When it gives none, supply about 20% more than the steps use.
+- Labware types must come from the LABWARE list, spelled exactly. When the text does not name
+  the labware, choose one whose wells hold the largest volume any well reaches.
+- To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
+- There are no loops. Write a repeated action out as repeated steps.
 - Do not invent steps the text does not describe.
+- Leave out what a pipetting robot cannot do (vortexing, a magnet, heating, sealing, storage)
+  and say so in `notes`, one sentence each. A timed hold becomes a `wait`.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
-  `notes`. Every choice you made that the text did not state must appear there.
+  `notes`. Every choice you made that the text did not state must appear there. A mix volume
+  the text does not give is about two thirds of what the well holds at that point.
+- When the text asks for something the format cannot say exactly (such as new tips per
+  column), use the nearest stricter option and say so in `notes`.
+- Never change an amount the text states. If what the text describes cannot work (a well
+  would overflow, a source would run dry), write it as stated and say so in `notes`. If you
+  are then told about that problem, send the same file again; a person has to decide.
 
 SECTIONS
 drybench: 0.1            (required, exactly this)
@@ -62,20 +75,21 @@ limits: {min_volume: <volume>}   (optional; default 1 uL)
 steps:                   (required) a list; each item is exactly one of the steps below
 
 STEPS
-- transfer: {from: <wells>, to: <wells>, volume: <volume>, tips: fresh|reuse, mix_after: {times: <n>, volume: <volume>}}
+- transfer: {from: <wells>, to: <wells>|waste, volume: <volume>, tips: fresh|reuse, mix_after: {times: <n>, volume: <volume>}}
     from/to pair up as: one source to many wells, many sources to one well, or equal counts.
     volume is the amount per destination. tips defaults to fresh (a new tip per transfer);
     reuse keeps one tip per source well and suits clean liquid going into empty wells.
-    tips and mix_after are optional.
+    tips and mix_after are optional; without mix_after nothing is mixed.
 - mix: {wells: <wells>, volume: <volume>, times: <n>}
 - serial_dilution: {start: <wells>, steps: <n>, direction: right|left|down|up, volume: <volume>, mix: {times: <n>, volume: <volume>}, discard: true|false, tips: fresh|reuse}
     Each start well begins a chain: move `volume` to the next well in `direction`, mix, repeat
-    `steps` times. discard (default true) throws away `volume` from the last well.
+    `steps` times. discard (default true) throws away `volume` from the last well. tips
+    defaults to fresh (a new tip for every move down the chain); reuse keeps one per chain.
     The wells being diluted into must already hold diluent: add that with a transfer first.
     mix, discard and tips are optional.
 - wait: {duration: <time>}
 
-EXAMPLE
+EXAMPLE 1
 drybench: 0.1
 name: Two-fold serial dilution across a 96-well plate
 labware:
@@ -92,11 +106,30 @@ steps:
       direction: right
       volume: 100 uL
       mix: {times: 3, volume: 80 uL}
+
+EXAMPLE 2 (for the text: "wash the 8 samples in column 1 once with buffer, 1 mL plate")
+drybench: 0.1
+name: One wash of column 1
+notes:
+  - The text does not name the plate, so a 2 mL deep-well plate was chosen to hold 1 mL wells.
+  - The wash volume is not stated; 500 uL was chosen.
+  - The text does not say how long to leave the buffer on; 1 min was chosen.
+labware:
+  plate:  {type: Cor_96_wellplate_2mL_Vb}
+  trough: {type: nest_1_troughplate_195000uL_Vb}
+liquids:
+  sample: {in: plate/A1:H1, volume: 1 mL}
+  wash:   {in: trough/A1, volume: 5 mL}
+steps:
+  - transfer: {from: plate/A1:H1, to: waste, volume: 1 mL}
+  - transfer: {from: trough/A1, to: plate/A1:H1, volume: 500 uL}
+  - wait: {duration: 1 min}
+  - transfer: {from: plate/A1:H1, to: waste, volume: 500 uL}
 """
 
 
 def labware_catalogue() -> str:
-  """Every plate definition in PyLabRobot, one per line, with its shape and well capacity."""
+  """Every PyLabRobot plate the deck can hold, one per line, with its shape and well capacity."""
   import inspect
 
   import pylabrobot.resources as resources
@@ -114,8 +147,8 @@ def labware_catalogue() -> str:
         plate = maker(name="probe")
     except Exception:
       continue
-    if not isinstance(plate, Plate) or name.lower() in seen:
-      continue
+    if not isinstance(plate, Plate) or name.lower() in seen or carrier_refusal(name):
+      continue  # not a plate, a second spelling of one, or one the deck's carrier cannot hold
     seen.add(name.lower())  # some definitions exist under two spellings; one is enough
     wells = plate.get_all_items()
     lines.append(

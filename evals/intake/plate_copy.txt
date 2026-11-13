@@ -1,0 +1,3 @@
+Make a working copy of my compound plate.
+
+Source is a 96-well plate with 150 uL of compound in every well. Move 40 uL from each well into the same well of an empty 96-well plate. New tips for every column so nothing carries over.

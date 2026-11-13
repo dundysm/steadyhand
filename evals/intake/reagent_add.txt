@@ -1,0 +1,6 @@
+Assay readout, rows A to D only (48 wells, each already holds 50 uL of cells in medium).
+
+1. Add 50 uL of detection reagent to each well. The reagent is in a trough.
+2. Mix each well 5 times with 60 uL.
+3. Leave it 10 minutes.
+4. Add 25 uL of stop solution (second trough) to each well. No mixing after stop.

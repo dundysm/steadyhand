@@ -148,3 +148,43 @@ def test_check_command(capsys):
   assert "PASS" in capsys.readouterr().out
   assert main(["check", str(EXAMPLES / "does_not_exist.yaml")]) == 1
   capsys.readouterr()
+
+
+def test_transfer_to_waste_discards_without_any_waste_labware():
+  from drybench.protocol import check, loads
+
+  text = """
+drybench: 0.1
+name: remove supernatant
+labware:
+  plate: {type: Cor_96_wellplate_360ul_Fb}
+liquids:
+  sample: {in: plate/A1:H1, volume: 100 uL}
+steps:
+  - transfer: {from: plate/A1:H1, to: waste, volume: 80 uL}
+"""
+  checked = check(loads(text))
+  assert checked.ok and checked.wasted == pytest.approx(640)
+  assert all(volume == pytest.approx(20) for volume in checked.volumes.values())
+  with pytest.raises(ProtocolError, match="cannot be mixed"):
+    loads(text.replace("volume: 80 uL}", "volume: 80 uL, mix_after: {times: 2, volume: 10 uL}}"))
+
+
+def test_a_problem_repeated_in_every_well_is_reported_once():
+  from drybench.protocol import check, loads
+
+  checked = check(loads("""
+drybench: 0.1
+name: overflow
+labware:
+  plate: {type: Cor_96_wellplate_360ul_Fb}
+  trough: {type: nest_1_troughplate_195000uL_Vb}
+liquids:
+  culture: {in: plate/A1:H12, volume: 200 uL}
+  medium: {in: trough/A1, volume: 60 mL}
+steps:
+  - transfer: {from: trough/A1, to: plate/A1:H12, volume: 250 uL}
+"""))
+  assert len(checked.problems) == 1
+  said = str(checked.problems[0])
+  assert "fills plate/A1 to 450 uL" in said and "the same in 95 more wells (B1, C1, ... H12)" in said

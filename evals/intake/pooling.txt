@@ -1,0 +1,4 @@
+Pool the replicates.
+
+Plate has 8 samples in column 1 (A1 to H1) with triplicates sitting in columns 2, 3 and 4 of the same row, 60 uL in each well.
+Take 30 uL from each of the three replicate wells and combine them in column 6 of the same row, so A2+A3+A4 go to A6 and so on. Mix the pool 3 times.

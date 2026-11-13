@@ -154,6 +154,34 @@ class Move:
   seconds: float = 0.0
 
 
+_ONE_WELL = re.compile(r"(?<![\w/])([A-Za-z_][\w-]*)/([A-Z]{1,2}[0-9]{1,2})(?![\w:])")
+
+
+def _merged(problems: List[Problem]) -> List[Problem]:
+  """Fold a problem that repeats well after well into one line that names the wells."""
+  merged: List[Problem] = []
+  groups: Dict[Tuple[str, str], Tuple[int, List[str]]] = {}
+  for problem in problems:
+    found = _ONE_WELL.findall(problem.message)
+    if len(found) != 1:
+      merged.append(problem)
+      continue
+    labware, well = found[0]
+    key = (problem.where, problem.message.replace(f"{labware}/{well}", f"{labware}/*"))
+    if key in groups:
+      groups[key][1].append(well)
+    else:
+      groups[key] = (len(merged), [])
+      merged.append(problem)
+  for position, others in groups.values():
+    if others:
+      shown = ", ".join(others) if len(others) <= 4 else f"{others[0]}, {others[1]}, ... {others[-1]}"
+      first = merged[position]
+      plural = "well" if len(others) == 1 else "wells"
+      merged[position] = Problem(first.where, f"{first.message}; the same in {len(others)} more {plural} ({shown})")
+  return merged
+
+
 # ---------------------------------------------------------------- reading
 
 
@@ -340,7 +368,12 @@ class _Reader:
     if kind == "transfer":
       body = self.keys(body, where, ("from", "to", "volume"), ("tips", "mix_after"))
       source = self.wells(body.get("from"), f"{where}.from") if "from" in body else []
-      destination = self.wells(body.get("to"), f"{where}.to") if "to" in body else []
+      if body.get("to") == "waste":  # thrown away: no labware or well to name
+        destination = [WASTE]
+        if "mix_after" in body:
+          self.fail(f"{where}.mix_after", "liquid sent to waste cannot be mixed afterwards")
+      else:
+        destination = self.wells(body.get("to"), f"{where}.to") if "to" in body else []
       volume = self.volume(body.get("volume"), f"{where}.volume") if "volume" in body else None
       if source and destination and len(source) != 1 and len(destination) != 1 and len(source) != len(destination):
         self.fail(
@@ -679,6 +712,7 @@ def check(protocol: Protocol) -> Check:
       )
     volumes[move.destination] = after
 
+  problems = _merged(problems)
   tips = len({m.tip for m in moves if m.tip >= 0})
   return Check(
     protocol=protocol,

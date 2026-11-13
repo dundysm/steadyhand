@@ -294,3 +294,21 @@ def test_cli_writes_a_plan_file_and_takes_it_back(tmp_path, capsys):
   chosen.write_text("drybench_plan: \"0.1\"\nspeed: fast\n")
   assert main(["plan", str(EXAMPLES / "pcr_setup.yaml"), "--plan", str(chosen)]) == 1
   assert "cannot be read as a plan file" in capsys.readouterr().out
+
+
+def test_a_plate_the_carrier_cannot_hold_is_a_plan_problem_not_a_crash():
+  from drybench.protocol import check, loads
+
+  checked = check(loads("""
+drybench: 0.1
+name: unskirted pcr plate
+labware:
+  pcr: {type: thermo_AB_96_wellplate_300ul_Vb_MicroAmp}
+liquids:
+  mix: {in: pcr/A1, volume: 100 uL}
+steps:
+  - transfer: {from: pcr/A1, to: pcr/B1, volume: 20 uL}
+"""))
+  assert checked.ok
+  planned = plan(checked)
+  assert not planned.ok and "skirted" in str(planned.problems[0]) and planned.problems[0].where == "labware.pcr"

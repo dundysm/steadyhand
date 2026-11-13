@@ -76,12 +76,6 @@ def test_a_draft_that_never_checks_out_is_refused():
   assert len(model.calls) == 3
 
 
-def test_the_guide_names_only_fields_the_reader_accepts():
-  """The example inside the guide must itself be a valid protocol."""
-  example = GUIDE.split("EXAMPLE\n", 1)[1]
-  assert draft("anything", scripted(example)).ok
-
-
 def test_catalogue_lists_plates_with_shape_and_capacity():
   catalogue = labware_catalogue()
   assert "Cor_96_wellplate_360ul_Fb: 96 wells (8 rows x 12 columns), 360 uL each" in catalogue
@@ -194,3 +188,19 @@ def test_draft_keeps_the_problems_found_after_each_round():
   result = draft("anything", lambda messages: next(replies))
   assert result.ok and result.rounds == 2
   assert len(result.history) == 2 and result.history[0] and not result.history[1]
+
+
+def test_the_catalogue_offers_only_plates_the_deck_can_hold_and_the_guide_examples_run():
+  import asyncio
+
+  from drybench.intake import GUIDE, _problems_of, labware_catalogue
+  from drybench.planner import plan, rehearse_plan
+
+  offered = labware_catalogue()
+  assert "Cor_96_wellplate_360ul_Fb:" in offered and "thermo_AB_96_wellplate_300ul_Vb_MicroAmp:" not in offered
+  first = GUIDE.split("EXAMPLE 1\n")[1].split("\nEXAMPLE 2")[0]
+  second = GUIDE.split("EXAMPLE 2")[1].split("\n", 1)[1]
+  for text in (first, second):
+    checked, problems = _problems_of(text, None)
+    assert not problems, problems
+    assert asyncio.run(rehearse_plan(plan(checked))).ok

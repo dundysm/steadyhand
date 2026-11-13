@@ -37,12 +37,15 @@ def one(note: Path, model, rounds: int, out: Path) -> dict:
   # what the model got wrong on the way, round by round: this is what the prompt should be tuned against
   row["fixed"] = [[str(problem) for problem in found] for found in result.history[:-1]] if result.ok else []
   if result.ok:
-    planned = plan(result.checked)
-    row["plan"] = "pass" if planned.ok else "fail"
-    row["problems"] += [str(problem) for problem in planned.problems]
-    if planned.ok:
-      rehearsal = asyncio.run(rehearse_plan(planned))
-      row["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
+    try:
+      planned = plan(result.checked)
+      row["plan"] = "pass" if planned.ok else "fail"
+      row["problems"] += [str(problem) for problem in planned.problems]
+      if planned.ok:
+        rehearsal = asyncio.run(rehearse_plan(planned))
+        row["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
+    except Exception as error:  # a crash here is a drybench bug, and worth recording as one
+      row["rehearse"] = f"crash ({type(error).__name__}: {error})"
   row["seconds"] = round(time.time() - started, 1)
   return row
 

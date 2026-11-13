@@ -198,14 +198,19 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 
 ## What it does not do yet
 
-- **A proven intake.** `draft` has had one real-model run: four plain-text notes through
-  `evals/run_intake.py` with `claude -p` on 13 Nov 2026. All four drafted, planned and rehearsed;
-  two needed a second round. That is four notes and one model, and a pass means the file runs,
-  not that it matches the notes: given a vague note the model fills the gaps with guesses and
-  lists them under `notes`. It does not write `normalize` steps or read PDFs.
+- **A proven intake.** `draft` has had two small real-model runs on 13 Nov 2026: four notes
+  through `evals/run_intake.py` with `claude -p` (all four drafted, planned and rehearsed; two
+  needed a second round), and eight notes with Claude Opus 5.5 agents driving
+  `evals/step_intake.py` by hand (seven passed first time; one made drybench crash on an
+  unskirted plate, since fixed). The guide was rewritten after the second run and has not been
+  re-measured. A pass means the file runs, not that it matches the notes: given a vague note
+  the model fills the gaps with guesses and lists them under `notes`. It does not write `normalize` steps or read PDFs.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.
+- **Unskirted plates.** The planner's plate carrier holds skirted plates only, so 25 of
+  PyLabRobot's plate definitions (most PCR plates among them) are refused at `plan` and are not
+  offered to the model in `draft`. They need an adapter the planner does not place yet.
 - **Other robots.** The planner targets a Hamilton STARlet. The rehearsal alone works on any
   PyLabRobot deck.
 - **PyLabRobot 1.0.** drybench targets the 0.2 line, the current stable release.
