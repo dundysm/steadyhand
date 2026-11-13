@@ -141,6 +141,7 @@ class Draft:
   problems: List[Problem]
   rounds: int  # how many times the model was asked
   messages: List[Message] = field(default_factory=list, repr=False)
+  history: List[List[Problem]] = field(default_factory=list, repr=False)  # the problems found after each round
 
   @property
   def ok(self) -> bool:
@@ -170,13 +171,15 @@ def draft(source: str, model: Model, *, base: Optional[Path] = None, max_rounds:
     {"role": "user", "content": "Write the drybench protocol file for this:\n\n" + source.strip() + "\n"},
   ]
   text, checked, problems = "", None, [Problem("draft", "the model was never asked")]
+  history: List[List[Problem]] = []
   for round_number in range(1, max_rounds + 1):
     reply = model(messages)
     text = extract_yaml(reply)
     checked, problems = _problems_of(text, base)
     messages.append({"role": "assistant", "content": reply})
+    history.append(list(problems))
     if not problems:
-      return Draft(text, checked, [], round_number, messages)
+      return Draft(text, checked, [], round_number, messages, history)
     listed = "\n".join(f"- {problem}" for problem in problems)
     messages.append(
       {
@@ -185,7 +188,7 @@ def draft(source: str, model: Model, *, base: Optional[Path] = None, max_rounds:
         "Reply with the YAML only.",
       }
     )
-  return Draft(text, checked, problems, max_rounds, messages)
+  return Draft(text, checked, problems, max_rounds, messages, history)
 
 
 # ---------------------------------------------------------------- ready-made models
@@ -215,7 +218,9 @@ def command_model(command: str, *, timeout: float = 300.0) -> Model:
     except (OSError, subprocess.TimeoutExpired) as error:
       raise ModelError(f"could not run {command!r}: {error}") from error
     if done.returncode != 0:
-      raise ModelError(f"{command!r} exited with status {done.returncode}: {done.stderr.strip()[:300]}")
+      # Some tools print their error on stdout, so fall back to it when stderr is empty.
+      said = done.stderr.strip() or done.stdout.strip() or "it printed nothing"
+      raise ModelError(f"{command!r} exited with status {done.returncode}: {said[:300]}")
     return done.stdout
 
   return ask

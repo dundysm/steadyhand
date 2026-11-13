@@ -165,9 +165,11 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 
 ## What it does not do yet
 
-- **A proven intake.** `draft` is tested against stand-in models and stub APIs only. It has not
-  yet been run with a real model, so how well models follow the format is unmeasured. It does
-  not write `normalize` steps or read PDFs.
+- **A proven intake.** `draft` has had one real-model run: four plain-text notes through
+  `evals/run_intake.py` with `claude -p` on 13 Nov 2026. All four drafted, planned and rehearsed;
+  two needed a second round. That is four notes and one model, and a pass means the file runs,
+  not that it matches the notes: given a vague note the model fills the gaps with guesses and
+  lists them under `notes`. It does not write `normalize` steps or read PDFs.
 - **An editable plan.** The planner's choices are printed, but cannot yet be overridden.
 - **Other robots.** The planner targets a Hamilton STARlet. The rehearsal alone works on any
   PyLabRobot deck.

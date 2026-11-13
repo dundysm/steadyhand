@@ -181,3 +181,16 @@ def test_draft_command(tmp_path, capsys):
   assert "A model wrote this file" in printed
   assert main(["draft", str(notes), "-o", str(out)]) == 1
   capsys.readouterr()
+
+
+def test_command_model_reports_an_error_printed_on_stdout():
+  # some tools, the claude CLI among them, print their error on stdout and leave stderr empty
+  with pytest.raises(ModelError, match="not signed in"):
+    command_model(f"{sys.executable} -c \"print('not signed in'); raise SystemExit(1)\"")([{"role": "user", "content": "x"}])
+
+
+def test_draft_keeps_the_problems_found_after_each_round():
+  replies = iter(["drybench: 0.1\nname: x\n", GOOD])
+  result = draft("anything", lambda messages: next(replies))
+  assert result.ok and result.rounds == 2
+  assert len(result.history) == 2 and result.history[0] and not result.history[1]

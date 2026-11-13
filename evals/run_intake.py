@@ -22,7 +22,7 @@ HERE = Path(__file__).parent
 
 
 def one(note: Path, model, rounds: int, out: Path) -> dict:
-  row = {"case": note.stem, "draft": "error", "rounds": 0, "plan": "-", "rehearse": "-", "seconds": 0.0, "problems": []}
+  row = {"case": note.stem, "draft": "error", "rounds": 0, "plan": "-", "rehearse": "-", "seconds": 0.0, "problems": [], "fixed": []}
   started = time.time()
   try:
     result = draft(note.read_text(encoding="utf-8"), model, max_rounds=rounds)
@@ -34,6 +34,8 @@ def one(note: Path, model, rounds: int, out: Path) -> dict:
   row["rounds"] = result.rounds
   row["draft"] = "pass" if result.ok else "fail"
   row["problems"] = [str(problem) for problem in result.problems]
+  # what the model got wrong on the way, round by round: this is what the prompt should be tuned against
+  row["fixed"] = [[str(problem) for problem in found] for found in result.history[:-1]] if result.ok else []
   if result.ok:
     planned = plan(result.checked)
     row["plan"] = "pass" if planned.ok else "fail"
@@ -74,7 +76,9 @@ def main() -> int:
   lines += [f"| {r['case']} | {r['draft']} | {r['rounds']} | {r['plan']} | {r['rehearse']} | {r['seconds']} |" for r in rows]
   for r in rows:
     if r["problems"]:
-      lines += ["", f"{r['case']}:"] + [f"- {problem}" for problem in r["problems"]]
+      lines += ["", f"{r['case']}, still wrong at the end:"] + [f"- {problem}" for problem in r["problems"]]
+    for number, found in enumerate(r["fixed"], start=1):
+      lines += ["", f"{r['case']}, wrong after round {number} and later fixed:"] + [f"- {problem}" for problem in found]
   (out / "results.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
   (out / "results.json").write_text(json.dumps({"model": label, "cases": rows}, indent=2), encoding="utf-8")
   print("\n" + "\n".join(lines))
