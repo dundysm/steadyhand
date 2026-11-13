@@ -379,7 +379,7 @@ def test_opentrons_own_simulator_runs_the_flex_protocol_and_stops_a_planted_mist
   assert result.ok, result.report()
   assert len(result.log) == len([a for a in planned.actions if a.kind != "reload"])
   assert result.log[0] == "Picking up tip from A1 of tips_200x8_1 on slot C2"
-  assert "PASS" in result.report() and "not checked on this robot: collisions" in result.report()
+  assert result.report().startswith("Opentrons' simulator: PASS  (Opentrons Flex, opentrons ")
 
   first = 'right.aspirate(100.0, deck["trough"]["A1"].bottom(HEIGHT))'
   broken = ot.simulate(script.replace(first, first.replace("100.0", "400.0"), 1), ot.FLEX)
@@ -437,11 +437,16 @@ def test_cli_plans_rehearses_and_emits_for_the_robot_named(tmp_path, capsys, mon
   path = tmp_path / "dilution.yaml"
   path.write_text(DILUTION.replace("name: test", "name: test\nrobot: opentrons-flex"))
   out = tmp_path / "out"
-  assert main(["rehearse", str(path), "--out", str(out)]) == 0
+  assert main(["rehearse", str(path), "--out", str(out), "--no-render"]) == 0
   said = capsys.readouterr().out
-  assert "(Opentrons Flex)" in said and "steadyhand rehearsal: PASS" in said
-  assert sorted(p.name for p in out.iterdir()) == ["protocol.py", "report.json", "report.txt", "run_log.txt"]
-  assert json.loads((out / "report.json").read_text())["pass"] is True
+  assert "(Opentrons Flex)" in said and "steadyhand rehearsal: PASS" in said and "Opentrons' simulator: PASS" in said
+  assert "collisions: 0" in said and "tips out of the liquid or the well: 0" in said
+  assert sorted(p.name for p in out.iterdir()) == [
+    "protocol.py", "replay.html", "report.json", "report.txt", "run_log.txt", "scene.xml", "simulator.json"
+  ]
+  assert json.loads((out / "report.json").read_text())["ok"] is True
+  assert json.loads((out / "simulator.json").read_text())["pass"] is True
+  assert "steadyhand rehearsal: PASS" in (out / "report.txt").read_text() and "Opentrons' simulator: PASS" in (out / "report.txt").read_text()
   assert len((out / "run_log.txt").read_text().splitlines()) == 141
 
   # --robot wins over the file; the Hamilton path is the one it always was.

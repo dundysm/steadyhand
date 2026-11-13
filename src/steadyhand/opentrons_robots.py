@@ -852,16 +852,12 @@ class Simulation:
 
   def report(self) -> str:
     if not self.ran:
-      return "\n".join([f"steadyhand rehearsal: NOT RUN  ({self.title})", f"  {self.why_not}"])
-    lines = [f"steadyhand rehearsal: {'PASS' if self.ok else 'FAIL'}  ({self.title}, simulated by {self.by})"]
+      return "\n".join([f"Opentrons' simulator: NOT RUN  ({self.title})", f"  {self.why_not}"])
+    lines = [f"Opentrons' simulator: {'PASS' if self.ok else 'FAIL'}  ({self.title}, {self.by})"]
     if self.error:
       lines.append(f"  stopped: {self.error}")
     else:
       lines.append(f"  robot actions simulated: {len(self.log)}")
-    lines.append(
-      "  not checked on this robot: collisions, tip depth against the liquid. "
-      "The physics replay only knows the Hamilton deck so far."
-    )
     return "\n".join(lines)
 
   def to_dict(self) -> Dict[str, Any]:

@@ -67,10 +67,19 @@ def _demo(args: argparse.Namespace) -> int:
 
 
 def _faults(args: argparse.Namespace) -> int:
-  from .faults import run_suite
-
   print("planting mistakes in a short dilution; this takes about half a minute")
-  report = run_suite()
+  if args.robot and args.robot != "hamilton-starlet":
+    from .opentrons_faults import run_suite as run_on
+    from .opentrons_robots import PROFILES, opentrons_installed
+
+    if not opentrons_installed():
+      print("steadyhand faults: this needs Opentrons' labware definitions: pip install 'steadyhand[opentrons]'")
+      return 1
+    report = run_on(PROFILES[args.robot])
+  else:
+    from .faults import run_suite
+
+    report = run_suite()
   print(report.text())
   if args.output:
     Path(args.output).write_text(report.markdown(), encoding="utf-8")
@@ -169,26 +178,50 @@ def _plan(args: argparse.Namespace) -> int:
   return 0
 
 
-def _rehearse_opentrons(planned, source: str, out: Path) -> int:
-  """Write the Opentrons protocol and run it through Opentrons' own simulator."""
-  from .opentrons_robots import emit, simulate
+def _rehearse_opentrons(planned, args: argparse.Namespace) -> int:
+  """Replay an Opentrons plan in the physics scene, then run its protocol through Opentrons' own simulator.
 
-  script = emit(planned, source=source)
+  Both have to pass. The replay checks the plan against the deck's geometry and the liquid;
+  the simulator checks that the protocol file is one Opentrons' software accepts.
+  """
+  from .opentrons_robots import emit, opentrons_installed, simulate
+
+  out = Path(args.out)
+  script = emit(planned, source=args.file)
+  physics = None
+  if opentrons_installed():
+    from .opentrons_scene import Refused, rehearse_plan
+
+    kept, keep = _keeper()
+    try:
+      physics = asyncio.run(rehearse_plan(planned, on_sample=None if args.no_render else keep))
+    except Refused as refused:
+      print("steadyhand rehearsal: FAIL")
+      print(f"  {refused}")
+      print("  Nothing was replayed: the run stops at the first action PyLabRobot's tracking will not accept.")
+      return 1
+    print(physics.report())
+    _write(physics, out, kept, not args.no_render, planned.protocol.name)
+  else:
+    print("steadyhand rehearsal: NOT RUN")
+    print("  The physics replay needs Opentrons' labware definitions. Install them with: pip install 'steadyhand[opentrons]'")
   result = simulate(script, planned.profile)
   print(result.report())
   out.mkdir(parents=True, exist_ok=True)
   (out / "protocol.py").write_text(script)
-  (out / "report.txt").write_text(result.report() + "\n")
-  (out / "report.json").write_text(json.dumps(result.to_dict(), indent=2) + "\n")
+  (out / "simulator.json").write_text(json.dumps(result.to_dict(), indent=2) + "\n")
   (out / "run_log.txt").write_text("\n".join(result.log) + "\n")
-  print(f"wrote {out / 'report.txt'}, {out / 'report.json'}, {out / 'run_log.txt'}")
-  if result.ok:
+  with (out / "report.txt").open("a") as report:
+    report.write(result.report() + "\n")
+  print(f"wrote {out / 'simulator.json'}, {out / 'run_log.txt'}")
+  passed = physics is not None and physics.ok and result.ok
+  if passed:
     print(f"wrote {out / 'protocol.py'}")
-  elif not result.ran:
-    print(f"wrote {out / 'protocol.py'}; nothing has simulated it yet")
+  elif physics is not None and physics.ok and not result.ran:
+    print(f"wrote {out / 'protocol.py'}; Opentrons' simulator has not run it yet")
   else:
-    print(f"wrote {out / 'protocol.py'} so you can see the line it stopped at; do not run it")
-  return 0 if result.ok else 1
+    print(f"wrote {out / 'protocol.py'} so you can see what was planned; do not run it")
+  return 0 if passed else 1
 
 
 def _rehearse(args: argparse.Namespace) -> int:
@@ -198,8 +231,8 @@ def _rehearse(args: argparse.Namespace) -> int:
   if found is None:
     return 1
   robot, planned = found
-  if not robot.takes_plan_file:  # an Opentrons robot: no physics scene for its deck yet
-    return _rehearse_opentrons(planned, args.file, Path(args.out))
+  if not robot.takes_plan_file:  # an Opentrons robot: its own deck, and Opentrons' simulator as well
+    return _rehearse_opentrons(planned, args)
   kept, keep = _keeper()
   try:
     result = asyncio.run(rehearse_plan(planned, on_sample=None if args.no_render else keep))
@@ -363,6 +396,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     command.add_argument(
       "--robot", choices=sorted(ROBOTS), help="the robot to plan for; default: what the file says, else hamilton-starlet"
     )
+  faults.add_argument("--robot", choices=sorted(ROBOTS), help="the robot to plant the mistakes on; default: hamilton-starlet")
 
   args = parser.parse_args(argv)
   return args.run(args)

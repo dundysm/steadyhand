@@ -57,7 +57,12 @@ _PHYSICS = (
   "tip depth against the liquid in each well",
   "spacing between channels",
 )
-_SIMULATOR = ("Opentrons' own simulator: labware, slots, pipettes and tip capacity",)
+_SIMULATOR = (
+  "PyLabRobot's tip and volume tracking, on a deck built from Opentrons' labware definitions",
+  "collisions, in a physics replay of every move",
+  "tip depth against the liquid in each well",
+  "Opentrons' own simulator: that its software accepts the protocol file",
+)
 
 DEFAULT = "hamilton-starlet"
 

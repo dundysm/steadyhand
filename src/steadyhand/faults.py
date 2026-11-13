@@ -301,6 +301,7 @@ class Result:
 class Report:
   clean: Outcome  # the unchanged protocol; it has to run clean for the rest to mean anything
   results: List[Result]
+  robot: str = "Hamilton STARlet"
 
   @property
   def caught(self) -> List[Result]:
@@ -312,7 +313,7 @@ class Report:
 
   def text(self) -> str:
     lines = [
-      f"steadyhand faults: {len(self.caught)} of {len(self.results)} planted mistakes stopped",
+      f"steadyhand faults: {len(self.caught)} of {len(self.results)} planted mistakes stopped  ({self.robot})",
       f"  the unchanged protocol: {'ran clean' if not self.clean.caught else 'FAILED at ' + self.clean.stage + ': ' + self.clean.detail}",
     ]
     width = max(len(r.fault.name) for r in self.results)
@@ -327,7 +328,7 @@ class Report:
     from . import __version__
 
     lines = [
-      "# What steadyhand stops, and what it does not",
+      f"# What steadyhand stops, and what it does not: {self.robot}",
       "",
       f"Written by `steadyhand faults`, version {__version__}. Each row is one mistake planted in a short",
       "dilution that otherwise runs clean. \"Stopped at\" is the first stage that refused it.",
@@ -345,7 +346,7 @@ class Report:
       "",
       "Stages: `read` (the file is not a valid protocol), `check` (the liquid ledger), `plan` (tips, channels,",
       "deck), `run` (PyLabRobot's own tip and volume trackers refused a command), `rehearse` (a collision in",
-      "the physics scene).",
+      "the physics scene, or a tip out of the liquid).",
       "",
       "A mistake that is not stopped runs to the end with every stage passing. Those rows are the checks",
       "steadyhand does not have yet.",

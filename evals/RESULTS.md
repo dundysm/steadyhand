@@ -6,6 +6,19 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## The Flex drafts replayed in the physics scene (0.17.0)
+
+No model was asked again. The 28 Flex drafts that pass `check` were planned for both robots, replayed in
+the physics scene on a deck built from Opentrons' labware definitions, and run through Opentrons' simulator.
+
+- **All 28 pass the replay and the simulator on both robots**: no collisions, no tip certainly out of
+  the liquid, and PyLabRobot's trackers end with the volumes `check` predicted in every well.
+- **12 of the 28 carry a "possibly out of the liquid" note** on each robot. Those are aspirates from
+  V- or round-bottom wells, where the liquid height is not known exactly, so they are reported and do
+  not fail.
+- The replay is not just agreeing with itself: the fault suite for these robots stops 16 of 19 planted
+  mistakes (`docs/faults-opentrons-flex.md`).
+
 ## The Flex drafts planned again once a tight deck makes room (0.16.0)
 
 No model was asked again.

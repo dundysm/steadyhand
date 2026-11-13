@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadyhand"
-version = "0.16.0"
+version = "0.17.0"
 description = "Turn a written lab protocol into a robot program and rehearse it before it touches a real bench."
 readme = "README.md"
 requires-python = ">=3.10"

@@ -6,16 +6,17 @@ Earlier commits and notes call this project drybench; it was renamed at 0.14.0.
 
 Write what you want done in a short protocol file that names no robot. steadyhand checks that the
 liquid adds up, then plans it for the robot you pick: tips, pipettes or channels, and a deck
-layout. On a Hamilton STARlet it replays every move in a [MuJoCo](https://mujoco.org) scene built
-from the same deck and writes a [PyLabRobot](https://github.com/PyLabRobot/pylabrobot) script
-that does exactly what was rehearsed. On an Opentrons Flex or OT-2 it writes a protocol for
-Opentrons' own Python API and runs it through Opentrons' own simulator. See [Robots](#robots).
+layout. It then replays every move in a [MuJoCo](https://mujoco.org) scene built from the same
+deck, and writes the program that does exactly what was rehearsed: a
+[PyLabRobot](https://github.com/PyLabRobot/pylabrobot) script for a Hamilton STARlet, or a
+protocol for Opentrons' own Python API for a Flex or an OT-2, which is also run through
+Opentrons' own simulator. See [Robots](#robots).
 
 ![Eight channels drawing buffer from a reservoir on a Hamilton STARlet deck, next to a 96-well plate](docs/reservoir.png)
 
-**Status: pre-alpha.** The whole path runs for pipetting protocols on a Hamilton STARlet deck,
-and a shorter one for the two Opentrons robots. Nothing has been compared with a real robot yet,
-so it is not a tool to trust with a real run.
+**Status: pre-alpha.** The whole path runs for pipetting protocols on a Hamilton STARlet, an
+Opentrons Flex and an Opentrons OT-2. Nothing has been compared with a real robot yet, so it is
+not a tool to trust with a real run.
 See [What it does not do yet](#what-it-does-not-do-yet).
 
 ## Try it
@@ -183,8 +184,10 @@ steadyhand rehearse examples/serial_dilution.yaml --robot opentrons-flex
 | `--robot` | Driven through | `emit` writes | `rehearse` checks |
 | --- | --- | --- | --- |
 | `hamilton-starlet` (when none is named) | PyLabRobot | A PyLabRobot script | Everything under [What `rehearse` checks](#what-rehearse-checks) |
-| `opentrons-flex` | Opentrons' Python API | An Opentrons protocol | Opentrons' own simulator runs the protocol |
-| `opentrons-ot2` | Opentrons' Python API | An Opentrons protocol | The same, where a simulator still takes OT-2 files |
+| `opentrons-flex` | Opentrons' Python API | An Opentrons protocol | The same physics replay, on a deck built from Opentrons' labware definitions, and Opentrons' own simulator |
+| `opentrons-ot2` | Opentrons' Python API | An Opentrons protocol | The same; the simulator only where one still takes OT-2 files |
+
+![Eight channels of an 8-channel pipette drawing from a reservoir on an Opentrons Flex deck](docs/flex.png)
 
 A file can also say `robot: opentrons-flex` at the top; `--robot` wins over it. `check` is the
 same for every robot.
@@ -213,9 +216,17 @@ simulate an OT-2 protocol, install `opentrons==9.0.0` in a separate environment 
 `STEADYHAND_OT2_SIMULATE` to its `opentrons_simulate`; without that, `rehearse` writes the protocol,
 says nothing simulated it, and exits with status 1.
 
-**What is missing on the Opentrons robots.** No physics replay: nothing checks collisions or
-whether the tip reaches the liquid, and there is no `replay.html`. An 8-channel pipette always
-takes all eight tips, so half a column is done one well at a time. No modules or gripper. No plan file to edit.
+**The replay on an Opentrons deck.** Every well and tip position, well depth and shape, labware
+height, tip length and how far a tip slides onto the pipette come from the labware definitions
+Opentrons ships. The plan's actions are sent to PyLabRobot's trackers and replayed as on the
+Hamilton, so `rehearse` writes the same `replay.html`, `scene.xml` and report. Not taken from
+Opentrons: the pipette itself. A channel is the same nominal 8 mm barrel as on the Hamilton,
+travel is straight up, across above everything on the deck and straight down, and the Flex's
+trash bin is a box of its nominal height. A rehearsal passes only if the replay and Opentrons'
+simulator both pass.
+
+**What is missing on the Opentrons robots.** An 8-channel pipette always takes all eight tips,
+so half a column is done one well at a time. No modules or gripper. No plan file to edit.
 
 **A tight deck.** Eleven slots hold less than a Hamilton deck. When a run does not fit, the plan
 makes room in this order: a pair of pipettes that needs fewer kinds of tip; one size of tip per
@@ -246,7 +257,13 @@ The two that get through:
   up and the tips reach the liquid, so nothing is hit; steadyhand cannot know the deck differs
   from the plan unless it is told.
 
-The suite is one protocol on one deck, so it shows which kinds of mistake are stopped, not how
+The same suite, with the mistakes that make sense there, runs on the Opentrons robots with
+`steadyhand faults --robot opentrons-flex`: **16 of 19 are stopped** on both the
+[Flex](docs/faults-opentrons-flex.md) and the [OT-2](docs/faults-opentrons-ot2.md). The three
+that get through are the same tip carry-over, and a deep-well or a PCR plate standing where the
+flat plate was planned: the wells line up and the tips fit inside them.
+
+Each suite is one protocol on one deck, so it shows which kinds of mistake are stopped, not how
 often.
 
 ## Draft a protocol from plain text
@@ -358,9 +375,9 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   following or level detection) and knows the liquid height only in flat-bottom wells. Nothing
   models dead volume, viscosity, droplets or carry-over. The planner pipettes 1 mm above the
   floor everywhere, which is too high for a few microlitres in a flat-bottom well.
-- **Other robots.** Three are planned for: a Hamilton STARlet, fully, and an Opentrons Flex and
-  OT-2 with the gaps listed under [Robots](#robots). The physics rehearsal alone works on any
-  PyLabRobot deck.
+- **Other robots.** Three are planned for: a Hamilton STARlet, an Opentrons Flex and an OT-2,
+  the last two with the gaps listed under [Robots](#robots). The physics rehearsal alone works
+  on any PyLabRobot deck.
 - **PyLabRobot 1.0.** steadyhand targets the 0.2 line, the current stable release.
 - **Exact shapes.** Round wells are treated as square, tip-rack holes are not modelled, and a
   tip's width is a nominal cone because PyLabRobot stores tip length but not width.

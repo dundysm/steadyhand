@@ -78,8 +78,14 @@ def main() -> int:
         state["plan"] = "pass" if planned.ok else "fail"
         state["plan_problems"] = [str(problem) for problem in planned.problems]
         if planned.ok:
+          from steadyhand import opentrons_scene
+
+          replay = asyncio.run(opentrons_scene.rehearse_plan(planned))
           result = opentrons_robots.simulate(opentrons_robots.emit(planned), planned.profile)
-          state["rehearse"] = "pass" if result.ok else f"fail ({result.error or result.why_not})"
+          if not replay.ok:
+            state["rehearse"] = f"fail ({len(replay.collisions)} collisions, {len(replay.liquid_failures)} tips out of the liquid)"
+          else:
+            state["rehearse"] = "pass" if result.ok else f"fail ({result.error or result.why_not})"
       else:
         planned = plan(checked)
         state["plan"] = "pass" if planned.ok else "fail"
@@ -88,6 +94,10 @@ def main() -> int:
           rehearsal = asyncio.run(rehearse_plan(planned))
           state["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
     except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
+      state["rehearse"] = f"fail ({refused})"
+    except RuntimeError as refused:
+      if type(refused).__name__ != "Refused":  # the same, on an Opentrons deck
+        raise
       state["rehearse"] = f"fail ({refused})"
     except Exception as error:  # a crash here is a steadyhand bug, and worth recording as one
       state["rehearse"] = f"crash ({type(error).__name__}: {error})"

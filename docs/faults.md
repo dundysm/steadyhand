@@ -1,6 +1,6 @@
-# What steadyhand stops, and what it does not
+# What steadyhand stops, and what it does not: Hamilton STARlet
 
-Written by `steadyhand faults`, version 0.9.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.17.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **22 of 24 planted mistakes stopped.** The unchanged protocol ran clean.
@@ -34,7 +34,7 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 
 Stages: `read` (the file is not a valid protocol), `check` (the liquid ledger), `plan` (tips, channels,
 deck), `run` (PyLabRobot's own tip and volume trackers refused a command), `rehearse` (a collision in
-the physics scene).
+the physics scene, or a tip out of the liquid).
 
 A mistake that is not stopped runs to the end with every stage passing. Those rows are the checks
 steadyhand does not have yet.
