@@ -27,12 +27,14 @@ def _keeper() -> Tuple[dict, Callable]:
   return kept, keep
 
 
-def _write(result: Rehearsal, out: Path, kept: dict, render: bool) -> None:
+def _write(result: Rehearsal, out: Path, kept: dict, render: bool, title: str = "") -> None:
   out.mkdir(parents=True, exist_ok=True)
   (out / "scene.xml").write_text(result.scene_xml)
   (out / "report.json").write_text(json.dumps(result.to_dict(), indent=2) + "\n")
   (out / "report.txt").write_text(result.report() + "\n")
+  (out / "replay.html").write_text(result.replay_html(title), encoding="utf-8")
   print(f"wrote {out / 'scene.xml'}, {out / 'report.json'}, {out / 'report.txt'}")
+  print(f"open {out / 'replay.html'} in a browser to watch the run")
   if render:
     import mujoco
 
@@ -60,7 +62,7 @@ def _demo(args: argparse.Namespace) -> int:
   result = rehearse(deck, backend.steps, on_sample=None if args.no_render else keep)
   print(f"demo: {FAULTS[args.fault]}")
   print(result.report())
-  _write(result, Path(args.out), kept, not args.no_render)
+  _write(result, Path(args.out), kept, not args.no_render, f"drybench demo: {FAULTS[args.fault]}")
   return 0 if result.ok else 1
 
 
@@ -152,7 +154,7 @@ def _rehearse(args: argparse.Namespace) -> int:
   result = asyncio.run(rehearse_plan(planned, on_sample=None if args.no_render else keep))
   print(result.report())
   out = Path(args.out)
-  _write(result, out, kept, not args.no_render)
+  _write(result, out, kept, not args.no_render, planned.protocol.name)
   if result.ok:
     (out / "protocol.py").write_text(emit(planned, source=args.file))
     print(f"wrote {out / 'protocol.py'}")

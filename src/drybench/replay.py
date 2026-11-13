@@ -31,6 +31,7 @@ from .scene import (
   boxes_to_mjcf,
   collect_boxes,
 )
+from .viewer import layout
 
 Vec3 = Tuple[float, float, float]
 
@@ -80,10 +81,18 @@ class Rehearsal:
   samples: int
   volumes: Dict[str, float]  # microlitres in every container that holds liquid, after the run
   scene_xml: str = field(repr=False, default="")
+  layout: dict = field(repr=False, default_factory=dict)  # where every solid and cavity is, for the HTML replay
+  traverse_z: float = 245.0
 
   @property
   def ok(self) -> bool:
     return not self.collisions
+
+  def replay_html(self, title: str = "") -> str:
+    """The rehearsal as one self-contained HTML page that plays it back."""
+    from .viewer import replay_html
+
+    return replay_html(self, title=title)
 
   def to_dict(self) -> dict:
     return {
@@ -371,4 +380,6 @@ def rehearse(
     samples=samples,
     volumes=volumes(root),
     scene_xml=xml,
+    layout=layout(root),
+    traverse_z=traverse_z,
   )

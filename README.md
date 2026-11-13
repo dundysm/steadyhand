@@ -38,9 +38,9 @@ drybench rehearsal: PASS
 wrote drybench-out/protocol.py
 ```
 
-`drybench-out/` then holds `protocol.py` (the PyLabRobot script), `scene.xml` (open it with
-`python -m mujoco.viewer --mjcf drybench-out/scene.xml`), a report as text and JSON, and two
-pictures when the machine can render offscreen. Every command exits with status 1 when
+`drybench-out/` then holds `protocol.py` (the PyLabRobot script), `replay.html` (the run played
+back, below), `scene.xml` (open it with `python -m mujoco.viewer --mjcf drybench-out/scene.xml`),
+a report as text and JSON, and two pictures when the machine can render offscreen. Every command exits with status 1 when
 something is wrong, so it can gate a script or a CI job.
 
 ## The protocol file
@@ -128,6 +128,19 @@ tip holds. Delete a section to have it chosen again; do that for `deck` after ch
 because the tip racks on it are named after the tips. The file is read as strictly as a protocol
 file, and `plan`, `rehearse` and `emit` all take `--plan`. Which channels move together is not in
 the file: that follows from where the wells are.
+
+### Watch the run
+
+`replay.html` is one file that needs no network, server or install: open it in a browser, or
+attach it to a ticket. It shows the deck from above and a cross-section through the wells being
+worked on, steps through every command with the liquid moving, and marks each collision where
+it happened. Here a planted fault puts the tips over the wall between wells
+(`drybench demo --fault offset`):
+
+![The replay page showing eight tips stopped on the wall of a plate](docs/replay.png)
+
+It draws the rehearsal's own data with two simplifications: liquid height is in proportion to
+volume, and every command takes the same time on screen. It is 2D; for 3D open `scene.xml`.
 
 ### What `rehearse` checks
 
