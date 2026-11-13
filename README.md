@@ -234,9 +234,12 @@ trash bin is a box of its nominal height. A rehearsal passes only if the replay 
 simulator both pass.
 
 What this catches that nothing did before: one of the intake drafts puts 180 uL of master mix in
-a 15 mL reservoir, as its note says. That is a film under 1 mm deep, below where the tips stop,
-and the replay now fails it by name. On the Hamilton the same draft passes, because the shape of
-that reservoir's floor is not known there.
+a 15 mL reservoir, for a note that says "enough for 10 reactions". That is a film under 1 mm
+deep, below where the tips stop, and the replay fails it by name. `draft` sends that back to the
+model with the volume the well needs, and the model's second file supplies 2.2 mL and says so
+under `notes`. That runs, but it is far more master mix than ten reactions need: about 375 uL
+would have done, and a narrower tube would need less still. Read the notes of a draft. On the
+Hamilton the first draft passes, because the shape of that reservoir's floor is not known there.
 
 **What is missing on the Opentrons robots.** An 8-channel pipette always takes all eight tips,
 so half a column is done one well at a time. No modules or gripper. No plan file to edit.
@@ -250,11 +253,10 @@ stand by it.
 
 **Drafting for them.** `steadyhand draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
 the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
-has it write the `robot:` line. On the 31 intake notes, 27 go from text to a protocol that
-passes the physics replay and Opentrons' simulator on both robots with no hand edits. Three
-cannot work as written and are refused at `check`. One is stopped at the replay for too
-little liquid to reach; told why, the model hands it back to a person, because the amount is one
-the note states. Details and caveats are in [evals](evals/RESULTS.md).
+has it write the `robot:` line. On the 31 intake notes, 28 go from text to a protocol that
+passes the physics replay and Opentrons' simulator on both robots with no hand edits: 27 at the
+first attempt and one at the second, after the rehearsal sent it back. The other three cannot
+work as written and are refused at `check`. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
@@ -371,7 +373,7 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   model one turn at a time. On the latest run, 28 of 31 notes (20 from public kit manuals) went
   from plain text to a rehearsed script at the first attempt with no hand edits, and the other
   three, which cannot work as written, were refused for the right reason. Drafted for an
-  Opentrons Flex, 27 of the same 31 pass the replay and Opentrons' simulator. The runs, the notes
+  Opentrons Flex, 28 of the same 31 pass the replay and Opentrons' simulator. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
   matches the note; two were read against their notes and matched. Drafting from a PDF is
   untested on real manuals.

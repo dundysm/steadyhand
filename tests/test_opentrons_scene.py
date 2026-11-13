@@ -248,6 +248,8 @@ def test_a_draft_that_passes_the_check_but_not_the_rehearsal_is_sent_back_with_t
   told = sent[1][-1]["content"]
   assert "- rehearsal: in trough/A1 the tip stops up to" in told and "draws air" in told
   assert "starting with more of a liquid whose amount the text leaves open" in told
+  assert "That well needs about 230 uL left in it for a tip to stay under the surface" in told
+  assert "An amount the text gives only as enough for some number of uses, with no volume, is left open" in told
   assert [str(p)[:10] for p in result.history[0]] == ["rehearsal:"] and result.history[1] == []
 
   # Without rehearsing, the first file is accepted as it was before.

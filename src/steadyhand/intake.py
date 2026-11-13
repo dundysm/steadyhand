@@ -260,6 +260,28 @@ def _problems_of(text: str, base: Optional[Path], robot: str = "") -> tuple:
   return checked, problems
 
 
+def _volume_to_cover(container, height: float) -> Optional[float]:
+  """Microlitres that stand `height` mm deep in a well, rounded up to two figures; None where its shape is not known."""
+  import math
+
+  from .scene import bounds, liquid_height_is_known
+
+  if not liquid_height_is_known(container):
+    return None
+  if container.supports_compute_height_volume_functions():
+    volume = float(container.compute_volume_from_height(height))
+  else:  # a flat bottom: straight walls
+    lo, hi = bounds(container)
+    area = (hi[0] - lo[0]) * (hi[1] - lo[1])
+    if str(getattr(getattr(container, "cross_section_type", None), "value", "")).lower() == "circle":
+      area *= math.pi / 4
+    volume = area * height
+  if volume <= 0:
+    return None
+  step = 10 ** (math.floor(math.log10(volume)) - 1)
+  return math.ceil(volume / step) * step
+
+
 def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
   """Plan a checked protocol for the robot and rehearse it. Returns what stops it, as problems.
 
@@ -273,15 +295,19 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
   planned = target.plan(checked, None)
   if not planned.ok:
     return list(planned.problems)
+  from .replay import rehearse
+
   try:
     if target.takes_plan_file:  # the Hamilton
-      from .planner import rehearse_plan
+      from .planner import record_plan
 
-      result = asyncio.run(rehearse_plan(planned))
+      deck, steps = asyncio.run(record_plan(planned))
+      result = rehearse(deck, steps)
     else:
-      from .opentrons_scene import rehearse_plan
+      from .opentrons_scene import CLEARANCE, record_plan, start_volumes, tallest
 
-      result = asyncio.run(rehearse_plan(planned))
+      deck, steps = asyncio.run(record_plan(planned))
+      result = rehearse(deck, steps, traverse_z=tallest(planned) + CLEARANCE, start_volumes=start_volumes(planned))
   except RuntimeError as refused:  # PyLabRobot's own tracking would not take a command
     return [Problem("rehearsal", f"the run stops: {refused}")]
   problems: List[Problem] = []
@@ -299,11 +325,13 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
     where = f"{labware}/{wells[0]}" + (f" and {len(wells) - 1} more wells" if len(wells) > 1 else "")
     gap = max(issue.gap for issue in issues)
     if kind == "air":
+      cover = _volume_to_cover(deck.get_resource(issues[0].resource), planned.pipetting_height)
+      needs = f". That well needs about {cover:g} uL left in it for a tip to stay under the surface" if cover else ""
       problems.append(
         Problem(
           "rehearsal",
           f"in {where} the tip stops up to {gap:g} mm above the liquid and draws air. A tip stops "
-          f"{planned.pipetting_height:g} mm above the floor of a well, so the liquid there is too shallow to reach",
+          f"{planned.pipetting_height:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}",
         )
       )
     else:
@@ -448,7 +476,8 @@ def draft(
 _REHEARSAL_HINT = (
   "\nA rehearsal problem is about the robot, not the file's form. Liquid too shallow to reach is fixed "
   "by starting with more of a liquid whose amount the text leaves open, or by labware with narrower wells; "
-  "say which in `notes`."
+  "say which in `notes`. An amount the text gives only as enough for some number of uses, with no volume, "
+  "is left open: you may supply more of it."
 )
 
 

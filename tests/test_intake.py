@@ -349,3 +349,19 @@ def test_cli_drafts_from_a_pdf(tmp_path, capsys):
   assert "read 33 characters from" in capsys.readouterr().out
   assert main(["draft", str(manual), "--pages", "9", "-o", str(tmp_path / "p.yaml"), "--model-command", "true"]) == 1
   assert "not in a document of 2 pages" in capsys.readouterr().out
+
+
+def test_the_volume_that_covers_a_tip_is_only_given_where_the_well_shape_is_known():
+  import warnings
+
+  import pylabrobot.resources as resources
+
+  from steadyhand.intake import _volume_to_cover
+
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    flat = resources.Cor_96_wellplate_360ul_Fb(name="flat").get_item("A1")
+    tapered = resources.nest_12_troughplate_15000uL_Vb(name="trough").get_item("A1")
+  # 1 mm in a round flat well 6.86 mm across is 37 uL, given rounded up to two figures.
+  assert 30 < _volume_to_cover(flat, 1.0) <= 40 and _volume_to_cover(flat, 1.0) % 1 == 0
+  assert _volume_to_cover(tapered, 1.0) is None  # its floor is not known on a PyLabRobot deck

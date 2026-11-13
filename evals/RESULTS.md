@@ -6,6 +6,22 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## The master-mix note once more, with better feedback (0.20.0)
+
+The rehearsal's message to the model now says how much liquid the well needs for a tip to stay under the
+surface, and that an amount given only as "enough for N uses" is left open. The first message to the
+model is still unchanged. `pcr_setup` on the Flex was run again from the start by one Claude Opus 5.5 agent.
+
+- **Round 1:** the same draft, 180 uL of master mix. It was told the tip draws air and that the well
+  "needs about 230 uL left in it".
+- **Round 2: it passes check, plan and rehearsal**, on the Flex and, planned again, on the OT-2. The
+  model raised the master mix to 2.2 mL and rewrote its note to say so.
+- **That is more than the run needs.** The steps use 144 uL; about 375 uL would have passed. The model
+  followed the guide's rule for a reservoir (2 mL more than is used). The file runs, but a person has to
+  read the notes to see that it asks for twelve times the master mix the note implied.
+- With this, 28 of the 31 notes drafted for a Flex reach a rehearsed protocol with no hand edits: 27 at
+  the first attempt, 1 at the second. The other 3 cannot work as written.
+
 ## Drafting that rehearses: the one draft the replay stopped, asked again (0.19.0)
 
 `draft` now plans and rehearses each file that passes `check` and sends what stops it back to the model.
