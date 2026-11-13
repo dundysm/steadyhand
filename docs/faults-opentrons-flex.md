@@ -1,6 +1,6 @@
 # What steadyhand stops, and what it does not: Opentrons Flex
 
-Written by `steadyhand faults`, version 0.17.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.18.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **16 of 19 planted mistakes stopped.** The unchanged protocol ran clean.
@@ -12,7 +12,7 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | The transfer names column 13 of a 12-column plate. | protocol | read | steps[0].transfer.to: plate (Cor_96_wellplate_360ul_Fb) has no well H13 |
 | The file allows 0.5 uL moves and the dilution asks for one; no pipette on the Opentrons Flex moves less than 1 uL. | protocol | plan | steps[1]: 0.5 uL is less than any pipette on the Opentrons Flex moves (1 uL) (and 31 more) |
 | Ten more plates are declared; with tips they need more slots than the Opentrons Flex has. | protocol | plan | labware: 13 plates and reservoirs and 1 kinds of tip need 14 slots; the Opentrons Flex has 11 for labware |
-| The sample wells hold 25 uL in a flat-bottom plate: under 1 mm of liquid, below where the tip stops. | protocol | rehearse | 8 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 0.32 mm above the liquid, so it draws air |
+| The sample wells hold 25 uL in a flat-bottom plate: under 1 mm of liquid, below where the tip stops. | protocol | rehearse | 8 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 0.22 mm above the liquid, so it draws air |
 | The same tip is carried down each dilution series, so sample carries over. | protocol | **not stopped** | ran clean |
 | The plate and the reservoir are in each other's slots. | deck | rehearse | 24 collisions; first: the tip into plate on descend |
 | The plate sits 4.5 mm towards the back of its slot, half a well off. | deck | rehearse | 176 collisions; first: the tip into plate on descend |
@@ -24,7 +24,7 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | Every move into the plate is 4.5 mm to the right, over the wall between wells. | motion | rehearse | 176 collisions; first: the tip into plate on descend |
 | Every aspirate stops 4 mm lower than planned, 3 mm under the well floor. | motion | rehearse | 104 collisions; first: the tip into reservoir on descend |
 | The pipette travels 5 mm below the top of the plate instead of above everything on the deck. | motion | rehearse | 1157 collisions; first: the channel into tips_200x8_1 on descend |
-| Every aspirate from the plate stops 9 mm above the well floor, in air. | motion | rehearse | 80 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 3.59 mm above the liquid, so it draws air |
+| Every aspirate from the plate stops 9 mm above the well floor, in air. | motion | rehearse | 80 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 2.96 mm above the liquid, so it draws air |
 | Every dispense is released 30 mm above the well, so it would splash. | motion | rehearse | 104 tips out of the liquid; first: step 16 (dispense, channel 0) in plate_well_A2: the tip is 20.33 mm above the rim of the well |
 
 Stages: `read` (the file is not a valid protocol), `check` (the liquid ledger), `plan` (tips, channels,

@@ -138,3 +138,78 @@ def test_a_pause_to_empty_the_waste_or_reload_tips_is_followed_by_the_trackers()
   result = asyncio.run(scene().rehearse_plan(planned))  # without the emptying the reservoir's tracker would refuse
   assert result.ok, result.report()
   assert 0 < result.volumes["waste_well_A1"] <= 0.9 * ot.WASTE_CAPACITY
+
+
+# ---------------------------------------------------------------- how high liquid stands in a well
+
+
+def test_liquid_height_comes_from_the_inside_shape_of_the_well():
+  import math
+
+  cone = [{"shape": "conical", "bottomDiameter": 2.0, "topDiameter": 6.0, "bottomHeight": 1.0, "topHeight": 4.0}]
+  cap = [{"shape": "spherical", "radiusOfCurvature": 3.0, "bottomHeight": 0.0, "topHeight": 1.0}]
+  box = [{"shape": "cuboidal", "bottomXDimension": 2.0, "bottomYDimension": 4.0, "topXDimension": 4.0,
+          "topYDimension": 4.0, "bottomHeight": 0.0, "topHeight": 3.0, "xCount": 2}]
+  # A frustum, a spherical cap and a wedge, by their textbook formulas.
+  assert abs(scene().well_volume(cone, 4.0) - math.pi * 3 / 3 * (1 + 3 + 9)) < 1e-9
+  assert scene().well_volume(cone, 1.0) == 0.0 and scene().well_volume(cone, 9.0) == scene().well_volume(cone, 4.0)
+  assert abs(scene().well_volume(cap, 1.0) - math.pi * 1 * (9 - 1) / 3) < 1e-9
+  assert abs(scene().well_volume(box, 3.0) - 2 * 3 * 4 * 3.0) < 1e-9  # mean width 3, twice over
+  for sections in (cone, cap, box, cap + cone):
+    top = max(s["topHeight"] for s in sections)
+    for part in (0.1, 0.5, 0.9):
+      height = scene().well_height(sections, scene().well_volume(sections, top * part))
+      assert abs(scene().well_volume(sections, height) - scene().well_volume(sections, top * part)) < 1e-6
+    assert scene().well_height(sections, 1e9) == top  # more than it holds stands at the top
+
+
+def test_the_same_volumes_as_opentrons_own_maths_for_every_labware_offered():
+  try:
+    from opentrons.protocol_engine.state import inner_well_math_utils as theirs
+    from opentrons_shared_data.labware.labware_definition import InnerWellGeometry
+  except Exception:
+    pytest.skip("Opentrons' software will not load on this Python")
+  compared, left_out = 0, []
+  for load_name in ot.shipped_names():
+    for geometry in scene()._body(load_name).get("innerLabwareGeometry", {}).values():
+      sections = geometry["sections"]
+      if any(section["shape"] not in scene()._SHAPES for section in sections):
+        left_out.append(load_name)
+        continue
+      model = InnerWellGeometry.model_validate(geometry)
+      top = max(section["topHeight"] for section in sections)
+      for part in (0.02, 0.1, 0.25, 0.5, 0.75, 0.99):
+        mine = scene().well_volume(sections, top * part)
+        expected = theirs.find_volume_inner_well_geometry(target_height=top * part, well_geometry=model)
+        assert abs(mine - expected) <= 1e-9 * max(1.0, expected), (load_name, part)
+        compared += 1
+  assert compared >= 250 and sorted(set(left_out)) == ["usascientific_12_reservoir_22ml"]
+
+
+def test_a_film_of_liquid_in_a_tapered_reservoir_is_a_sure_failure_not_a_maybe():
+  from steadyhand.protocol import loads
+  from steadyhand.scene import liquid_height, liquid_height_is_known
+
+  trough = scene().labware_resource("nest_12_reservoir_15ml", "trough").get_item("A1")
+  assert liquid_height_is_known(trough)  # a V bottom, but its real shape is known
+  assert liquid_height(trough, 180.0) < 1.0 < liquid_height(trough, 500.0)
+  odd = scene().labware_resource("usascientific_12_reservoir_22ml", "trough").get_item("A1")
+  assert not liquid_height_is_known(odd)  # its floor is a shape this does not work out
+
+  def planned(volume):
+    return ot.plan(check(loads(f"""
+steadyhand: 0.1
+name: master mix from a trough
+labware:
+  trough: {{type: nest_12_reservoir_15ml}}
+  plate: {{type: opentrons_96_wellplate_200ul_pcr_full_skirt}}
+liquids:
+  mix: {{in: trough/A1, volume: {volume}}}
+steps:
+  - transfer: {{from: trough/A1, to: plate/A1:H1, volume: 18 uL}}
+""")), ot.FLEX)
+
+  thin = asyncio.run(scene().rehearse_plan(planned("180 uL")))
+  assert not thin.ok and not thin.collisions and len(thin.liquid_failures) == 8
+  assert "above the liquid, so it draws air" in thin.report()
+  assert asyncio.run(scene().rehearse_plan(planned("2 mL"))).ok

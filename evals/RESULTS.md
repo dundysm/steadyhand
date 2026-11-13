@@ -6,6 +6,22 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## The Flex drafts with the liquid height known in every well (0.18.0)
+
+No model was asked again. On an Opentrons deck the height of a volume now comes from the inside shape of
+each well, so a tip above the liquid in a tapered well is a failure and no longer a "possibly".
+
+- **27 of the 28 Flex drafts pass the replay on both robots, and none carries a "possibly" note now**
+  (12 did at 0.17.0).
+- **1 is now stopped at the replay, for a real reason: `pcr_setup`.** Its note says the master mix is
+  "enough for 10 reactions" in a 12-column trough, and the draft declares 180 uL there. In that 15 mL
+  reservoir 180 uL is under 1 mm deep, below where the tips stop, so all eight aspirates draw air.
+  The same draft passes on the Hamilton, where the floor of that reservoir is not known.
+- So of the 31 notes, drafted for a Flex: 27 reach a rehearsed protocol with no hand edits, 3 are
+  refused at `check` because they cannot work as written, and 1 is stopped at the replay.
+- The drafting loop only sends `check` problems back to the model. It was not told about the replay's
+  finding, so it had no chance to add more master mix.
+
 ## The Flex drafts replayed in the physics scene (0.17.0)
 
 No model was asked again. The 28 Flex drafts that pass `check` were planned for both robots, replayed in

@@ -7,8 +7,9 @@ The replay then checks the same things as on the Hamilton: collisions, where eac
 against the liquid, and PyLabRobot's own tip and volume tracking.
 
 What is taken from Opentrons' definitions: every well and tip position, well depth and width,
-bottom shape, labware height, tip length and how far a tip slides onto the pipette. What is
-not: the pipette itself. A channel is the same nominal 8 mm barrel as on the Hamilton, an
+bottom shape, labware height, tip length and how far a tip slides onto the pipette, and the
+inside shape of each well, from which the height of a volume of liquid is worked out exactly
+in tapered and round bottoms too. What is not: the pipette itself. A channel is the same nominal 8 mm barrel as on the Hamilton, an
 8-channel pipette is eight of them 9 mm apart, and travel is straight up, across above
 everything on the deck, and straight down. The Flex's trash bin is a box of its nominal height
 in its slot.
@@ -17,6 +18,7 @@ in its slot.
 from __future__ import annotations
 
 import json
+import math
 import warnings
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -61,6 +63,56 @@ def _body(load_name: str) -> Dict[str, Any]:
   return json.loads(versions[-1].read_text())
 
 
+_SHAPES = ("conical", "cuboidal", "spherical")  # the well sections whose volume is worked out here
+
+
+def _section_volume(section: Dict[str, Any], height: float) -> float:
+  """Microlitres in one section of a well below `height`, in mm above the well's floor.
+
+  A well's inside is described as a stack of sections: cones, tapering boxes and a round cap.
+  A section the definitions describe some other way raises ValueError.
+  """
+  bottom, top = float(section["bottomHeight"]), float(section["topHeight"])
+  if height <= bottom:
+    return 0.0
+  full = top - bottom
+  filled = min(height, top) - bottom
+  shape = section["shape"]
+  if shape == "conical":
+    low, high = section["bottomDiameter"] / 2, section["topDiameter"] / 2
+    here = low + (high - low) * filled / full
+    volume = math.pi * filled / 3 * (low * low + low * here + here * here)
+  elif shape == "cuboidal":
+    x, y = section["bottomXDimension"], section["bottomYDimension"]
+    dx, dy = section["topXDimension"] - x, section["topYDimension"] - y
+    part = filled / full
+    volume = full * (x * y * part + (x * dy + y * dx) * part**2 / 2 + dx * dy * part**3 / 3)
+  elif shape == "spherical":
+    volume = math.pi * filled * filled * (3 * section["radiusOfCurvature"] - filled) / 3
+  else:
+    raise ValueError(f"a {shape} section is not one this knows the volume of")
+  return volume * section.get("xCount", 1) * section.get("yCount", 1)  # some reservoir floors are many small pockets
+
+
+def well_volume(sections: List[Dict[str, Any]], height: float) -> float:
+  """Microlitres in a well filled to `height` mm above its floor."""
+  return sum(_section_volume(section, height) for section in sections)
+
+
+def well_height(sections: List[Dict[str, Any]], volume: float) -> float:
+  """How high `volume` microlitres stands in a well, in mm above its floor. Never above its top."""
+  low, high = 0.0, max(float(section["topHeight"]) for section in sections)
+  if volume >= well_volume(sections, high):
+    return high
+  for _ in range(60):  # halving 60 times is far finer than any tolerance here
+    middle = (low + high) / 2
+    if well_volume(sections, middle) < volume:
+      low = middle
+    else:
+      high = middle
+  return (low + high) / 2
+
+
 def labware_resource(load_name: str, name: str):
   """A plate, reservoir or tip rack Opentrons ships, as a PyLabRobot resource called `name`.
 
@@ -99,6 +151,9 @@ def labware_resource(load_name: str, name: str):
       else:
         round_ = spec["shape"] == "circular"
         wide, long = (spec["diameter"], spec["diameter"]) if round_ else (spec["xDimension"], spec["yDimension"])
+        sections = body.get("innerLabwareGeometry", {}).get(spec.get("geometryDefinitionId", ""), {}).get("sections")
+        if not sections or any(section["shape"] not in _SHAPES for section in sections):
+          sections = None  # no inside shape given, or one this cannot work out: the replay stays unsure there
         item = Well(
           f"well_{well}",  # the plate puts its own name in front
           wide,
@@ -108,7 +163,10 @@ def labware_resource(load_name: str, name: str):
           bottom_type=bottoms.get(well, WellBottomType.UNKNOWN),
           max_volume=float(spec["totalLiquidVolume"]),
           cross_section_type=CrossSectionType.CIRCLE if round_ else CrossSectionType.RECTANGLE,
+          compute_height_from_volume=(lambda volume, s=sections: well_height(s, volume)) if sections else None,
+          compute_volume_from_height=(lambda height, s=sections: well_volume(s, height)) if sections else None,
         )
+        item.exact_liquid_height = bool(sections)  # the replay trusts this height in any bottom shape
         item.location = Coordinate(spec["x"] - wide / 2, spec["y"] - long / 2, spec["z"])
       items[well] = item
   kind = TipRack if parameters.get("isTiprack") else Plate

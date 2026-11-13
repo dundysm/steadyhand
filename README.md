@@ -1,5 +1,7 @@
 # steadyhand
 
+[![tests](https://github.com/dundysm/steadyhand/actions/workflows/tests.yml/badge.svg)](https://github.com/dundysm/steadyhand/actions/workflows/tests.yml)
+
 Turn a written lab protocol into a robot program, and rehearse it before it touches a real bench.
 
 Earlier commits and notes call this project drybench; it was renamed at 0.14.0.
@@ -22,6 +24,7 @@ See [What it does not do yet](#what-it-does-not-do-yet).
 ## Try it
 
 ```bash
+git clone https://github.com/dundysm/steadyhand && cd steadyhand
 pip install -e .
 steadyhand rehearse examples/serial_dilution.yaml
 ```
@@ -168,8 +171,11 @@ volume, and every command takes the same time on screen. It is 2D; for 3D open `
   (9 mm on a STAR).
 - **Tip in the liquid.** The liquid is followed through every step. An aspirate that starts with
   the tip above the liquid, or any aspirate or dispense with the tip above the rim of the well,
-  fails the run. This is only trusted in flat-bottom wells, where the liquid height is known:
-  in round- and V-bottom wells it is reported as possible and does not fail. An aspirate that
+  fails the run. On a Hamilton deck this is only trusted in flat-bottom wells, where the liquid
+  height is known: in round- and V-bottom wells it is reported as possible and does not fail.
+  On an Opentrons deck the height comes from the inside shape of the well, which Opentrons'
+  definitions give for 45 of the 46 plates and reservoirs offered, so it is trusted in every
+  bottom shape. The volumes agree with Opentrons' own maths at 270 heights checked by a test. An aspirate that
   ends with the liquid below the tip (emptying a well) is noted, not failed.
 
 A test also confirms that PyLabRobot's own volume trackers end the run with the same volume in
@@ -227,6 +233,11 @@ travel is straight up, across above everything on the deck and straight down, an
 trash bin is a box of its nominal height. A rehearsal passes only if the replay and Opentrons'
 simulator both pass.
 
+What this catches that nothing did before: one of the intake drafts puts 180 uL of master mix in
+a 15 mL reservoir, as its note says. That is a film under 1 mm deep, below where the tips stop,
+and the replay now fails it by name. On the Hamilton the same draft passes, because the shape of
+that reservoir's floor is not known there.
+
 **What is missing on the Opentrons robots.** An 8-channel pipette always takes all eight tips,
 so half a column is done one well at a time. No modules or gripper. No plan file to edit.
 
@@ -239,10 +250,10 @@ stand by it.
 
 **Drafting for them.** `steadyhand draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
 the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
-has it write the `robot:` line. On the 31 intake notes, 27 went from text to a protocol that
-passes Opentrons' simulator at the first attempt, and the same 27 drafts also plan and simulate
-for the OT-2. The one that was refused then, the ELISA, has planned and simulated on both since
-0.16.0. Details and caveats are in [evals](evals/RESULTS.md).
+has it write the `robot:` line. On the 31 intake notes, 27 go from text to a protocol that
+passes the physics replay and Opentrons' simulator on both robots with no hand edits. Three
+cannot work as written and are refused at `check`, and one is stopped at the replay for too
+little liquid to reach. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
@@ -358,7 +369,7 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   model one turn at a time. On the latest run, 28 of 31 notes (20 from public kit manuals) went
   from plain text to a rehearsed script at the first attempt with no hand edits, and the other
   three, which cannot work as written, were refused for the right reason. Drafted for an
-  Opentrons Flex, 27 of the same 31 pass Opentrons' simulator. The runs, the notes
+  Opentrons Flex, 27 of the same 31 pass the replay and Opentrons' simulator. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
   matches the note; two were read against their notes and matched. Drafting from a PDF is
   untested on real manuals.

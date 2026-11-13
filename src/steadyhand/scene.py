@@ -241,10 +241,13 @@ def liquid_height(container: Container, volume: float) -> float:
 def liquid_height_is_known(container: Container) -> bool:
   """Whether `liquid_height` can be trusted to a fraction of a millimetre for this container.
 
-  Only for a flat bottom, where straight walls are the real shape. In a round or V bottom,
+  For a flat bottom, where straight walls are the real shape, and for a well whose height
+  function is marked as worked out from its real inside shape. In any other round or V bottom,
   shallow liquid stands higher than a straight-walled estimate says, and some of PyLabRobot's
   own volume-to-height functions for such labware are that same estimate.
   """
+  if getattr(container, "exact_liquid_height", False):  # its height comes from the inside shape of the well
+    return True
   return str(getattr(getattr(container, "bottom_type", None), "value", "")).lower() == "flat"
 
 
