@@ -6,6 +6,29 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## Real well shapes on the Hamilton deck, and one worked example corrected (0.21.0)
+
+On a Hamilton deck the three plates and reservoirs that Opentrons also ships now take their inside shape
+from Opentrons' definition, so the liquid height in them is exact and a tip above it fails the run.
+
+- **The 28 drafts that passed on the Hamilton were rehearsed again, not drafted again.** 27 still pass.
+  The one that no longer does is `pcr_setup`: 180 uL of master mix in a 15 mL reservoir is too shallow
+  for the tip, the same finding as on the Flex. Before this it was only reported as possible.
+- **`pcr_setup` was drafted again from the start** by one Claude Opus 5.5 agent. Round 1: 180 uL, told
+  the well "needs about 230 uL left in it". Round 2: **it passes check, plan and rehearsal** with 400 uL
+  of master mix, and a note saying so. (On the Flex run the model chose 2.2 mL; this time it added only
+  what the message asked for. One run each, so this is not a measured difference.)
+- So on the Hamilton, 28 of 31 notes reach a rehearsed script with no hand edits: 27 at the first
+  attempt, 1 at the second. The other 3 cannot work as written.
+- **The first message to the model changed by one number**, for all three robots. The guide's second
+  worked example left 1 mL in a 195 mL reservoir, which stands 0.84 mm deep: under the tip. On an
+  Opentrons deck that example has failed rehearsal since 0.18.0 and no test caught it; it now starts
+  with 6 mL, and a test rehearses every worked example on every robot. No note other than `pcr_setup`
+  was drafted again with the corrected example.
+- The agent that drafted `pcr_setup` reported that the first message does not say whether "enough for
+  10 reactions" is a stated amount, and that the guide's rule for a reservoir (2 mL extra) and the
+  rehearsal's message point to very different volumes. Both are open.
+
 ## The master-mix note once more, with better feedback (0.20.0)
 
 The rehearsal's message to the model now says how much liquid the well needs for a tip to stay under the

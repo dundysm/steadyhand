@@ -113,6 +113,34 @@ def well_height(sections: List[Dict[str, Any]], volume: float) -> float:
   return (low + high) / 2
 
 
+def inside_shapes(load_name: str) -> Dict[str, List[Dict[str, Any]]]:
+  """The inside shape of every well of a labware, by well name, where Opentrons gives one this can work out."""
+  body = _body(load_name)
+  shapes: Dict[str, List[Dict[str, Any]]] = {}
+  for well, spec in body["wells"].items():
+    sections = body.get("innerLabwareGeometry", {}).get(spec.get("geometryDefinitionId", ""), {}).get("sections")
+    if sections and all(section["shape"] in _SHAPES for section in sections):
+      shapes[well] = sections
+  return shapes
+
+
+def give_real_shape(plate, load_name: str) -> int:
+  """Make the wells of a PyLabRobot plate work out liquid height from the inside shape of the same Opentrons labware.
+
+  For a plate that is the same product in both libraries. Returns how many wells were given a shape.
+  """
+  shapes = inside_shapes(load_name)
+  given = 0
+  for well in plate.get_all_items():
+    sections = shapes.get(well.get_identifier())
+    if sections:
+      well._compute_height_from_volume = lambda volume, s=sections: well_height(s, volume)
+      well._compute_volume_from_height = lambda height, s=sections: well_volume(s, height)
+      well.exact_liquid_height = True  # the replay trusts this height in any bottom shape
+      given += 1
+  return given
+
+
 def labware_resource(load_name: str, name: str):
   """A plate, reservoir or tip rack Opentrons ships, as a PyLabRobot resource called `name`.
 
@@ -131,6 +159,7 @@ def labware_resource(load_name: str, name: str):
     for group in body.get("groups", [])
     for well in group["wells"]
   }
+  shapes = {} if parameters.get("isTiprack") else inside_shapes(load_name)
   items: Dict[str, Any] = {}
   for column in body["ordering"]:
     for well in column:
@@ -151,9 +180,7 @@ def labware_resource(load_name: str, name: str):
       else:
         round_ = spec["shape"] == "circular"
         wide, long = (spec["diameter"], spec["diameter"]) if round_ else (spec["xDimension"], spec["yDimension"])
-        sections = body.get("innerLabwareGeometry", {}).get(spec.get("geometryDefinitionId", ""), {}).get("sections")
-        if not sections or any(section["shape"] not in _SHAPES for section in sections):
-          sections = None  # no inside shape given, or one this cannot work out: the replay stays unsure there
+        sections = shapes.get(well)  # none where no inside shape is given, or one this cannot work out
         item = Well(
           f"well_{well}",  # the plate puts its own name in front
           wide,
@@ -287,4 +314,7 @@ async def rehearse_plan(planned: OpentronsPlan, *, prepare=None, **options) -> R
   return rehearse(deck, steps, **options)
 
 
-__all__ = ["Refused", "ROWS", "build_deck", "labware_resource", "record_plan", "rehearse_plan", "slot_origin"]
+__all__ = [
+  "Refused", "ROWS", "build_deck", "give_real_shape", "inside_shapes", "labware_resource", "record_plan",
+  "rehearse_plan", "slot_origin",
+]

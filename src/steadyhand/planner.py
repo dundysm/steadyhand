@@ -785,6 +785,20 @@ def _tip_rack_holds(definition: Any) -> Optional[float]:
 # ---------------------------------------------------------------- running a plan
 
 
+def _real_shape(plate, definition: str) -> None:
+  """Where Opentrons ships the same plate with its inside shape, use that shape for liquid height.
+
+  PyLabRobot's own height for a tapered well is often a straight-walled estimate. This needs
+  Opentrons' labware definitions; without them the plate is left as it is.
+  """
+  from .opentrons_robots import TWINS, opentrons_installed
+
+  if definition in TWINS and opentrons_installed():
+    from .opentrons_scene import give_real_shape
+
+    give_real_shape(plate, TWINS[definition][0])
+
+
 def build_deck(planned: Plan):
   """The PyLabRobot deck the plan describes, with the protocol's starting liquids in place."""
   import pylabrobot.resources as resources
@@ -800,6 +814,7 @@ def build_deck(planned: Plan):
           item = getattr(resources, planned.labware[name])(name=name)
           if getattr(item, "has_lid", lambda: False)():  # the plan assumes lids are off; it cannot move them
             item.unassign_child_resource(item.lid)
+          _real_shape(item, planned.labware[name])
           if needs_adapter(planned.labware[name]):
             adapter = getattr(resources, PLATE_ADAPTER)(name=f"{name}_adapter")
             adapter.assign_child_resource(item)

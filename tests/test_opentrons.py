@@ -560,6 +560,9 @@ def test_a_draft_for_an_opentrons_robot_is_offered_opentrons_labware_and_example
       assert checked.protocol.robot == profile.name
       assert all(f"{item.type}:" in offered for item in checked.protocol.labware.values())
       assert ot.plan(checked, profile).ok
+      from steadyhand.intake import rehearsal_problems
+
+      assert rehearsal_problems(checked, profile.name) == []  # what the guide shows the model has to rehearse
 
   lines = labware_catalogue("opentrons-flex").splitlines()
   assert len(lines) == len(ot.shipped_names()) >= 40

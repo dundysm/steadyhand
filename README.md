@@ -171,8 +171,10 @@ volume, and every command takes the same time on screen. It is 2D; for 3D open `
   (9 mm on a STAR).
 - **Tip in the liquid.** The liquid is followed through every step. An aspirate that starts with
   the tip above the liquid, or any aspirate or dispense with the tip above the rim of the well,
-  fails the run. On a Hamilton deck this is only trusted in flat-bottom wells, where the liquid
-  height is known: in round- and V-bottom wells it is reported as possible and does not fail.
+  fails the run. On a Hamilton deck this is trusted in flat-bottom wells, where the liquid
+  height is known, and in the three plates and reservoirs Opentrons also ships, whose inside
+  shape is taken from Opentrons' definition when the `opentrons` package is installed. In other
+  round- and V-bottom wells it is reported as possible and does not fail.
   On an Opentrons deck the height comes from the inside shape of the well, which Opentrons'
   definitions give for 45 of the 46 plates and reservoirs offered, so it is trusted in every
   bottom shape. The volumes agree with Opentrons' own maths at 270 heights checked by a test. An aspirate that
@@ -370,10 +372,12 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 ## What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. On the latest run, 28 of 31 notes (20 from public kit manuals) went
-  from plain text to a rehearsed script at the first attempt with no hand edits, and the other
-  three, which cannot work as written, were refused for the right reason. Drafted for an
-  Opentrons Flex, 28 of the same 31 pass the replay and Opentrons' simulator. The runs, the notes
+  model one turn at a time. Of 31 notes (20 from public kit manuals), 28 go from plain text to a
+  rehearsed script with no hand edits: 27 at the first attempt and one at the second, after the
+  rehearsal told the model a reservoir was too shallow to draw from. The other three, which
+  cannot work as written, are refused for the right reason. Drafted for an Opentrons Flex, 28 of
+  the same 31 pass the replay and Opentrons' simulator. Most of these drafts were written before
+  the last changes and were rehearsed again, not drafted again. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
   matches the note; two were read against their notes and matched. Drafting from a PDF is
   untested on real manuals.

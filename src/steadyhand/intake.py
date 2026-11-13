@@ -141,7 +141,7 @@ labware:
   trough: {type: nest_1_troughplate_195000uL_Vb}
 liquids:
   sample: {in: plate/A1:H1, volume: 1 mL}
-  wash:   {in: trough/A1, volume: 5 mL}
+  wash:   {in: trough/A1, volume: 6 mL}
 steps:
   - transfer: {from: plate/A1:H1, to: waste, volume: 1 mL}
   - transfer: {from: trough/A1, to: plate/A1:H1, volume: 500 uL}
