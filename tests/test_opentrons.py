@@ -346,9 +346,22 @@ def test_the_robot_is_what_was_asked_for_then_what_the_file_says_then_the_hamilt
   with pytest.raises(KeyError):
     choose("tecan")
   with pytest.raises(ProtocolError) as refused:
-    loads(DILUTION.replace("name: test", "name: test\nrobot: tecan"))
+    loads(WAITS.replace("name: waits", "name: waits\nrobot: tecan"))
   assert "no robot called 'tecan'" in str(refused.value)
-  assert loads(DILUTION.replace("name: test", "name: test\nrobot: opentrons-flex")).robot == "opentrons-flex"
+  assert loads(WAITS.replace("name: waits", "name: waits\nrobot: opentrons-flex")).robot == "opentrons-flex"
+
+
+def test_without_opentrons_software_a_file_with_twins_still_plans_and_emits_for_its_robots(monkeypatch):
+  monkeypatch.setattr(ot, "_definitions", lambda: None)
+  monkeypatch.setattr(ot, "_SHIPPED", {})
+  # A PyLabRobot-named file needs nothing from Opentrons to be planned and written out.
+  planned = ot.plan(checked_from(WAITS), ot.OT2)
+  assert planned.ok and planned.labware["plate"] == "corning_96_wellplate_360ul_flat"
+  assert "protocol.delay(seconds=1800)  # 30 min" in ot.emit(planned)
+  # An Opentrons load name cannot be looked up, and the reader says what would let it.
+  with pytest.raises(ProtocolError) as refused:
+    loads(DILUTION)
+  assert "pip install 'drybench[opentrons]'" in str(refused.value)
 
 
 @pytest.mark.skipif(not simulator_here(), reason="Opentrons' simulator is not installed")

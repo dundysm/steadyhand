@@ -302,15 +302,21 @@ class _Reader:
         except Exception:
           plate = None
       if not isinstance(plate, Plate):
-        from .opentrons_robots import shipped_labware
+        from .opentrons_robots import opentrons_installed, shipped_labware
 
         found = shipped_labware(str(body.get("type")))
         if found is not None:
           self.labware[str(name)] = Labware(name=str(name), type=str(body["type"]), library="opentrons", **found)
-        elif "type" in body:
+        elif "type" in body and opentrons_installed():
           self.fail(
             f"{where}.type",
             f"{body.get('type')!r} is not a plate definition in PyLabRobot, nor a plate or reservoir Opentrons ships",
+          )
+        elif "type" in body:
+          self.fail(
+            f"{where}.type",
+            f"{body.get('type')!r} is not a plate definition in PyLabRobot. Opentrons load names can be used "
+            "once Opentrons' software is installed: pip install 'drybench[opentrons]'",
           )
         continue
       wells = plate.get_all_items()

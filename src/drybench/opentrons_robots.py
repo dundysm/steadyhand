@@ -121,6 +121,11 @@ def _definitions() -> Optional[Path]:
   return Path(opentrons_shared_data.__file__).parent / "data" / "labware" / "definitions" / "2"
 
 
+def opentrons_installed() -> bool:
+  """Whether Opentrons' labware definitions can be read here."""
+  return _definitions() is not None
+
+
 def shipped_labware(load_name: str) -> Optional[Dict[str, Any]]:
   """Rows, columns, well capacity and well order of a plate or reservoir Opentrons ships; None otherwise."""
   if load_name not in _SHIPPED:
