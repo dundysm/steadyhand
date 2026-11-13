@@ -210,7 +210,9 @@ robots: the Corning 96-well 360 uL flat plate and the NEST 1-well 195 mL and 12-
 reservoirs. A test compares every well position of each pair. Any other PyLabRobot plate is
 refused for an Opentrons robot, by name.
 
-**Simulating.** `pip install 'steadyhand[opentrons]'` brings Opentrons' software. Its current
+**Simulating.** `pip install 'steadyhand[opentrons]'` brings Opentrons' software. Its simulator
+does not load on Python 3.10, where one of its own dependencies refuses; steadyhand's tests run on
+3.10, 3.12 and 3.13, and everything else here works on all three. Its current
 releases simulate Flex protocols only: Opentrons moved the OT-2 to its own software line. To
 simulate an OT-2 protocol, install `opentrons==9.0.0` in a separate environment and set
 `STEADYHAND_OT2_SIMULATE` to its `opentrons_simulate`; without that, `rehearse` writes the protocol,

@@ -892,11 +892,15 @@ def simulate(script: str, profile: Profile) -> Simulation:
   import contextlib
 
   result = Simulation(title=profile.title, ran=False)
+  will_not_load = ""
   try:
     import opentrons
     from opentrons import simulate as simulator
   except ImportError:
     simulator = None
+  except Exception as error:  # installed, but it will not load here: on Python 3.10 its own models refuse to build
+    simulator = None
+    will_not_load = " ".join(str(error).split())[:200]
   if simulator is not None:
     result.by = f"opentrons {opentrons.__version__}"
     try:
@@ -929,7 +933,9 @@ def simulate(script: str, profile: Profile) -> Simulation:
       result.error = _reason(done.stderr.strip().splitlines()[-1] if done.stderr.strip() else "it stopped", script)
     return result
 
-  if simulator is None:
+  if will_not_load:
+    result.why_not = f"Opentrons' software is installed but its simulator will not load on this Python: {will_not_load}"
+  elif simulator is None:
     result.why_not = (
       "Opentrons' software is not installed here, so nothing simulated the protocol. "
       "Install it with: pip install 'steadyhand[opentrons]'"

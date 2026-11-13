@@ -365,8 +365,8 @@ def test_the_emitted_protocol_is_python_that_says_which_robot_it_is_for():
 
 def simulator_here():
   try:
-    import opentrons  # noqa: F401
-  except ImportError:
+    from opentrons import simulate  # noqa: F401
+  except Exception:  # not installed, or installed and unable to load on this Python
     return False
   return True
 
