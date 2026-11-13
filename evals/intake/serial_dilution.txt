@@ -1,0 +1,6 @@
+Two-fold serial dilution of a drug stock, one series per row.
+
+Plate: a Corning 96-well flat-bottom plate. Diluent (PBS) is in a single-well reservoir, the drug stock in a second one.
+Put 100 uL of PBS in columns 2 to 12 of every row. Put 200 uL of drug stock in column 1 of every row.
+Then carry 100 uL from column 1 to column 2, mix three times, and keep going down the row to column 12.
+Throw away the last 100 uL from column 12 so every well ends at 100 uL.

@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import urllib.error
 import urllib.request
@@ -202,9 +203,14 @@ def command_model(command: str, *, timeout: float = 300.0) -> Model:
 
   def ask(messages: List[Message]) -> str:
     prompt = "\n\n".join(f"[{m['role']}]\n{m['content']}" for m in messages)
+    # On Windows, keep backslashes in paths and let .cmd and .bat launchers be found by name.
+    argv = shlex.split(command, posix=os.name != "nt")
+    if os.name == "nt":
+      argv = [part.strip('"') for part in argv]
+    argv[0] = shutil.which(argv[0]) or argv[0]
     try:
       done = subprocess.run(
-        shlex.split(command), input=prompt, capture_output=True, text=True, timeout=timeout, check=False
+        argv, input=prompt, capture_output=True, text=True, timeout=timeout, check=False, encoding="utf-8"
       )
     except (OSError, subprocess.TimeoutExpired) as error:
       raise ModelError(f"could not run {command!r}: {error}") from error

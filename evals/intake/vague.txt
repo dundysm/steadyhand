@@ -1,0 +1,4 @@
+Wash step from my notebook:
+
+add wash buffer to all the sample wells, wait a bit, take it off again. do that twice.
+samples are in the top half of the plate.

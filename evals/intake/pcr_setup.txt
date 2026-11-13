@@ -1,0 +1,6 @@
+qPCR setup for 8 samples, 20 uL reactions.
+
+Master mix (already made, enough for 10 reactions) sits in one well of a 12-column trough.
+Templates are in column 1 of a 96-well sample plate, A1 to H1.
+Reactions go in column 1 of a second 96-well plate.
+18 uL master mix per reaction first, then 2 uL template, fresh tip for every template, mix 3x after adding it.
