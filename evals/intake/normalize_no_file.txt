@@ -1,0 +1,2 @@
+Bring my 8 RNA samples (column 1 of the sample plate, 30 uL each) to 100 ng/uL in 20 uL with water, in a new plate.
+I measured them on the Nanodrop this morning, the numbers are in my notebook.

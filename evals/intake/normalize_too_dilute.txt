@@ -1,0 +1,3 @@
+Equalize the libraries to 4 ng/uL, 30 uL each, in a new plate. Diluent is elution buffer in a trough.
+
+12 libraries are in A1-D3 of the library plate (25 uL each). Qubit readings are in the attached table.

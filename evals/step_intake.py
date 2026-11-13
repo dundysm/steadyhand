@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from drybench.intake import GUIDE, _problems_of, extract_yaml, labware_catalogue
+from drybench.intake import _problems_of, extract_yaml, messages_for
 from drybench.planner import RunRefused, plan, rehearse_plan
 
 HERE = Path(__file__).parent
@@ -28,12 +28,11 @@ def state_of(case: str):
   # a case is a note in evals/intake or evals/acceptance
   note = next(path for path in (HERE / "intake" / f"{case}.txt", HERE / "acceptance" / f"{case}.txt") if path.exists())
   source = note.read_text(encoding="utf-8")
+  table = note.with_suffix(".csv")  # a samples file beside the note is offered with it
   return folder, {
     "case": case,
-    "messages": [
-      {"role": "system", "content": GUIDE + "\nLABWARE\n" + labware_catalogue() + "\n"},
-      {"role": "user", "content": "Write the drybench protocol file for this:\n\n" + source.strip() + "\n"},
-    ],
+    "samples": str(table) if table.exists() else "",
+    "messages": messages_for(source, table if table.exists() else None),
     "history": [],
     "done": False,
     "draft": "-",
@@ -59,7 +58,7 @@ def main() -> int:
     return 0
   reply = Path(sys.argv[3]).read_text(encoding="utf-8")
   text = extract_yaml(reply)
-  checked, problems = _problems_of(text, None)
+  checked, problems = _problems_of(text, Path(state["samples"]).parent if state.get("samples") else None)
   number = len(state["history"]) + 1
   (folder / f"round_{number}.yaml").write_text(text, encoding="utf-8")
   state["messages"].append({"role": "assistant", "content": reply})

@@ -1,0 +1,4 @@
+Normalize the gDNA preps to 20 ng/uL.
+
+24 preps are in columns 1-3 of a V-bottom PCR-type plate, about 60 uL each. Concentrations are in the attached file.
+Final volume 50 uL per well, in the same well positions of a fresh plate. Water is in a reservoir. Water goes in first, then DNA, and mix a few times after the DNA goes in.

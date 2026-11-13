@@ -210,7 +210,15 @@ def _draft(args: argparse.Namespace) -> int:
     else:
       print("drybench draft: say which model to use, with --model-command CMD or --provider NAME --model NAME")
       return 1
-    result = draft(source, model, max_rounds=args.rounds)
+    samples = Path(args.samples) if args.samples else None
+    if samples is not None and not samples.is_file():
+      print(f"drybench draft: cannot find {samples}")
+      return 1
+    if samples is not None and samples.resolve().parent != Path(args.output).resolve().parent:
+      print(f"drybench draft: the protocol names its samples file by name, so write it next to {samples}")
+      print(f"  for example: -o {samples.parent / Path(args.output).name}")
+      return 1
+    result = draft(source, model, samples=samples, max_rounds=args.rounds)
   except ModelError as error:
     print(f"drybench draft: {error}")
     return 1
@@ -245,6 +253,7 @@ def main(argv: Optional[List[str]] = None) -> int:
   draft.add_argument("--provider", choices=("anthropic", "openai"), help="an API to call; needs --model")
   draft.add_argument("--model", help="the model's name at that provider")
   draft.add_argument("--model-command", help="a shell command that reads a prompt on stdin and prints a reply")
+  draft.add_argument("--samples", help="a CSV of per-sample concentrations, for normalizing; kept next to the output")
   draft.add_argument("--rounds", type=int, default=3, help="how many times the model may be asked (default 3)")
   draft.set_defaults(run=_draft)
 

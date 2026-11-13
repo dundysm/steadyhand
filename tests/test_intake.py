@@ -204,3 +204,60 @@ def test_the_catalogue_offers_only_plates_the_deck_can_hold_and_the_guide_exampl
     checked, problems = _problems_of(text, None)
     assert not problems, problems
     assert asyncio.run(rehearse_plan(plan(checked))).ok
+
+
+NORMALIZE = """drybench: 0.1
+name: Normalize DNA
+labware:
+  stock:      {type: Azenta4titudeFrameStar_96_wellplate_200ul_Vb}
+  normalized: {type: Azenta4titudeFrameStar_96_wellplate_200ul_Vb}
+  reservoir:  {type: nest_12_troughplate_15000uL_Vb}
+liquids:
+  water: {in: reservoir/A1, volume: 4 mL}
+  dna:   {in: stock/A1:D1, volume: 60 uL}
+samples: {file: readings.csv, labware: stock, well: Well, concentration: "ng per uL", unit: ng/uL}
+steps:
+  - normalize: {from: stock, to: normalized, diluent: reservoir/A1, target: 20 ng/uL, final_volume: 50 uL}
+"""
+
+
+def test_a_samples_file_is_described_to_the_model_and_read_by_drybench(tmp_path):
+  from drybench.intake import describe_samples
+
+  table = tmp_path / "readings.csv"
+  table.write_text("Well,ng per uL,note\nA1,80\nB1,40\nC1,100\nD1,25\n")
+  said = describe_samples(table, rows=2)
+  assert "readings.csv" in said and "4 rows" in said and "Well, ng per uL, note" in said
+  assert "A1, 80" in said and "C1, 100" not in said  # a few rows to read the columns by, not the data
+
+  seen = []
+
+  def model(messages):
+    seen.append(messages[1]["content"])
+    return NORMALIZE
+
+  result = draft("Normalize my four preps to 20 ng/uL in 50 uL.", model, samples=table)
+  assert result.ok, result.problems
+  assert "A samples file is offered with this text" in seen[0]
+  volumes = {str(m.source): m.volume for m in result.checked.moves if m.kind == "transfer" and m.source.labware == "stock"}
+  assert volumes == {"stock/A1": 12.5, "stock/B1": 25.0, "stock/C1": 10.0, "stock/D1": 40.0}
+
+
+def test_the_guide_describes_normalize_and_the_samples_section():
+  assert "- normalize: {from: <labware>, to: <labware>, diluent: <one well>" in GUIDE
+  assert "samples:" in GUIDE and "never copy concentrations into the protocol" in GUIDE
+
+
+def test_cli_wants_the_protocol_written_next_to_its_samples_file(tmp_path, capsys):
+  table = tmp_path / "data" / "readings.csv"
+  table.parent.mkdir()
+  table.write_text("Well,ng per uL\nA1,80\nB1,40\nC1,100\nD1,25\n")
+  notes = tmp_path / "notes.txt"
+  notes.write_text("Normalize to 20 ng/uL in 50 uL.")
+  script = tmp_path / "model.py"
+  script.write_text("import sys\nsys.stdin.read()\nprint(" + repr(NORMALIZE) + ")\n")
+  command = ["draft", str(notes), "--samples", str(table), "--model-command", f"{sys.executable} {script}"]
+  assert main(command + ["-o", str(tmp_path / "protocol.yaml")]) == 1
+  assert "write it next to" in capsys.readouterr().out
+  assert main(command + ["-o", str(table.parent / "protocol.yaml")]) == 0
+  assert main(["rehearse", str(table.parent / "protocol.yaml"), "--no-render", "--out", str(tmp_path / "out")]) == 0

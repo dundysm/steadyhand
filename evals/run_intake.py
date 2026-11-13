@@ -25,7 +25,8 @@ def one(note: Path, model, rounds: int, out: Path) -> dict:
   row = {"case": note.stem, "draft": "error", "rounds": 0, "plan": "-", "rehearse": "-", "seconds": 0.0, "problems": [], "fixed": []}
   started = time.time()
   try:
-    result = draft(note.read_text(encoding="utf-8"), model, max_rounds=rounds)
+    table = note.with_suffix(".csv")  # a samples file beside the note is offered with it
+    result = draft(note.read_text(encoding="utf-8"), model, samples=table if table.exists() else None, max_rounds=rounds)
   except ModelError as error:
     row["problems"] = [str(error)]
     row["seconds"] = round(time.time() - started, 1)

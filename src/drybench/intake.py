@@ -11,6 +11,7 @@ ones are provided: a shell command, the Anthropic API and any OpenAI-compatible 
 
 from __future__ import annotations
 
+import csv
 import json
 import os
 import re
@@ -66,6 +67,9 @@ RULES
   the text does not give is about two thirds of what the well holds at that point.
 - When the text asks for something the format cannot say exactly (such as new tips per
   column), use the nearest stricter option and say so in `notes`.
+- Use `normalize` only when the text asks to bring samples to a common concentration and a
+  samples file is offered with the text. If the text asks for it and no file is offered, write
+  the step with `samples.file: samples.csv` and say in `notes` that the file is needed.
 - Never change an amount the text states. If what the text describes cannot work (a well
   would overflow, a source would run dry), write it as stated and say so in `notes`. If you
   are then told about that problem, send the same file again; a person has to decide.
@@ -79,6 +83,8 @@ labware:                 (required) one entry per plate or reservoir
   <name>: {type: <definition from LABWARE>}
 liquids:                 (optional)
   <name>: {in: <wells>, volume: <volume in each well>}
+samples:                 (optional; only with a normalize step, and only for a samples file offered to you)
+  {file: <its name>, labware: <labware the samples are in>, well: <column of well names>, concentration: <column of concentrations>, unit: <their unit, such as ng/uL>}
 limits: {min_volume: <volume>}   (optional; default 1 uL)
 steps:                   (required) a list; each item is exactly one of the steps below
 
@@ -95,6 +101,12 @@ STEPS
     defaults to fresh (a new tip for every move down the chain); reuse keeps one per chain.
     The wells being diluted into must already hold diluent: add that with a transfer first.
     mix, discard and tips are optional.
+- normalize: {from: <labware>, to: <labware>, diluent: <one well>, target: <concentration>, final_volume: <volume>, mix: {times: <n>, volume: <volume>}}
+    Brings every sample listed in the samples file to `target` in `final_volume`, in the same
+    well of `to`: diluent first, then sample. drybench works both volumes out from the file, so
+    never copy concentrations into the protocol. `from` and `to` are labware names, not wells.
+    Needs the `samples` section, and the samples declared under `liquids` like any other
+    liquid. mix is optional.
 - wait: {duration: <time>}
 
 EXAMPLE 1 (for a text that states every plate, volume and mix)
@@ -200,19 +212,54 @@ def _problems_of(text: str, base: Optional[Path]) -> tuple:
   return checked, list(checked.problems)
 
 
-def draft(source: str, model: Model, *, base: Optional[Path] = None, max_rounds: int = 3) -> Draft:
+def describe_samples(path: Path, rows: int = 4) -> str:
+  """What a model needs to know about a samples file: its name, its columns and its first rows.
+
+  The model is shown a few rows so it can tell which column is which and in what unit; the
+  protocol it writes names the file, and drybench reads the numbers from the file itself.
+  """
+  with Path(path).open(newline="", encoding="utf-8") as handle:
+    table = list(csv.reader(handle))
+  header, body = (table[0], table[1:]) if table else ([], [])
+  lines = [
+    f"A samples file is offered with this text. Its name is {Path(path).name}, it has {len(body)} rows, "
+    f"and its columns are: {', '.join(header)}.",
+    "Its first rows:",
+    *[", ".join(row) for row in [header] + body[:rows]],
+  ]
+  return "\n".join(lines)
+
+
+def messages_for(source: str, samples: Optional[Path] = None) -> List[Message]:
+  """The conversation a model is sent first: the guide and the text, with any samples file described."""
+  offered = "\n" + describe_samples(samples) + "\n" if samples is not None else ""
+  return [
+    {"role": "system", "content": GUIDE + "\nLABWARE\n" + labware_catalogue() + "\n"},
+    {"role": "user", "content": "Write the drybench protocol file for this:\n\n" + source.strip() + "\n" + offered},
+  ]
+
+
+def draft(
+  source: str,
+  model: Model,
+  *,
+  base: Optional[Path] = None,
+  samples: Optional[Path] = None,
+  max_rounds: int = 3,
+) -> Draft:
   """Ask `model` to write a protocol for `source`, sending problems back until it checks out.
 
   Args:
     source: the plain text to turn into a protocol.
     model: a function from a list of messages to the model's reply.
-    base: folder to resolve a samples file against, if the protocol names one.
+    base: folder to resolve a samples file against, if the protocol names one. Defaults to the
+      folder `samples` is in.
+    samples: a CSV of per-sample concentrations to offer the model, for `normalize` steps.
     max_rounds: how many times the model may be asked before giving up.
   """
-  messages: List[Message] = [
-    {"role": "system", "content": GUIDE + "\nLABWARE\n" + labware_catalogue() + "\n"},
-    {"role": "user", "content": "Write the drybench protocol file for this:\n\n" + source.strip() + "\n"},
-  ]
+  if base is None and samples is not None:
+    base = Path(samples).parent
+  messages = messages_for(source, samples)
   text, checked, problems = "", None, [Problem("draft", "the model was never asked")]
   history: List[List[Problem]] = []
   for round_number in range(1, max_rounds + 1):
