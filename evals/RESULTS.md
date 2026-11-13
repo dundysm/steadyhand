@@ -3,6 +3,30 @@
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## Drafted for an Opentrons Flex (31 notes), on the code released as 0.13.0
+
+Two Claude Opus 5.5 agents played the model through `evals/step_intake.py` with
+`DRYBENCH_EVAL_ROBOT=opentrons-flex`, on the same 31 notes as the full run below. The model was offered
+Opentrons' labware in place of PyLabRobot's. Nothing it wrote was edited by hand.
+
+- **27 of 31 passed draft, check, plan and Opentrons' simulator at the first attempt.**
+- **The same 27 drafts also plan for an OT-2 and pass its simulator** (opentrons 9.0.0), with only the
+  robot changed on the command line.
+- **3 cannot work as written and were refused for the right reason**, each left for a person in round 2:
+  `too_much`, `normalize_too_dilute`, `normalize_no_file`.
+- **1 was refused at the plan: `sandwich_elisa`.** The draft passes `check`. Its seven plates and
+  reservoirs plus four waste reservoirs fill all 11 slots, so there is none for tips. The same note
+  runs on the Hamilton, whose deck is larger. The guide does not tell the model how many slots a robot has.
+
+What this does and does not show:
+
+- A pass means Opentrons' simulator ran the protocol. On these robots nothing checks collisions or
+  whether a tip reaches the liquid.
+- One draft, `bradford_assay`, was read against its note and matched. The others were not read.
+- The agents kept to the two commands. After their first cases both read only the part of each prompt
+  that differed from the last, having confirmed the guide was the same.
+- Black and white assay plates are not in Opentrons' list; the model used the clear Corning plate.
+
 ## The same drafts on the Opentrons robots (0.12.0)
 
 No model was asked again. The 28 drafts below that rehearse on the Hamilton were planned as written

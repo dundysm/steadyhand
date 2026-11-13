@@ -455,3 +455,88 @@ def test_a_run_waits_only_when_it_is_told_how():
   handler.deck = build_deck(planned)
   asyncio.run(run(planned, handler, on_wait=on_wait))
   assert waited == [1800.0, 300.0]
+
+
+# ---------------------------------------------------------------- drafting for an Opentrons robot
+
+
+def test_the_hamilton_prompt_is_the_one_the_intake_runs_were_measured_with():
+  from drybench.intake import GUIDE, guide_for, labware_catalogue, messages_for
+
+  plain = messages_for("text")
+  assert plain == messages_for("text", None, "hamilton-starlet")
+  assert plain[0]["content"] == GUIDE + "\nLABWARE\n" + labware_catalogue() + "\n"
+  assert guide_for() is GUIDE and "robot:" not in GUIDE
+
+
+@needs_opentrons
+def test_a_draft_for_an_opentrons_robot_is_offered_opentrons_labware_and_examples_that_run():
+  from drybench.intake import GUIDE, _problems_of, guide_for, labware_catalogue, messages_for
+
+  for profile in (ot.FLEX, ot.OT2):
+    guide = guide_for(profile.name)
+    assert "Cor_96" not in guide and "troughplate" not in guide
+    assert f"robot: {profile.name}   (required, exactly this)" in guide
+    assert len(guide.splitlines()) == len(GUIDE.splitlines()) + 3  # one robot line in the sections and in each example
+    offered = labware_catalogue(profile.name)
+    assert messages_for("text", None, profile.name)[0]["content"] == guide + "\nLABWARE\n" + offered + "\n"
+    first = guide.split("EXAMPLE 1")[1].split("\n", 1)[1].split("\nEXAMPLE 2")[0]
+    second = guide.split("EXAMPLE 2")[1].split("\n", 1)[1]
+    for text in (first, second):
+      checked, problems = _problems_of(text, None, profile.name)
+      assert not problems, problems
+      assert checked.protocol.robot == profile.name
+      assert all(f"{item.type}:" in offered for item in checked.protocol.labware.values())
+      assert ot.plan(checked, profile).ok
+
+  lines = labware_catalogue("opentrons-flex").splitlines()
+  assert len(lines) == len(ot.shipped_names()) >= 40
+  assert "corning_96_wellplate_360ul_flat: 96 wells (8 rows x 12 columns), 360 uL each, flat bottom" in lines
+  assert "nest_96_wellplate_2ml_deep: 96 wells (8 rows x 12 columns), 2000 uL each, V bottom" in lines
+  # What cannot stand in a slot on its own is not offered, and not read.
+  assert not any(word in line for line in lines for word in ("filter", "tips", "tiprack", "adapter", "tuberack"))
+  assert ot.shipped_labware("millipore_96_wellplate_300ul_filter") is None
+
+
+@pytest.mark.skipif(not simulator_here(), reason="Opentrons' simulator is not installed")
+def test_every_plate_offered_for_a_flex_loads_in_opentrons_simulator():
+  names = ot.shipped_names()
+  for start in range(0, len(names), 10):
+    lines = [
+      "from opentrons import protocol_api",
+      'requirements = {"robotType": "Flex", "apiLevel": "2.19"}',
+      "def run(protocol):",
+      '  protocol.load_trash_bin("A3")',
+      '  tips = protocol.load_labware("opentrons_flex_96_filtertiprack_50ul", "A2")',
+      '  pipette = protocol.load_instrument("flex_1channel_50", "left")',
+      '  pipette.pick_up_tip(tips["A1"])',
+    ]
+    for name, slot in zip(names[start : start + 10], ot.FLEX.slots):
+      lines.append(f'  well = protocol.load_labware("{name}", "{slot}").wells()[-1]')
+      lines.append("  pipette.aspirate(1, well.bottom(1)); pipette.dispense(1, well.bottom(1))")
+    result = ot.simulate("\n".join(lines) + "\n", ot.FLEX)
+    assert result.ok, result.report()
+
+
+@needs_opentrons
+def test_a_draft_without_the_robot_line_is_sent_back():
+  from drybench.intake import draft
+
+  body = """labware:
+  plate: {type: corning_96_wellplate_360ul_flat}
+liquids:
+  dye: {in: plate/A1, volume: 100 uL}
+steps:
+  - transfer: {from: plate/A1, to: plate/A2, volume: 50 uL}
+"""
+  replies = iter(["drybench: 0.1\nname: move\n" + body, "drybench: 0.1\nname: move\nrobot: opentrons-flex\n" + body])
+  sent = []
+
+  def model(messages):
+    sent.append(messages[-1]["content"])
+    return next(replies)
+
+  result = draft("Move 50 uL from A1 to A2.", model, robot="opentrons-flex")
+  assert result.ok and result.rounds == 2
+  assert "the file must say `robot: opentrons-flex` after its name" in sent[1]
+  assert result.checked.protocol.robot == "opentrons-flex"

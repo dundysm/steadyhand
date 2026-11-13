@@ -3,12 +3,16 @@
   python evals/step_intake.py prompt CASE          print what the model is sent next
   python evals/step_intake.py submit CASE REPLY    hand in the model's reply (a file); it is checked as draft checks it
 
+Set DRYBENCH_EVAL_ROBOT to draft for another robot, such as opentrons-flex. A draft that passes is
+then planned for that robot and run through whatever rehearses it.
+
 The messages, the checking and the limit of three rounds are the ones `drybench.intake.draft` uses.
-State is kept in evals/out/agents/CASE/.
+State is kept in evals/out/agents/CASE/, or evals/out/agents-ROBOT/CASE/ for a named robot.
 """
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -17,10 +21,11 @@ from drybench.planner import RunRefused, plan, rehearse_plan
 
 HERE = Path(__file__).parent
 ROUNDS = 3
+ROBOT = os.environ.get("DRYBENCH_EVAL_ROBOT", "")
 
 
 def state_of(case: str):
-  folder = HERE / "out" / "agents" / case
+  folder = HERE / "out" / (f"agents-{ROBOT}" if ROBOT else "agents") / case
   folder.mkdir(parents=True, exist_ok=True)
   path = folder / "state.json"
   if path.exists():
@@ -32,7 +37,7 @@ def state_of(case: str):
   return folder, {
     "case": case,
     "samples": str(table) if table.exists() else "",
-    "messages": messages_for(source, table if table.exists() else None),
+    "messages": messages_for(source, table if table.exists() else None, ROBOT),
     "history": [],
     "done": False,
     "draft": "-",
@@ -58,7 +63,7 @@ def main() -> int:
     return 0
   reply = Path(sys.argv[3]).read_text(encoding="utf-8")
   text = extract_yaml(reply)
-  checked, problems = _problems_of(text, Path(state["samples"]).parent if state.get("samples") else None)
+  checked, problems = _problems_of(text, Path(state["samples"]).parent if state.get("samples") else None, ROBOT)
   number = len(state["history"]) + 1
   (folder / f"round_{number}.yaml").write_text(text, encoding="utf-8")
   state["messages"].append({"role": "assistant", "content": reply})
@@ -66,12 +71,22 @@ def main() -> int:
   if not problems:
     state["done"], state["draft"] = True, "pass"
     try:
-      planned = plan(checked)
-      state["plan"] = "pass" if planned.ok else "fail"
-      state["plan_problems"] = [str(problem) for problem in planned.problems]
-      if planned.ok:
-        rehearsal = asyncio.run(rehearse_plan(planned))
-        state["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
+      if ROBOT and ROBOT != "hamilton-starlet":
+        from drybench import opentrons_robots
+
+        planned = opentrons_robots.plan(checked, opentrons_robots.PROFILES[ROBOT])
+        state["plan"] = "pass" if planned.ok else "fail"
+        state["plan_problems"] = [str(problem) for problem in planned.problems]
+        if planned.ok:
+          result = opentrons_robots.simulate(opentrons_robots.emit(planned), planned.profile)
+          state["rehearse"] = "pass" if result.ok else f"fail ({result.error or result.why_not})"
+      else:
+        planned = plan(checked)
+        state["plan"] = "pass" if planned.ok else "fail"
+        state["plan_problems"] = [str(problem) for problem in planned.problems]
+        if planned.ok:
+          rehearsal = asyncio.run(rehearse_plan(planned))
+          state["rehearse"] = "pass" if rehearsal.ok else f"fail ({len(rehearsal.collisions)} collisions)"
     except RunRefused as refused:  # PyLabRobot's own checks said no: a clean failure
       state["rehearse"] = f"fail ({refused})"
     except Exception as error:  # a crash here is a drybench bug, and worth recording as one

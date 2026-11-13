@@ -110,6 +110,10 @@ TWINS: Dict[str, Tuple[str, float]] = {
 }
 
 _SHIPPED: Dict[str, Optional[Dict[str, Any]]] = {}
+_BOTTOMS: Dict[str, str] = {}  # load name -> "flat", "round" or "V", where the definition says
+# Filter plates and resin tips cannot stand in a deck slot on their own, and the Millipore
+# collection plate that goes under them is missing from the last release that simulates an OT-2.
+_NOT_ALONE = ("filter", "tips", "millipore")
 
 
 def _definitions() -> Optional[Path]:
@@ -138,7 +142,8 @@ def shipped_labware(load_name: str) -> Optional[Dict[str, Any]]:
       kind = body.get("parameters", {}).get("format")
       sizes = {len(column) for column in columns}
       holds = body.get("metadata", {}).get("displayCategory") in ("wellPlate", "reservoir")
-      if holds and kind != "irregular" and len(sizes) == 1:
+      alone = not any(word in load_name for word in _NOT_ALONE)
+      if holds and alone and kind != "irregular" and len(sizes) == 1:
         order = [well for column in columns for well in column]
         _SHIPPED[load_name] = {
           "rows": sizes.pop(),
@@ -146,6 +151,8 @@ def shipped_labware(load_name: str) -> Optional[Dict[str, Any]]:
           "capacity": float(min(body["wells"][well]["totalLiquidVolume"] for well in order)),
           "order": order,
         }
+        shapes = {group.get("metadata", {}).get("wellBottomShape") for group in body.get("groups", [])}
+        _BOTTOMS[load_name] = {"flat": "flat", "u": "round", "v": "V"}.get(shapes.pop() if len(shapes) == 1 else "", "")
   return _SHIPPED[load_name]
 
 
@@ -155,6 +162,19 @@ def shipped_names() -> List[str]:
   if root is None:
     return []
   return [p.name for p in sorted(root.iterdir()) if p.is_dir() and shipped_labware(p.name) is not None]
+
+
+def catalogue() -> str:
+  """Every plate and reservoir a draft may name for an Opentrons robot, one per line."""
+  lines = []
+  for name in shipped_names():
+    found = shipped_labware(name)
+    bottom = f", {_BOTTOMS[name]} bottom" if _BOTTOMS.get(name) else ""
+    lines.append(
+      f"{name}: {len(found['order'])} wells ({found['rows']} rows x {found['columns']} columns), "
+      f"{found['capacity']:g} uL each{bottom}"
+    )
+  return "\n".join(lines)
 
 
 def load_name(labware: Labware) -> Optional[Tuple[str, float]]:

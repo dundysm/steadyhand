@@ -150,9 +150,49 @@ steps:
 """
 
 
-def labware_catalogue() -> str:
-  """Every PyLabRobot plate the deck can hold, one per line, with its shape and well capacity."""
+# The plates the guide's examples use, and the same or the nearest one in Opentrons' library.
+_OPENTRONS_EXAMPLES = (
+  ("Cor_96_wellplate_360ul_Fb", "corning_96_wellplate_360ul_flat"),
+  ("nest_1_troughplate_195000uL_Vb", "nest_1_reservoir_195ml"),
+  ("Cor_96_wellplate_2mL_Vb", "nest_96_wellplate_2ml_deep"),
+)
+
+
+def guide_for(robot: str = "") -> str:
+  """The guide a model is given: the Hamilton's as it stands, or one that names an Opentrons robot.
+
+  For an Opentrons robot the examples use Opentrons labware and every file carries a `robot` line.
+  """
+  if not robot or robot == "hamilton-starlet":
+    return GUIDE
+  text = GUIDE
+  swaps = list(_OPENTRONS_EXAMPLES) + [
+    ("name: <title>            (required)\n", f"name: <title>            (required)\nrobot: {robot}   (required, exactly this)\n"),
+    (
+      "name: Two-fold serial dilution across a 96-well plate\n",
+      f"name: Two-fold serial dilution across a 96-well plate\nrobot: {robot}\n",
+    ),
+    ("name: One wash of column 1\n", f"name: One wash of column 1\nrobot: {robot}\n"),
+  ]
+  for old, new in swaps:
+    if old not in text:
+      raise ValueError(f"the guide no longer contains {old!r}")
+    text = text.replace(old, new)
+  return text
+
+
+def labware_catalogue(robot: str = "") -> str:
+  """Every plate a draft may name for the robot, one per line, with its shape and well capacity.
+
+  For the Hamilton these are the PyLabRobot plates its carrier holds; for an Opentrons robot,
+  the plates and reservoirs Opentrons ships.
+  """
   import inspect
+
+  if robot and robot != "hamilton-starlet":
+    from .opentrons_robots import catalogue
+
+    return catalogue()
 
   import pylabrobot.resources as resources
   from pylabrobot.resources import Plate
@@ -206,13 +246,17 @@ class Draft:
     return self.checked is not None and not self.problems
 
 
-def _problems_of(text: str, base: Optional[Path]) -> tuple:
+def _problems_of(text: str, base: Optional[Path], robot: str = "") -> tuple:
   try:
     protocol = loads(text, base=base)
   except ProtocolError as error:
     return None, list(error.problems)
   checked = check(protocol)
-  return checked, list(checked.problems)
+  problems = list(checked.problems)
+  if robot and robot != "hamilton-starlet" and protocol.robot != robot:
+    # Without the line the file would be planned for the Hamilton, which lacks this labware.
+    problems.append(Problem("robot", f"the file must say `robot: {robot}` after its name"))
+  return checked, problems
 
 
 MAX_SOURCE = 60_000  # characters; a whole kit manual is more than a model needs and reads worse
@@ -290,11 +334,11 @@ def describe_samples(path: Path, rows: int = 4) -> str:
   return "\n".join(lines)
 
 
-def messages_for(source: str, samples: Optional[Path] = None) -> List[Message]:
+def messages_for(source: str, samples: Optional[Path] = None, robot: str = "") -> List[Message]:
   """The conversation a model is sent first: the guide and the text, with any samples file described."""
   offered = "\n" + describe_samples(samples) + "\n" if samples is not None else ""
   return [
-    {"role": "system", "content": GUIDE + "\nLABWARE\n" + labware_catalogue() + "\n"},
+    {"role": "system", "content": guide_for(robot) + "\nLABWARE\n" + labware_catalogue(robot) + "\n"},
     {"role": "user", "content": "Write the drybench protocol file for this:\n\n" + source.strip() + "\n" + offered},
   ]
 
@@ -306,6 +350,7 @@ def draft(
   base: Optional[Path] = None,
   samples: Optional[Path] = None,
   max_rounds: int = 3,
+  robot: str = "",
 ) -> Draft:
   """Ask `model` to write a protocol for `source`, sending problems back until it checks out.
 
@@ -316,17 +361,19 @@ def draft(
       folder `samples` is in.
     samples: a CSV of per-sample concentrations to offer the model, for `normalize` steps.
     max_rounds: how many times the model may be asked before giving up.
+    robot: the robot to draft for. It decides which labware the model is offered; left empty,
+      the Hamilton STARlet's.
   """
   if base is None and samples is not None:
     base = Path(samples).parent
-  messages = messages_for(source, samples)
+  messages = messages_for(source, samples, robot)
   text, checked, problems = "", None, [Problem("draft", "the model was never asked")]
   history: List[List[Problem]] = []
   previous = ""
   for round_number in range(1, max_rounds + 1):
     reply = model(messages)
     text = extract_yaml(reply)
-    checked, problems = _problems_of(text, base)
+    checked, problems = _problems_of(text, base, robot)
     messages.append({"role": "assistant", "content": reply})
     history.append(list(problems))
     if not problems:

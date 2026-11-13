@@ -210,10 +210,15 @@ says nothing simulated it, and exits with status 1.
 
 **What is missing on the Opentrons robots.** No physics replay: nothing checks collisions or
 whether the tip reaches the liquid, and there is no `replay.html`. No 8-channel pipettes, so a
-full plate is 96 moves. No modules or gripper. No plan file to edit. `draft` does not know
-Opentrons labware yet: of the 28 drafts in the intake run that rehearse on the Hamilton, 4 plan
-for the Opentrons robots as written (and pass the simulator on both); the other 24 name plates
-with no known Opentrons twin.
+full plate is 96 moves. No modules or gripper. No plan file to edit. Eleven slots hold less
+than a Hamilton deck: a full ELISA with its wash buffer and waste leaves no slot for tips and is
+refused at the plan.
+
+**Drafting for them.** `drybench draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
+the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
+has it write the `robot:` line. On the 31 intake notes, 27 went from text to a protocol that
+passes Opentrons' simulator at the first attempt, and the same 27 drafts also plan and simulate
+for the OT-2. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
@@ -322,7 +327,8 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
   model one turn at a time. On the latest run, 28 of 31 notes (20 from public kit manuals) went
   from plain text to a rehearsed script at the first attempt with no hand edits, and the other
-  three, which cannot work as written, were refused for the right reason. The runs, the notes
+  three, which cannot work as written, were refused for the right reason. Drafted for an
+  Opentrons Flex, 27 of the same 31 pass Opentrons' simulator. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
   matches the note; two were read against their notes and matched. Drafting from a PDF is
   untested on real manuals.

@@ -272,7 +272,7 @@ def _draft(args: argparse.Namespace) -> int:
       print(f"drybench draft: the protocol names its samples file by name, so write it next to {samples}")
       print(f"  for example: -o {samples.parent / Path(args.output).name}")
       return 1
-    result = draft(source, model, samples=samples, max_rounds=args.rounds)
+    result = draft(source, model, samples=samples, max_rounds=args.rounds, robot=args.robot or "")
   except ModelError as error:
     print(f"drybench draft: {error}")
     return 1
@@ -315,6 +315,9 @@ def main(argv: Optional[List[str]] = None) -> int:
   draft.add_argument("--model-command", help="a shell command that reads a prompt on stdin and prints a reply")
   draft.add_argument("--samples", help="a CSV of per-sample concentrations, for normalizing; kept next to the output")
   draft.add_argument("--rounds", type=int, default=3, help="how many times the model may be asked (default 3)")
+  draft.add_argument(
+    "--robot", choices=sorted(ROBOTS), help="the robot to draft for: it decides which labware the model is offered"
+  )
   draft.set_defaults(run=_draft)
 
   check = commands.add_parser("check", help="read a protocol file and follow its liquid through every move")
