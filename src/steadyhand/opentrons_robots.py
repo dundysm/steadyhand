@@ -191,9 +191,27 @@ def catalogue() -> str:
     bottom = f", {_BOTTOMS[name]} bottom" if _BOTTOMS.get(name) else ""
     lines.append(
       f"{name}: {len(found['order'])} wells ({found['rows']} rows x {found['columns']} columns), "
-      f"{found['capacity']:g} uL each{bottom}"
+      f"{found['capacity']:g} uL each{bottom}{out_of_reach(name)}"
     )
   return "\n".join(lines)
+
+
+def out_of_reach(name: str, height: float = 1.0) -> str:
+  """What a labware list line says about the liquid under a tip that stops `height` mm above the floor.
+
+  Empty where Opentrons gives no inside shape for the well, so the amount is not known.
+  """
+  from .opentrons_scene import inside_shapes, well_volume
+  from .replay import LIQUID_TOLERANCE
+  from .scene import two_figures_up
+
+  height += LIQUID_TOLERANCE  # the replay wants the tip that far under the surface
+
+  shapes = inside_shapes(name)
+  if not shapes:
+    return ""
+  volume = two_figures_up(max(well_volume(sections, height) for sections in shapes.values()))
+  return f", last {volume:g} uL out of reach" if volume else ""
 
 
 def load_name(labware: Labware) -> Optional[Tuple[str, float]]:

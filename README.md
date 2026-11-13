@@ -204,8 +204,8 @@ same for every robot.
 every volume in the fewest draws, with filter tips. Eight moves that fill or empty one whole
 column of an 8-row plate with the same volume become one move of an 8-channel pipette, from
 another column or from one reservoir well; part of a column, unequal volumes and 384-well plates
-stay with a single channel. On the 27 intake drafts that run on these robots, that cuts the
-commands from 17,986 to 4,686 on the Flex. A single pipette holds one tip, so single moves that
+stay with a single channel. On the 27 intake drafts that ran on these robots when this was
+measured (0.15.0), that cut the commands from 17,986 to 4,686 on the Flex. A single pipette holds one tip, so single moves that
 a protocol interleaves across tips are put back together tip by tip where no well can tell the
 difference; where one could, the order is kept and a fresh tip is used. Volumes below what any pipette moves are refused, which Opentrons' simulator does not do.
 Plates go in the first free slots, tip racks after them; waste reservoirs, tip reloads and waits
@@ -250,15 +250,14 @@ so half a column is done one well at a time. No modules or gripper. No plan file
 makes room in this order: a pair of pipettes that needs fewer kinds of tip; one size of tip per
 pipette; fewer waste reservoirs, with a pause for a person to empty them; fewer tip racks, with
 pauses to reload. The plan report counts every pause. A full ELISA drafted from a kit note fits
-this way, at the price of 14 tip reloads and 3 waste stops on a Flex: it runs, but someone has to
+this way, at the price of 18 tip reloads and 3 waste stops on a Flex: it runs, but someone has to
 stand by it.
 
 **Drafting for them.** `steadyhand draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
 the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
 has it write the `robot:` line. On the 31 intake notes, 28 go from text to a protocol that
-passes the physics replay and Opentrons' simulator on both robots with no hand edits: 27 at the
-first attempt and one at the second, after the rehearsal sent it back. The other three cannot
-work as written and are refused at `check`. Details and caveats are in [evals](evals/RESULTS.md).
+passes the physics replay and Opentrons' simulator on both robots with no hand edits, all 28 at
+the first attempt. The other three cannot work as written and are refused at `check`. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
@@ -289,7 +288,9 @@ often.
 `draft` is the only place a language model is used. It writes the protocol file; steadyhand then
 reads and checks that file exactly as if you had written it, plans it and rehearses it for the
 robot, and sends whatever stops it back to the model, up to three times. A draft that passes
-has been rehearsed. `--no-rehearse` stops at the check.
+has been rehearsed. `--no-rehearse` stops at the check. The labware list the model is given
+says, for every well whose inside shape is known, how much liquid a tip cannot reach, so it can
+supply enough the first time.
 
 ```bash
 # any command that reads a prompt on stdin and prints a reply
@@ -372,14 +373,15 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 ## What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. Of 31 notes (20 from public kit manuals), 28 go from plain text to a
-  rehearsed script with no hand edits: 27 at the first attempt and one at the second, after the
-  rehearsal told the model a reservoir was too shallow to draw from. The other three, which
-  cannot work as written, are refused for the right reason. Drafted for an Opentrons Flex, 28 of
-  the same 31 pass the replay and Opentrons' simulator. Most of these drafts were written before
-  the last changes and were rehearsed again, not drafted again. The runs, the notes
+  model one turn at a time. On the latest run (0.22.0, every note drafted again for both
+  robots), 28 of 31 notes (20 from public kit manuals) go from plain text to a rehearsed script
+  with no hand edits: on the Hamilton 27 at the first attempt and one at the second, after the
+  model sent a file that was not valid YAML; on an Opentrons Flex all 28 at the first attempt,
+  and the same files pass on the OT-2. The other three, which cannot work as written, are
+  refused for the right reason. Each agent drafted 15 or 16 notes in a row, so later notes may
+  have gained from earlier ones. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
-  matches the note; two were read against their notes and matched. Drafting from a PDF is
+  matches the note; two of this run's drafts were read against their notes and matched. Drafting from a PDF is
   untested on real manuals.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types

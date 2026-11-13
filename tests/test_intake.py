@@ -1,6 +1,7 @@
 """Intake: a model's draft is only accepted once it reads and checks like any other protocol."""
 
 import json
+import re
 import sys
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -365,3 +366,40 @@ def test_the_volume_that_covers_a_tip_is_only_given_where_the_well_shape_is_know
   # 1 mm in a round flat well 6.86 mm across is 37 uL, given rounded up to two figures.
   assert 30 < _volume_to_cover(flat, 1.0) <= 40 and _volume_to_cover(flat, 1.0) % 1 == 0
   assert _volume_to_cover(tapered, 1.0) is None  # its floor is not known on a PyLabRobot deck
+
+
+@pytest.mark.parametrize(
+  "robot, labware",
+  [
+    ("", "nest_12_troughplate_15000uL_Vb"),
+    ("", "nest_1_troughplate_195000uL_Vb"),
+    ("", "Cor_96_wellplate_360ul_Fb"),
+    ("opentrons-flex", "nest_12_reservoir_15ml"),
+    ("opentrons-flex", "nest_1_reservoir_195ml"),
+    ("opentrons-flex", "nest_96_wellplate_100ul_pcr_full_skirt"),
+    ("opentrons-ot2", "corning_96_wellplate_360ul_flat"),
+  ],
+)
+def test_what_the_labware_list_calls_out_of_reach_is_what_the_rehearsal_enforces(robot, labware):
+  from steadyhand import opentrons_robots
+  from steadyhand.intake import labware_catalogue, rehearsal_problems
+  from steadyhand.protocol import check, loads
+
+  if not opentrons_robots.opentrons_installed():
+    pytest.skip("the shapes come from Opentrons' labware definitions")
+  line = next(line for line in labware_catalogue(robot).splitlines() if line.startswith(labware + ":"))
+  reach = float(re.search(r"last ([\d.]+) uL out of reach", line).group(1))
+  plate = "corning_96_wellplate_360ul_flat" if robot else "Cor_96_wellplate_360ul_Fb"
+
+  def stopped(volume):
+    text = (
+      "steadyhand: 0.1\nname: reach\n" + (f"robot: {robot}\n" if robot else "")
+      + f"labware:\n  source: {{type: {labware}}}\n  plate: {{type: {plate}}}\n"
+      + f"liquids:\n  buffer: {{in: source/A1, volume: {volume:g} uL}}\n"
+      + "steps:\n  - transfer: {from: source/A1, to: plate/A12, volume: 2 uL}\n"
+    )
+    return rehearsal_problems(check(loads(text)), robot)
+
+  assert stopped(reach) == []  # with that much in the well, a draw starts with the tip in the liquid
+  short = stopped(reach * 0.8)
+  assert len(short) == 1 and "draws air" in short[0].message and f"about {reach:g} uL" in short[0].message

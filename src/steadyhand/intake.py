@@ -46,9 +46,12 @@ RULES
 - Declare under `liquids` every liquid in a well before the first step that the steps draw
   from, add to or mix, with the wells it starts in and the volume in each. Leave out liquid
   that no step touches: declaring it is an error.
-  Use the volume the text gives. When it gives none for a liquid the steps draw from, supply
-  about 20% more than they use, and at least 10 uL more in a plate well or 2 mL more in a
-  trough or reservoir, because a tip cannot reach the last of a shallow liquid. When it gives none for what is already in wells the steps add
+  Use the volume the text gives. An amount given only as enough for some number of uses
+  ("enough for 25 preps"), with no volume, is not a volume the text gives. When it gives
+  none for a liquid the steps draw from, supply about 20% more than they use, plus what the
+  LABWARE list says is out of reach in that well, because a tip cannot reach the last of a
+  shallow liquid. Where the list does not say, add at least 10 uL in a plate well or 2 mL in a
+  trough or reservoir. When it gives none for what is already in wells the steps add
   to or empty, treat those wells as empty and say so in `notes`.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
   the labware, choose one whose wells hold the largest volume any well reaches with room to spare.
@@ -215,9 +218,13 @@ def labware_catalogue(robot: str = "") -> str:
     wells = plate.get_all_items()
     if wells[0].max_volume < 1.0:
       continue  # under 1 uL a well is a mistake in the definition, not a plate to offer
+    from .planner import _real_shape
+
+    _real_shape(plate, name)  # where Opentrons ships the same plate, its inside shape is the one rehearsed
+    under_tip = _volume_to_cover(wells[0], 1.0)  # a tip stops 1 mm above the floor of a well, and has to dip in
     lines.append(
       f"{name}: {len(wells)} wells ({plate.num_items_y} rows x {plate.num_items_x} columns), "
-      f"{wells[0].max_volume:g} uL each"
+      f"{wells[0].max_volume:g} uL each" + (f", last {under_tip:g} uL out of reach" if under_tip else "")
     )
   return "\n".join(lines)
 
@@ -261,10 +268,16 @@ def _problems_of(text: str, base: Optional[Path], robot: str = "") -> tuple:
 
 
 def _volume_to_cover(container, height: float) -> Optional[float]:
-  """Microlitres that stand `height` mm deep in a well, rounded up to two figures; None where its shape is not known."""
+  """Microlitres a well must hold for a tip `height` mm above its floor to count as in the liquid.
+
+  Rounded up to two figures; None where the well's shape is not known.
+  """
   import math
 
+  from .replay import LIQUID_TOLERANCE
   from .scene import bounds, liquid_height_is_known
+
+  height += LIQUID_TOLERANCE  # the replay wants the tip that far under the surface
 
   if not liquid_height_is_known(container):
     return None
@@ -276,10 +289,9 @@ def _volume_to_cover(container, height: float) -> Optional[float]:
     if str(getattr(getattr(container, "cross_section_type", None), "value", "")).lower() == "circle":
       area *= math.pi / 4
     volume = area * height
-  if volume <= 0:
-    return None
-  step = 10 ** (math.floor(math.log10(volume)) - 1)
-  return math.ceil(volume / step) * step
+  from .scene import two_figures_up
+
+  return two_figures_up(volume)
 
 
 def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
@@ -327,10 +339,11 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
     if kind == "air":
       cover = _volume_to_cover(deck.get_resource(issues[0].resource), planned.pipetting_height)
       needs = f". That well needs about {cover:g} uL left in it for a tip to stay under the surface" if cover else ""
+      reach = f"stops up to {gap:g} mm above the liquid" if gap > 0 else "only just touches the liquid"
       problems.append(
         Problem(
           "rehearsal",
-          f"in {where} the tip stops up to {gap:g} mm above the liquid and draws air. A tip stops "
+          f"in {where} the tip {reach} and draws air. A tip stops "
           f"{planned.pipetting_height:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}",
         )
       )

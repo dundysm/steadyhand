@@ -566,8 +566,8 @@ def test_a_draft_for_an_opentrons_robot_is_offered_opentrons_labware_and_example
 
   lines = labware_catalogue("opentrons-flex").splitlines()
   assert len(lines) == len(ot.shipped_names()) >= 40
-  assert "corning_96_wellplate_360ul_flat: 96 wells (8 rows x 12 columns), 360 uL each, flat bottom" in lines
-  assert "nest_96_wellplate_2ml_deep: 96 wells (8 rows x 12 columns), 2000 uL each, V bottom" in lines
+  assert "corning_96_wellplate_360ul_flat: 96 wells (8 rows x 12 columns), 360 uL each, flat bottom, last 34 uL out of reach" in lines
+  assert any(line.startswith("nest_96_wellplate_2ml_deep: 96 wells (8 rows x 12 columns), 2000 uL each, V bottom, last ") for line in lines)
   # What cannot stand in a slot on its own is not offered, and not read.
   assert not any(word in line for line in lines for word in ("filter", "tips", "tiprack", "adapter", "tuberack"))
   assert ot.shipped_labware("millipore_96_wellplate_300ul_filter") is None

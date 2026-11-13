@@ -6,6 +6,55 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## Every note drafted again, with a labware list that says what a tip cannot reach (0.22.0)
+
+Two changes to the first message, then all 31 notes drafted again from the start for the Hamilton and
+for the Flex, by four Claude Opus 5.5 agents through `evals/step_intake.py` (two per robot, 15 or 16
+notes each).
+
+- **The labware list now says how much liquid is out of a tip's reach** in every well whose inside
+  shape is known ("last 240 uL out of reach"): 45 of 46 lines for the Opentrons robots, 26 of 79 for
+  the Hamilton. The guide's rule for an unstated volume became: 20% more than the steps use, plus that
+  amount. Where the list says nothing, the old allowance stays (10 uL in a plate well, 2 mL in a trough).
+- **The guide now says** that an amount given only as enough for some number of uses is not a stated
+  volume. This rule was written after `pcr_setup` showed the need, so that note does not test it
+  independently.
+- The amount quoted is what the rehearsal enforces: the tip stops 1 mm above the floor and has to be
+  0.05 mm under the surface. Before this the message after a failed rehearsal quoted the volume at
+  1 mm exactly (230 uL where 240 uL is needed). A test now holds the two together on all three robots.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 28 of 31 | 28 of 31 |
+| at the first attempt | 27 | 28 |
+| at the second | 1 (`vague`: the model's first file was not valid YAML) | 0 |
+| Refused, as they should be | 3 | 3 |
+
+- The 28 Flex drafts were then run through `steadyhand rehearse` on the Flex and, with the robot line
+  changed, on the OT-2: all 56 runs pass the physics replay and Opentrons' simulator.
+- `pcr_setup` passed at the first attempt on both robots with 420 uL of master mix (144 uL used,
+  plus 20%, plus 240 uL out of reach). In 0.20.0 the same note ended with 2.2 mL on the Flex.
+- Two drafts were read line by line against their notes (`pcr_setup` on the Hamilton,
+  `griess_nitrite` on the Flex) and matched. The other 54 were not read.
+- The ELISA draft for the Flex now pauses 18 times for tips and 3 times for waste (9 and 3 on the
+  OT-2). The draft differs from the last one, so the pauses do too.
+
+**Caveats.**
+- One run per note and robot. Each agent drafted its notes one after another in one session, so a
+  later note may have gained from an earlier one, although no agent on the Flex was ever sent a
+  problem other than the three refusals.
+- **The replay does not enforce the "out of reach" amount on a draw that starts in the liquid.** A
+  draw that begins with the tip under the surface and takes the well below the tip is noted, not
+  failed. That is right for emptying a well to waste and wrong for a transfer whose volume matters:
+  a real tip would take air for the last part. One agent noticed that the checker lets through what
+  the prompt implies it would stop. This is the next thing to fix.
+- What the agents found unclear in the first message, none of it changed yet: "a few minutes" and
+  "wait a bit" are neither a stated time nor no time; "vortex 30 s" falls under both "leave out
+  vortexing" and "a timed step becomes a wait"; "room to spare" has no number; a mix with no count;
+  "trough" can mean one well or twelve, which changes the amount supplied by a lot; the water for a
+  normalize step depends on the file; the column names of a samples file that was not offered; no
+  black or white plates in the list.
+
 ## Real well shapes on the Hamilton deck, and one worked example corrected (0.21.0)
 
 On a Hamilton deck the three plates and reservoirs that Opentrons also ships now take their inside shape

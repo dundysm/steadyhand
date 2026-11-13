@@ -238,6 +238,16 @@ def liquid_height(container: Container, volume: float) -> float:
   return volume / area if area > EPS else 0.0
 
 
+def two_figures_up(volume: float) -> Optional[float]:
+  """A volume rounded up to two figures, as it is quoted to a person or a model; None for nothing."""
+  import math
+
+  if volume <= 0:
+    return None
+  step = 10 ** (math.floor(math.log10(volume)) - 1)
+  return round(math.ceil(volume / step - 1e-9) * step, 6)
+
+
 def liquid_height_is_known(container: Container) -> bool:
   """Whether `liquid_height` can be trusted to a fraction of a millimetre for this container.
 
