@@ -1,0 +1,6 @@
+MTT assay.
+
+Cells grown in 100 uL medium per well, whole 96-well plate.
+Add 10 uL MTT labeling reagent to each well. 4 hours in the incubator.
+Add 100 uL solubilization solution to each well. Leave overnight in the incubator.
+Read 570 nm.

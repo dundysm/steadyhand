@@ -1,0 +1,6 @@
+Dye-based qPCR, 20 uL reactions, 8 cDNA samples in triplicate.
+
+Per reaction: 10 uL 2x master mix, 0.5 uL each primer (10 uM), 2 uL cDNA, 7 uL water.
+Assay mix (everything except cDNA) is made up for 30 reactions, 540 uL, in one well of a deep-well plate.
+18 uL assay mix into A1-H3 of the qPCR plate. Then 2 uL of each cDNA (A1-H1 of the cDNA plate, 15 uL each) into the three wells of its row. Avoid bubbles.
+Seal, spin, run.

@@ -1,0 +1,3 @@
+One-solution MTS proliferation assay.
+
+20 uL reagent into each well of a 96-well plate that has 100 uL of culture medium per well. 2 hours at 37 C in the incubator. Read absorbance at 490 nm.

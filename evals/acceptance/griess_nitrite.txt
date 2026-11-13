@@ -1,0 +1,8 @@
+Nitrite assay, two-reagent Griess, with the standard curve made on the plate.
+
+Standard curve, columns 1-3 of a flat assay plate:
+- 50 uL buffer into rows B to H.
+- 100 uL of 100 uM nitrite into row A.
+- Six twofold serial dilutions down the plate, 50 uL each time, in all three columns. Throw away 50 uL from the last diluted row so every well ends at 50 uL. Row H gets no nitrite.
+Samples: 50 uL of each of 24 supernatants (columns 1-3 of a separate sample plate) into columns 4-6 of the assay plate.
+Then to every used well: 50 uL sulfanilamide solution, wait 10 minutes in the dark, 50 uL NED solution, wait 10 minutes, read at 540 nm.

@@ -1,0 +1,4 @@
+660 nm protein assay, microplate.
+
+10 uL of each standard and sample into the assay plate: 8 standards in column 1 and 40 samples in columns 2-6, taken from the same positions of a stock plate (50 uL per well).
+150 uL assay reagent to each well. Cover, shake one minute at medium speed, 5 minutes at room temperature, read at 660 nm.

@@ -1,0 +1,6 @@
+LDH release assay on culture supernatants.
+
+Culture plate: 96 wells, 120 uL medium over the cells in each.
+Transfer 50 uL of supernatant from every well to the same well of a fresh flat-bottom plate. Do not disturb the cells: stay near the top of the liquid.
+Add 50 uL of assay reagent to each well of the new plate. Cover from light, 30 minutes at room temperature.
+Add 50 uL stop solution to each well. Read 490 nm within the hour.

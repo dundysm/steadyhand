@@ -1,0 +1,5 @@
+Micro BCA for dilute samples, microplate.
+
+150 uL of each standard or unknown into the plate (columns 1-4, 32 wells), from a deep-well block with 400 uL per well in the same positions.
+150 uL working reagent per well, shake 30 seconds.
+Seal, 37 C for 2 hours, cool to room temperature, read 562 nm.

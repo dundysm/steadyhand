@@ -1,0 +1,7 @@
+Restriction digests, 50 uL, 24 plasmids.
+
+Each reaction: 1 ug DNA (that is 10 uL of my 100 ng/uL preps), 5 uL 10x buffer, 1 uL enzyme, water to 50 uL (34 uL).
+Order: water, buffer, DNA, enzyme last. Mix by pipetting, do not vortex.
+Plasmids are in columns 1-3 of a plate, 25 uL each. Reactions go in columns 1-3 of a PCR plate.
+Water and buffer are in troughs. The enzyme (40 uL) is in a single well of a cold PCR plate.
+Incubate 1 hour at 37 C.

@@ -1,0 +1,3 @@
+Resazurin viability reagent, 10x.
+
+96-well plate, 90 uL of cells plus medium in every well. Add 10 uL reagent per well (reagent is in one trough). Incubate at least 10 minutes at 37 C, then read fluorescence.

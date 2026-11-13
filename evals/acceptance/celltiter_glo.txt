@@ -1,0 +1,5 @@
+ATP viability readout on a full 96-well plate of cells.
+
+Every well holds 100 uL of cells in medium. Let the plate come to room temperature for about 30 minutes first.
+Add reagent equal to the medium volume: 100 uL per well, from a reservoir.
+2 minutes on an orbital shaker to lyse, then 10 minutes at room temperature, then read luminescence.

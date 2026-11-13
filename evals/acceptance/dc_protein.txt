@@ -1,0 +1,7 @@
+Detergent-compatible Lowry-type assay in a microplate.
+
+5 uL of standards and samples into a clean dry plate (48 wells, columns 1-6; they come from columns 1-6 of a stock plate with 30 uL per well).
+25 uL reagent A' into each well.
+200 uL reagent B into each well. Mix.
+After 15 minutes read at 750 nm.
+Reagent A' and reagent B are in two troughs.

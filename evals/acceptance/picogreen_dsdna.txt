@@ -1,0 +1,7 @@
+Fluorescent dsDNA quantitation in a black 96-well plate, 200 uL final volume.
+
+32 DNA samples in columns 1-4 of a sample plate, 20 uL each.
+- 95 uL TE into columns 1-4 of the assay plate.
+- 5 uL of each DNA into the matching well (so the DNA is in 100 uL TE).
+- 100 uL of dye working solution (dye diluted 200-fold in TE, in a trough) into each of those wells. Mix.
+- 5 minutes at room temperature out of the light, then read.

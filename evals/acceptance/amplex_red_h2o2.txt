@@ -1,0 +1,5 @@
+Hydrogen peroxide assay, fluorescent.
+
+50 uL of standards, controls and samples go in a black plate: columns 1-2 are standards, columns 3-8 are samples (64 wells in all). They are pipetted from the same wells of a prep plate holding 80 uL each.
+Start the reaction with 50 uL of the dye/HRP working solution per well.
+30 minutes at room temperature, protected from light. Read.

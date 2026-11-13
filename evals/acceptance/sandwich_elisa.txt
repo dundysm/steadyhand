@@ -1,0 +1,10 @@
+Sandwich ELISA from antibody pair, one 96-well plate, all wells.
+
+Coat: 100 uL capture antibody per well, seal, overnight.
+Wash: empty the wells, fill with 400 uL wash buffer, empty again; three times in total.
+Block: 300 uL reagent diluent per well, at least 1 hour. Wash as above.
+Samples and standards: 100 uL per well from the matching wells of a dilution plate (150 uL in each). 2 hours. Wash.
+Detection antibody: 100 uL per well, 2 hours. Wash.
+Streptavidin-HRP: 100 uL per well, 20 minutes, out of the light. Wash.
+Substrate: 100 uL per well, 20 minutes.
+Stop: 50 uL per well. Tap to mix and read at 450 nm.

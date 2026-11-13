@@ -1,0 +1,6 @@
+High-fidelity PCR, 25 uL reactions, 16 templates.
+
+Per reaction: 12.5 uL 2x master mix, 1.25 uL forward primer (10 uM), 1.25 uL reverse primer (10 uM), 1 uL template, 9 uL water.
+I premixed master mix, primers and water for 20 reactions in one tube-sized well of a deep-well plate (480 uL total).
+24 uL of premix into wells A1-H2 of a PCR plate, then 1 uL of each template from the template plate (A1-H2, 20 uL each) into the matching well. Fresh tip per template, pipette-mix gently.
+Seal and move to the cycler.

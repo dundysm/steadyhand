@@ -1,0 +1,9 @@
+Bead cleanup of 48 PCR reactions (50 uL each, columns 1-6 of the PCR plate), 1.8x beads.
+
+1. Add 90 uL beads to each reaction, pipette-mix 10 times, leave 5 minutes.
+2. On the magnet until clear, then take off and discard the liquid.
+3. Still on the magnet: add 200 uL of 70% ethanol, wait 30 seconds, remove and discard. Do the ethanol wash twice in total.
+4. Let the beads dry a few minutes.
+5. Off the magnet: add 40 uL elution buffer, mix 10 times, back on the magnet.
+6. Move 38 uL of the clear eluate to a fresh plate.
+Beads, ethanol and elution buffer are each in their own trough.

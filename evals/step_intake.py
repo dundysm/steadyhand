@@ -25,7 +25,9 @@ def state_of(case: str):
   path = folder / "state.json"
   if path.exists():
     return folder, json.loads(path.read_text(encoding="utf-8"))
-  source = (HERE / "intake" / f"{case}.txt").read_text(encoding="utf-8")
+  # a case is a note in evals/intake or evals/acceptance
+  note = next(path for path in (HERE / "intake" / f"{case}.txt", HERE / "acceptance" / f"{case}.txt") if path.exists())
+  source = note.read_text(encoding="utf-8")
   return folder, {
     "case": case,
     "messages": [

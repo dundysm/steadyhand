@@ -1,0 +1,5 @@
+Bradford (ready-to-use 1x dye), microplate version.
+
+Standards are 7 BSA dilutions plus a blank, in A1-H1 of a small-volume plate. 16 unknowns are in columns 2 and 3 of the same plate. About 40 uL in each well.
+5 uL of every standard and unknown into a flat assay plate, same well positions, then 250 uL of dye on top. Dye is in a trough.
+Mix on the shaker. Leave at least 5 minutes at room temperature (not more than an hour) and read at 595 nm.
