@@ -104,9 +104,17 @@ MANUALS_7 = [
   ("bhb", "Cayman beta-hydroxybutyrate fluorometric assay kit", CAYMAN + "700740.pdf", "9-11"),
   ("mdr", "Cayman multidrug resistance assay kit (calcein AM)", CAYMAN + "600370.pdf", "5-6"),
 ]
+# An eighth set, after the glass, large-mix, suggested-control, own-plate and cell-seeding rules of 0.34.0.
+MANUALS_8 = [
+  ("uric_acid", "Cayman uric acid assay kit", CAYMAN + "700320.pdf", "8-10"),
+  ("alt", "Cayman alanine transaminase colorimetric activity assay kit", CAYMAN + "700260.pdf", "6-7"),
+  ("ldh_cyto", "Cayman LDH cytotoxicity assay kit", CAYMAN + "601170.pdf", "8-9"),
+  ("xo", "Cayman xanthine oxidase fluorometric assay kit", CAYMAN + "10010895.pdf", "7-8"),
+  ("hemoglobin", "Cayman hemoglobin colorimetric assay kit", CAYMAN + "700540.pdf", "6-7"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
-  "heldout6": MANUALS_6, "heldout7": MANUALS_7,
+  "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8,
 }
 
 

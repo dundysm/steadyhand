@@ -104,7 +104,10 @@ RULES
 - Some texts cannot work on a pipetting robot at all, and a file that pretends otherwise is
   worse than none. List under `needs` what the text cannot do without and the robot cannot
   give: a filter or spin plate that a centrifuge or vacuum drains; glass or solvent-proof
-  labware when the text demands it and LABWARE has none. Write the rest of the file as usual.
+  labware when the text says plastic will not do (it must be glass, plastic is ruled out, or the
+  liquid is a solvent that attacks plastic, such as chloroform or hexane) and LABWARE has none.
+  A text that only names glass tubes for a dilution in water or buffer does not demand glass:
+  use a plate and say so in `notes`. Write the rest of the file as usual.
   A file with `needs` is refused with those reasons, which is the right outcome; do not cut
   the protocol down to the part that could run.
 - When the text stands the plate on a magnet (bead cleanups), write `magnet` steps: `on` before
@@ -125,9 +128,11 @@ RULES
   the number of samples, when the text gives none: 8, in column 1; a text that holds several
   protocols: the first complete one; a step the text marks as optional: leave it out; a step
   the text offers two ways of doing: the way it gives first; a mix the text gives a time for
-  ("mix for 1 min"): a pipette mix, then a wait of that time.
-- Wells the text asks for beside the samples (blanks, background wells, controls) are never
-  dropped to make room. When they do not fit one plate with the samples and replicates asked
+  ("mix for 1 min"): a pipette mix, then a wait of that time, also when the text does it on a
+  shaker.
+- Wells the text asks for or recommends beside the samples (blanks, background wells,
+  controls) are included and never dropped to make room; when the text gives no count for
+  them, give them as many wells as a sample gets and say so in `chose`. When they do not fit one plate with the samples and replicates asked
   for, put them on a second plate of the same type and say so in `chose`.
 - Text under THE PERSON ADDS, after the text to work from, is the person's own decisions.
   They settle what the text leaves open and replace the defaults above. Where they go against
@@ -135,14 +140,20 @@ RULES
   the text does not give is about two thirds of what the well holds at that point, never more
   than 1000 uL, the most one tip holds, and never so much that less than the well's
   out-of-reach amount is left in it while the tip draws; a mix with
-  no count ("mix", "mix briefly", "mix a few times") is a pipette mix of 3 times.
+  no count ("mix", "mix briefly", "mix a few times") is a pipette mix of 3 times. When the
+  liquid to mix is more than three times the mix volume (a 10 mL stock and a 1000 uL mix),
+  mix once for each mix volume the liquid holds, at most 10 times, and say so in `notes`.
 - When the text asks for something the format cannot say exactly (such as new tips per
   column), use the nearest stricter option and say so in `notes`.
 - Use `normalize` only when the text asks to bring samples to a common concentration and a
   samples file is offered with the text. If the text asks for it and no file is offered, write
   the step with `samples.file: samples.csv` and say in `notes` that the file is needed.
 - Never change an amount the text states. If what the text describes cannot work (a well
-  would overflow, a source would run dry), write it as stated and say so in `notes`.
+  would overflow, a source would run dry), write it as stated and say so in `notes`. Do not
+  choose a larger plate than the kind the text describes to make its volumes fit: a text whose
+  own plate cannot hold what it puts in it cannot work as written, and that is for a person.
+- Seeding cells and growing them before the day of the assay happens before the run: start
+  from the plate as it stands when the assay day begins, and say so in `notes`.
 - When you are told about a problem that only a person can settle (the text itself cannot work,
   a samples file is missing), send the same file again. That ends the drafting and hands the
   problem to them.
