@@ -3,9 +3,114 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 Nov 2026 with Claude models. The first section is the only test on text the guide
+All runs are on 13 Nov 2026 with Claude models. The first two sections are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## A second set from outside, after the fixes: 11 protocols (0.27.0)
+
+The first outside set (next section) was spent once the guide was changed in answer to it. 0.27.0
+holds those changes: a `pause` step for what a person does by hand, a tip long enough for a narrow
+deep well, a hint for a labware name wrong only in its capital letters, and three guide rules (a
+dilution the robot makes and then draws from is mixed; a mix is never more than a tip holds; a
+necessary hand step between robot steps is a pause). It was committed before any of these 11 manuals
+was read by a model, and nothing was changed until this was written.
+
+**The set.** 11 manuals from four makers, read from the PDFs as before; the list is `MANUALS_2` in
+[evals/heldout/fetch.py](heldout/fetch.py). It was chosen to reach past plate assays.
+
+| Case | Manual | Pages |
+|---|---|---|
+| `oneglo` | Promega ONE-Glo luciferase assay | 4-5 |
+| `lipo3000` | Thermo Fisher Lipofectamine 3000 transfection | 1-2 |
+| `quickdna96` | Zymo Quick-DNA 96 kit (spin plate) | 6 |
+| `magbead_dna` | Zymo Quick-DNA MagBead Plus kit | 8-9 |
+| `dna_cleanup96` | Zymo ZR-96 DNA Clean-up kit (spin plate) | 6 |
+| `tbars` | Cayman TBARS assay kit | 7-8 |
+| `antioxidant` | Cayman antioxidant assay kit | 8-9 |
+| `camp_elisa` | Cayman cyclic AMP ELISA kit (competitive) | 9-14 |
+| `pge2_elisa` | Cayman prostaglandin E2 ELISA kit (competitive) | 10-13 |
+| `lpo` | Cayman lipid hydroperoxide assay kit | 7-8 |
+| `gpx` | Cayman glutathione peroxidase assay kit | 7-8 |
+
+Drafted for both robots by four Claude Opus 5.5 agents, two per robot.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 10 of 11 | 11 of 11 |
+| at the first attempt | 7 | 9 |
+| at the second | 3 | 2 |
+| Handed back to a person | 1 | 0 |
+
+- The 11 Flex drafts pass the physics replay and Opentrons' simulator on the Flex and, with the robot
+  line changed, on the OT-2: 22 simulator runs. The 10 Hamilton drafts pass `steadyhand rehearse`.
+- What sent drafts back. Two were the model's own YAML: a note that begins with a quoted phrase, and
+  a note with a colon in it. Three were liquid out of reach: both ELISAs on the Hamilton put the
+  20 mL of developing reagent the manual fixes in a one-well trough that keeps 1.6 mL from the tip
+  (the guide's own trough rule points there), and on the Flex a two-thirds mix of the bead well left
+  the next draw short. All five passed at the second attempt.
+- `quickdna96` on the Hamilton was handed back. The draft wrote the whole kit; the wells of the
+  filter plate overflow, because nothing in the format says that a spin empties them. The model
+  sent the same file again and the harness stopped.
+
+**Did the fixes do their work?**
+- Dilutions: in the first set five drafts left standards unmixed. Here every stock and standard the
+  text says to dilute or prepare is mixed, on both robots (`tbars`, `antioxidant`, both ELISAs,
+  `lipo3000`). Where the text says "vortex", the mix is still dropped: the `lpo` standards on both
+  robots, the binding mix of `dna_cleanup96` on the Flex.
+- `pause`: used once per robot, for the centrifuge in `tbars`, and used correctly; the draw after it
+  is from the surface, off the pellet.
+- The mix cap was used once (1000 uL in `lpo` on the Hamilton). The longer tip and the capital-letter
+  hint were never triggered.
+
+**Read against the manuals.** The spin kits, the bead kit and `tbars` were read in full, both
+drafts beside the pages. For the other seven the steps and volumes were checked against the
+procedure section and the notes were read. By the project, as before.
+
+- Follow the manual's pipetting on both robots: `oneglo`, `antioxidant`, `gpx`, `tbars`, `lpo`,
+  `lipo3000` (scaled up, since it lists 0.15 uL per well), both ELISAs (standards by serial
+  dilution, the pipetting table, five rinses, developing reagent, tracer to the total-activity
+  wells). The Flex ELISAs are in an ELISA plate this time.
+- **A pass that covers a sliver of the protocol.** Three of the four spin-kit drafts stop after the
+  first one or two additions and leave every spin, wash and elution to a person. They say so in
+  their notes, and they pass. The one draft that wrote the whole kit was refused.
+- **Heat and cold become waits on the deck.** 1 h at 95 C (`tbars`), 18 h at 4 C (both ELISAs) and
+  2 days at 37 C (`lipo3000`) are written as waits, as the guide tells the model to. Each draft
+  says the robot cannot heat or cool. Run as written, none of them does what the manual asks. Two
+  of the four agents named this as a clash between the wait rule and the new pause.
+- **A bead cleanup with no magnet.** `magbead_dna` follows all 19 steps in liquid terms on both
+  robots, with a 2 min wait where the plate should stand on a magnet. There is no magnet. On a real
+  robot each "remove the supernatant" would take the beads with it. It rehearses clean. The same
+  holds for `ampure_cleanup` in the tuned set.
+- **Solvent in plastic.** `lpo` runs in chloroform; the manual asks for glass tubes and a glass
+  plate and warns that the solvent dissolves plastic covers. Both drafts use plastic plates, and
+  note only that glass is not in the list. Nothing in steadyhand knows what a plate is made of.
+- A reagent the manual makes fresh after an 18 h incubation is declared at the start, because the
+  format cannot add a liquid in the middle of a run. Both ELISAs note it.
+
+**What this shows.**
+- Reaching a program that rehearses held up on a second outside set: 21 of 22, 16 at the first
+  attempt. Over both sets, 48 of 50.
+- The mixing fix held where it applies. The pause is used where the guide points to it, and not
+  where it is needed most: the guide still turns heat, cold and a magnet into a wait.
+- The serious failures in this set all pass rehearsal. A program that rehearses is not yet a
+  protocol that works: the checks see liquid and collisions, not temperature, magnets, filters or
+  materials. The drafts' notes say most of it; a reader has to read them.
+- Next, none of it done yet: a timed step that needs heat, cold or a device becomes a pause that
+  names the time; a pause that can say which wells a spin empties and which a person fills; "mix
+  by vortexing" a liquid that is then drawn from becomes a pipette mix; a bead cleanup is refused,
+  or said plainly not to work, until a magnet is supported; the trough rule and the rehearsal's
+  hint disagree; time ranges ("10-15 min") have no rule.
+
+**Caveats.**
+- 11 protocols, one run each per robot, five or six per agent in a row.
+- One Flex agent, after its YAML slip, parsed each later draft itself before handing it in. A
+  model inside `steadyhand draft` cannot. No later draft of that agent needed it as far as the
+  record shows, but its first-attempt count is not as clean as the others'.
+- Two agents saved or compared the guide text across cases; none read another case's manual early.
+- The pages and the reading are the project's. Seven of the eleven were read at the level of steps
+  and volumes, not line by line.
+- Claude Opus 5.5 only. Nothing here has run on a robot.
 
 ## The first test from outside: 14 protocols from manufacturers' manuals (0.26.1)
 

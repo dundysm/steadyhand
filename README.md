@@ -404,20 +404,23 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 ## What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. The one test from outside (0.26.1): the protocol pages of 13
-  manufacturers' manuals, 14 protocols, read straight from the PDFs with the guide frozen
-  beforehand. On the Hamilton 14 of 14 reach a rehearsed program with no hand edits, 10 at the
-  first attempt; on an Opentrons Flex 13 of 14, all 13 at the first attempt, and one handed back
-  to a person. A pass means the file runs, not that it matches the manual, so all 27 drafts were
-  read against their pages. Most follow them. Five dilute standards without mixing, because the
-  manual does not say to mix and the model is told not to invent steps; one skips a freeze its
-  manual calls important. Each says so in its notes, and none of it is caught by rehearsal. No
-  manual says how many samples a run has, so every layout is the model's choice. Read the notes
-  of a draft before you trust it. The set is small, leans to plate assays, was run once, and was
-  read by the project itself, not by someone who has run these kits. On the 31 notes the guide
-  was tuned on (20 from public kit manuals), 28 pass at the first attempt on both robots and the
-  other three are refused for the right reason; that is a fit, not a test. All of it, with the
-  manuals and the notes, is in [evals](evals/RESULTS.md).
+  model one turn at a time. Two tests from outside, on the protocol pages of manufacturers'
+  manuals read straight from the PDFs, each with the guide frozen beforehand: 14 protocols at
+  0.26.1 and, after the fixes that run led to, 11 more at 0.27.0. Over both, 48 of 50 drafts
+  reach a rehearsed program with no hand edits (Hamilton 24 of 25, Opentrons Flex 24 of 25),
+  39 of them at the first attempt. That part holds up.
+- **A draft you can run without reading it.** A pass means the file runs, not that it does what
+  the manual asks, so the drafts were read against their pages. Most follow the pipetting. But
+  in the second set every serious fault passed rehearsal: 1 h at 95 C, 18 h at 4 C and two days
+  at 37 C written as waits on the deck; a bead cleanup with no magnet, where removing the
+  supernatant would take the beads; three spin-plate kits cut down to their first step or two;
+  chloroform in plastic plates. The checks see liquid and collisions, not temperature, magnets,
+  filters or materials. Each draft says what it left out in its notes: read them. No manual says
+  how many samples a run has, so every layout is the model's choice. The sets are small, were
+  run once and were read by the project itself, not by someone who has run these kits. On the
+  31 notes the guide was tuned on, 28 pass at the first attempt on both robots and three are
+  refused for the right reason; that is a fit, not a test. All of it, with the manuals and the
+  notes, is in [evals](evals/RESULTS.md).
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.
