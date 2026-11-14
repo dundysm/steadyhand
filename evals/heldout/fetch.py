@@ -96,9 +96,17 @@ MANUALS_6 = [
   ("ascorbate", "Cayman ascorbate assay kit", CAYMAN + "700420.pdf", "7-9"),
   ("betaglo", "Promega Beta-Glo assay", PROMEGA + "0/beta-glo-assay-system-protocol.pdf", "8-9"),
 ]
+# A seventh set, read after five rules came out of reading the sixth set's drafts against their pages.
+MANUALS_7 = [
+  ("pad4", "Cayman PAD4 inhibitor screening assay kit (ammonia)", CAYMAN + "700560.pdf", "5-6"),
+  ("catalase", "Cayman catalase assay kit (without hydrogen peroxide)", CAYMAN + "700910.pdf", "7-8"),
+  ("autotaxin", "Cayman autotaxin inhibitor screening assay kit", CAYMAN + "700580.pdf", "6-7"),
+  ("bhb", "Cayman beta-hydroxybutyrate fluorometric assay kit", CAYMAN + "700740.pdf", "9-11"),
+  ("mdr", "Cayman multidrug resistance assay kit (calcein AM)", CAYMAN + "600370.pdf", "5-6"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
-  "heldout6": MANUALS_6,
+  "heldout6": MANUALS_6, "heldout7": MANUALS_7,
 }
 
 

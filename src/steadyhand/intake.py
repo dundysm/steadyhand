@@ -75,8 +75,11 @@ RULES
   after the last addition, 3 times, and say so in `notes`.
 - Leave out what a pipetting robot cannot do and the run can go on without (vortexing a
   reagent, sealing, covering, storage) and say so in `notes`, one sentence each. What comes
-  after the last pipetting step (a final incubation, reading the plate) is left out the same way.
-- A timed step the plate only has to sit through at room temperature becomes a `wait` of that
+  after the last pipetting step (a final incubation, reading the plate) is left out the same way,
+  so a file never ends on a `wait` or a `pause`: a timed mix that comes last is its pipette
+  mix alone.
+- A timed step the plate only has to sit through at room temperature (also where the text
+  gives it as a temperature from 20 to 25 C) becomes a `wait` of that
   length, also where the text shakes it meanwhile (shake 30 s, incubate 2 h at room
   temperature); a timed action on something else (vortex the reagent 30 s before use) is left
   out. For "at least" a time, use that time; for a range (10-15 min), the shorter; for
@@ -89,6 +92,15 @@ RULES
   before the next addition. A wait in its place would be a run that does not do what the text
   asks. The wells must hold the same afterwards: a hand step that fills or empties wells is
   not a pause.
+- A reagent the text says to prepare shortly before it is used ("within 5 minutes of use",
+  "immediately before use", "just before adding") is declared as a liquid in its well like any
+  other, and a `pause` before the step that first draws from it tells the person to prepare it
+  now and put it in that well. That is the one hand step that may fill a well: the file already
+  counts the liquid as there. A reagent the text only says to prepare the same day, or to keep
+  cold, gets no pause.
+- A liquid that is half or more organic solvent (ethanol, methanol, isopropanol, acetonitrile)
+  can drip from a tip, and the rehearsal does not show that. Say so once in `notes`, naming
+  the liquid.
 - Some texts cannot work on a pipetting robot at all, and a file that pretends otherwise is
   worse than none. List under `needs` what the text cannot do without and the robot cannot
   give: a filter or spin plate that a centrifuge or vacuum drains; glass or solvent-proof
@@ -114,6 +126,9 @@ RULES
   protocols: the first complete one; a step the text marks as optional: leave it out; a step
   the text offers two ways of doing: the way it gives first; a mix the text gives a time for
   ("mix for 1 min"): a pipette mix, then a wait of that time.
+- Wells the text asks for beside the samples (blanks, background wells, controls) are never
+  dropped to make room. When they do not fit one plate with the samples and replicates asked
+  for, put them on a second plate of the same type and say so in `chose`.
 - Text under THE PERSON ADDS, after the text to work from, is the person's own decisions.
   They settle what the text leaves open and replace the defaults above. Where they go against
   the text, follow the person and say so in `notes`. A mix volume
