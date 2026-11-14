@@ -409,6 +409,8 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   after the write-up (0.26.1, 0.27.0, 0.28.0). Of 72 drafts on the Hamilton and an Opentrons
   Flex, 68 reach a rehearsed program with no hand edits, 59 at the first attempt; 2 are refused
   for a reason that is true (a bead kit, which needs a magnet); 2 were handed back to a person.
+  Five of those passes on the Hamilton do not stand: its labware list overstated what fifteen
+  plates hold, and the drafts overfilled one (fixed in 0.30.1).
   A fourth, small set aimed at spin plates and heat in mid-run found both handled (refused, and
   paused) and three faults in steadyhand itself, since fixed: a crash on a plate whose stated
   capacity is wrong, a run failed for a tenth of a microlitre of air, a rounding error in split
@@ -440,8 +442,8 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   onto a magnet adapter on the plate carrier and back. No gripper is driven yet. The rehearsal
   has the plate at the right height in each place and carries its contents with it, and on the
   Opentrons robots their simulator checks the module and the moves. On the Hamilton no deep-well
-  plate fits: on the adapter it stands higher than the channels travel, and the plan says so. Five bead-kit manuals drafted for the OT-2 all reach a rehearsed program with the
-  magnet on and off where the manual has it; the same five are refused on the Flex. The
+  plate fits: on the adapter it stands higher than the channels travel, and the plan says so. Five bead-kit manuals drafted for each robot: all five reach a rehearsed program on the
+  OT-2 and the Hamilton and four on the Flex, with the magnet on and off where the manual has it. The
   rehearsal knows where the liquid is, not where the beads are, and no bead protocol has run on
   a real magnet.
 - **Filters and solvents.** A spin or filter plate needs a centrifuge or vacuum to drain it;

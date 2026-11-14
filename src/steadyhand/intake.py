@@ -100,7 +100,9 @@ RULES
   while it is on. Never write a wait in place of the magnet. For the bead plate choose one that
   LABWARE says can stand on the magnet; no other plate can. On some robots a person carries
   the plate onto the magnet and off it at each of these steps: that is the plan's business,
-  not yours, so write the same steps. "Until the
+  not yours, so write the same steps. While the magnet is on the beads are held to the wall
+  of the well: take the liquid off from the bottom and take all of it, as the text says; the
+  rule about staying off a pellet is not for beads on a magnet. "Until the
   beads have gathered" or "until clear" with no time is a wait of 2 min, noted.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under

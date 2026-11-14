@@ -7,6 +7,54 @@ All runs are on 13 Nov 2026 with Claude models. The first five sections are the 
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
 
+## The magnet on the other two robots, and a fault in the Hamilton's labware list (0.30.0, 0.30.1)
+
+0.30.0 gives the Flex and the Hamilton a magnet a person carries the plate onto: a Magnetic Block in
+a slot of its own on the Flex (the Opentrons app stops and asks for the move), a magnet adapter on
+the plate carrier on the Hamilton (the script stops and asks). In the rehearsal the plate stands in
+both of its places, and what its wells hold goes with it at each move. The same five bead kits as in
+the next section were drafted for both robots by two Claude Opus 5.5 agents. They are not fresh: the
+guide had one sentence changed since they were first drafted.
+
+| | Flex, 0.30.0 | Hamilton, 0.30.0 | Hamilton, 0.30.1 |
+|---|---|---|---|
+| Reach a rehearsed protocol | 4 of 5 | 5 of 5, of which 3 do not stand | 5 of 5 |
+| at the first attempt | 3 | 5 | 5 |
+| Failed after three attempts | 1 | 0 | 0 |
+
+- **Flex.** Four pass the replay and Opentrons' simulator, with `move_labware` onto the block and
+  back. `viral_magbead` failed three rounds on one draw: a 20 uL mix of a 30 uL elution in a deep
+  well that keeps 19 uL out of reach. What the model was told named the wells and not that the draw
+  was a mix, and it changed the wrong transfer twice. 0.30.1 says "a mix draws the liquid below the
+  tip ... mix a smaller volume there"; drafted once more, that kit passed at the first attempt.
+- **Hamilton, first run: a result that does not stand.** Three of the five drafts put 600 to 800 uL
+  in `eppendorf_96_wellplate_500ul_Vb`, which the labware list said holds 924 uL. PyLabRobot states
+  the volume of a plate's outline for many plates. Fifteen plates on the Hamilton list were
+  overstated by 15 to 85%, and others have no volume in their name to hold the figure against.
+- **0.30.1:** a well holds no more than the volume in its definition's name; plates with no volume
+  in their name are not offered to a model. Drafted again against that list, all five pass at the
+  first attempt, in `Thermo_TS_96_wellplate_1200ul_Rb` or the 500 uL plate, both of which fit under
+  the channels on the magnet adapter. No deep-well plate does: on the adapter it stands 257 mm high
+  and the channels travel at 245 mm, and the plan refuses it with that reason.
+- **Traced, as before.** In all ten accepted drafts liquid leaves the beads only with the plate on
+  the magnet, and beads are resuspended only off it.
+- **A fault that passes, on the Hamilton.** The guide's rule for a pellet (a height of 2 mm and a
+  tenth less, where the surface cannot be followed) was applied to supernatant on the magnet. The
+  KAPA draft leaves 40 uL of supernatant and 20 uL of each ethanol wash behind, about 80 uL in the
+  well before a 50 uL elution. It rehearses clean. The guide now says that on the magnet the liquid
+  is taken from the bottom, all of it (0.30.2); that is not measured.
+
+**The earlier Hamilton numbers, corrected.** Under the capped capacities, 5 of the 37 Hamilton drafts
+counted as passing in the first four sets overfill a plate and fail `check`: `elisa_il6`,
+`nanoorange` and `sod` (first set), `dna_cleanup96` (second), `glycolysis` (third). They were
+drafted from a list that told the model those plates were bigger; what it would have chosen from the
+right list is not known. So 73 of the 94 drafts stand as rehearsed protocols, not 78. The Opentrons
+lists take their capacities from Opentrons' own definitions and are not affected.
+
+**Caveats.** Five kits, four from one maker, seen before. One run each. Every move onto a magnet is
+by hand; no gripper is driven. The rehearsal follows the liquid, not the beads. Nothing has run on a
+robot, and nobody has stood a plate on any of these magnets.
+
 ## Five bead kits, with a magnet (0.29.0)
 
 Until 0.29.0 a bead cleanup was refused: nothing here had a magnet. 0.29.0 adds a `magnet` step
