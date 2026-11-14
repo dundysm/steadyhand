@@ -99,7 +99,7 @@ MANUALS_6 = [
 # A seventh set, read after five rules came out of reading the sixth set's drafts against their pages.
 MANUALS_7 = [
   ("pad4", "Cayman PAD4 inhibitor screening assay kit (ammonia)", CAYMAN + "700560.pdf", "5-6"),
-  ("catalase", "Cayman catalase assay kit (without hydrogen peroxide)", CAYMAN + "700910.pdf", "7-8"),
+  ("catalase_nohp", "Cayman catalase assay kit (without hydrogen peroxide)", CAYMAN + "700910.pdf", "7-8"),
   ("autotaxin", "Cayman autotaxin inhibitor screening assay kit", CAYMAN + "700580.pdf", "6-7"),
   ("bhb", "Cayman beta-hydroxybutyrate fluorometric assay kit", CAYMAN + "700740.pdf", "9-11"),
   ("mdr", "Cayman multidrug resistance assay kit (calcein AM)", CAYMAN + "600370.pdf", "5-6"),

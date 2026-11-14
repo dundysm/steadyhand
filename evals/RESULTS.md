@@ -3,9 +3,72 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 Nov 2026 with Claude models. The first five sections are the only tests on text the guide
+All runs are on 13 and 14 Nov 2026 with Claude models. The first eight sections are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## The sixth set read against its pages, five rules from it, and a seventh set (0.33.0)
+
+**The reading.** The sixth set's twelve drafts had only been counted. Read step by step against
+their manual pages, every volume and every well in all twelve matches the page. Five things a
+person who runs these kits would still change:
+
+- `ascorbate` (both): the Developer must be made within five minutes of use; the drafts put it on
+  the deck from the start and said so in a note.
+- `ascorbate` (both): three quarters of every well is methanol, which drips from a tip. Nothing said so.
+- `betaglo` (both): the file ended on a 30 s wait that does nothing.
+- `h2o2` (Hamilton): with 24 samples in triplicate the kit's specificity wells were dropped for
+  room, where `g6p` and `ascorbate` took a second plate.
+- 25 C was written as a wait in one draft's `notes` and the other's `chose`.
+
+**The rules**, committed before the seventh set was read by a model: a reagent the text says to
+make just before use is declared as usual and gets a `pause` before its first use, telling the
+person to make it and put it in its well; a file never ends on a `wait` or a `pause`; 20 to 25 C
+is room temperature; blanks, backgrounds and controls are never dropped for room and go on a
+second plate; a liquid that is half or more organic solvent gets one note that it can drip.
+
+**The seventh set.** `MANUALS_7` in [evals/heldout/fetch.py](heldout/fetch.py): five Cayman
+manuals not used before (a PAD4 inhibitor screen, catalase without hydrogen peroxide, an autotaxin
+inhibitor screen, beta-hydroxybutyrate, a calcein multidrug-resistance assay). Two Claude Opus 5.5
+agents as before: Flex with nothing decided, Hamilton with `24 samples. Every sample in triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol, first attempt | 5 of 5 | 4 of 5 |
+| Handed back to a person | 0 | 1 (`catalase_nohp`: glass tubes) |
+
+All nine pass `steadyhand rehearse`; the five Flex drafts also pass Opentrons' simulator on the
+Flex and on the OT-2. Read in full against the pages, every volume and well matches, and:
+
+- **One text, two readings of "glass".** The catalase manual makes its standards in "seven clean
+  glass test tubes". The Hamilton draft listed glass under `needs` and was refused; the Flex draft
+  used a deep-well plate and said so. The rule ("when the text demands it") does not say which.
+- **A manual that contradicts itself.** Autotaxin step 5 leaves the positive-control wells out of
+  the substrate addition while the page says every well ends at 190 uL. Both drafts add it there
+  and say so in `notes`. That is the right call and it is a change to the text as written.
+- **A manual step that is probably a misprint.** Read literally, the calcein assay's last three
+  steps leave 400 uL in each well. Both drafts write it as stated, say so, and so choose a plate
+  by volume that is not the black culture plate the manual asks for. Both also have the robot
+  seed the cells and pause overnight. These two files pass and should not be run unread.
+- **10 mL mixed with a 1 mL tip.** The Flex catalase draft makes a 10 mL stock and mixes it three
+  times with 1000 uL, the most the rule allows. That is a weak mix.
+- **Controls the text only suggests** (PAD4's positive control, Beta-Glo's background wells) are
+  now included, in triplicate. The agents called this a guess each time.
+
+**The rules on the manuals they came from** (not an outside test): `ascorbate` and `betaglo` on
+both robots and `h2o2` on the Hamilton were drafted again, five drafts, all at the first attempt.
+Both `ascorbate` drafts pause for the Developer after the 10 min wait and note the methanol; both
+`betaglo` drafts end on the pipette mix; `h2o2` puts 72 catalase wells on a second plate. These
+five were checked for the rule, not read in full.
+
+**A slip in the harness.** The new catalase case first shared a name with one from the first set,
+so both agents were told it was finished and drafted nothing. It was renamed `catalase_nohp` and
+drafted by the same agents afterwards, in the same conversations.
+
+**Caveats.** Five manuals from one maker, one run each, one agent per robot. The agents draft every
+case of a run in one conversation. One agent saved a prompt to a file and edited a reply before
+handing it in, both outside the letter of its brief; neither touches the result. I read the
+drafts; nobody who runs these kits has. Nothing has run on a robot.
 
 ## Six fresh manuals: what the draft decided, and what the person decided (0.32.0)
 
@@ -40,8 +103,8 @@ Flex with nothing decided, one for the Hamilton with `24 samples. Every sample i
   Opentrons' simulator on the Flex; 4 pass on the OT-2, and `g6p` and `lactate` are refused at plan
   there (three pipettes).
 
-**Not read against the manuals.** For this set only the outcome, the sample counts and the `chose`
-lists were checked, not the steps and volumes against the pages.
+**Read against the manuals afterwards.** At the time only the outcome, the sample counts and the
+`chose` lists were checked. The steps and volumes were read against the pages for 0.33.0; see above.
 
 **What the agents still found unclear:** sample preparation before the assay (which of it the robot
 should do); a range of dilutions; replicate counts where a text and its figure differ; 25 C (a wait
