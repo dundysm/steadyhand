@@ -1,6 +1,7 @@
 # steadyhand
 
 [![tests](https://github.com/dundysm/steadyhand/actions/workflows/tests.yml/badge.svg)](https://github.com/dundysm/steadyhand/actions/workflows/tests.yml)
+[![PyPI](https://img.shields.io/pypi/v/steadyhand)](https://pypi.org/project/steadyhand/)
 
 Turn a written lab protocol into a robot program, and rehearse it before it touches a real bench.
 
