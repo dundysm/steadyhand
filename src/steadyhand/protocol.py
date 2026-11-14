@@ -690,6 +690,63 @@ class Check:
     return "\n".join(lines)
 
 
+def _carried_back(protocol: Protocol, moves: List[Move]) -> List[Problem]:
+  """Tips that go back into a well carrying a liquid that well does not hold.
+
+  A tip dispenses near the floor of a well, so it is wetted by whatever that well already
+  held. Reused, it takes that back into the well it draws from, and on into the wells after.
+  Liquids are told apart by the names they are declared under; a well emptied to nothing is
+  taken as clean, and what a tip leaves on the way down a dilution series is not counted,
+  since every well of the series ends up holding the same liquids.
+  """
+  holds: Dict[Well, frozenset] = {}
+  volumes: Dict[Well, float] = {}
+  for name, (wells, volume) in protocol.liquids.items():
+    for well in wells:
+      holds[well] = holds.get(well, frozenset()) | {name}
+      volumes[well] = volumes.get(well, 0.0) + volume
+  on_tip: Dict[int, Dict[str, Well]] = {}  # tip -> liquid it has touched -> the well it met it in
+  found: Dict[Tuple[int, Well], Tuple[Dict[str, Well], List[Well]]] = {}
+  for move in moves:
+    if move.kind == "wait" or move.source is None or move.tip < 0:
+      continue
+    touched = on_tip.setdefault(move.tip, {})
+    here = holds.get(move.source, frozenset()) if volumes.get(move.source, 0.0) > EPS else frozenset()
+    foreign = {name: well for name, well in touched.items() if name not in here}
+    if foreign and here:
+      entry = found.setdefault((move.step, move.source), ({}, []))
+      entry[0].update(foreign)
+      for well in foreign.values():
+        if well not in entry[1]:
+          entry[1].append(well)
+    for name in here:
+      touched.setdefault(name, move.source)
+    if move.kind != "transfer" or move.volume > volumes.get(move.source, 0.0) + EPS:
+      continue
+    volumes[move.source] = volumes.get(move.source, 0.0) - move.volume
+    target = move.destination
+    if target is None or target == WASTE:
+      continue
+    before = holds.get(target, frozenset()) if volumes.get(target, 0.0) > EPS else frozenset()
+    for name in before:
+      touched.setdefault(name, target)
+    holds[target] = before | here
+    volumes[target] = volumes.get(target, 0.0) + move.volume
+  problems = []
+  for (step, source), (foreign, wells) in found.items():
+    names = " and ".join(sorted(foreign))
+    more = len(wells) - 1
+    where = f"{wells[0]}" + (f" and {more} more well{'s' if more > 1 else ''}" if more else "")
+    problems.append(
+      Problem(
+        f"steps[{step}]",
+        f"a reused tip goes back into {source} after it has been in {where}, which held {names}; it carries "
+        f"that into {source}. Use tips: fresh for this step, or do it while those wells are still empty",
+      )
+    )
+  return problems
+
+
 def check(protocol: Protocol) -> Check:
   """Follow the liquid through every move and report what does not add up."""
   moves, problems = expand(protocol)
@@ -746,6 +803,8 @@ def check(protocol: Protocol) -> Check:
         Problem(where, f"fills {move.destination} to {after:g} uL, over its {capacity:g} uL capacity")
       )
     volumes[move.destination] = after
+
+  problems += _carried_back(protocol, moves)
 
   # A liquid no step touches is in the file for nothing, or a step meant for it points elsewhere.
   touched = {w for m in moves if m.kind != "wait" for w in (m.source, m.destination) if w is not None}

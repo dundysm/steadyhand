@@ -6,6 +6,24 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## A reused tip that carries liquid back is refused at check (0.25.0)
+
+The reading under 0.24.0 found one draft that adds reagent with one reused tip to wells already
+holding sample. `check` now refuses that: a reused tip may not go back into the well it draws from
+after it has been in wells that held another liquid. The first message to the model is unchanged.
+
+- Run over all 167 drafts accepted in the last three runs, the check stops exactly one: that draft.
+  The shipped examples pass.
+- That note (`pierce_660` on the Flex) was drafted again by one Claude Opus 5.5 agent. It passed at
+  the first attempt, this time with fresh tips, so the new message was never shown to a model. The
+  Flex count stays 27 of 31, 26 at the first attempt.
+- It is a new planted mistake in all three suites: 24 of 26 stopped on the Hamilton, 18 of 21 on each
+  Opentrons robot.
+- What it does not see: liquids are told apart by the names they are declared under, so two different
+  samples under one name are the same to it; a well emptied to nothing counts as clean; and a tip
+  carried down a dilution series is not counted, since every well of the series holds the same
+  liquids. That last one is still a planted mistake that gets through.
+
 ## Drawing near the surface, clearer rules, and every note drafted again (0.24.0)
 
 What changed in the first message, following the reading below:

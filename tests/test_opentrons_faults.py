@@ -19,6 +19,7 @@ STOPPED_AT = {
   "more-plates-than-slots": "plan",
   "too-shallow-to-reach": "rehearse",
   "source-drawn-below-the-tip": "rehearse",
+  "reused-tip-into-samples": "check",
   "one-tip-down-the-series": "-",
   "plate-and-reservoir-swapped": "rehearse",
   "plate-not-seated": "rehearse",
@@ -44,7 +45,7 @@ def test_every_fault_is_stopped_where_the_table_says(profile):
   assert {r.fault.name: r.outcome.stage for r in report.results} == STOPPED_AT
   missed = [name for name, stage in STOPPED_AT.items() if stage == "-"]
   assert [r.fault.name for r in report.missed] == missed
-  assert f"17 of 20 planted mistakes stopped  ({profile.title})" in report.text()
+  assert f"18 of 21 planted mistakes stopped  ({profile.title})" in report.text()
   assert report.markdown().startswith(f"# What steadyhand stops, and what it does not: {profile.title}")
   assert report.markdown().count("**not stopped**") == 3
 
@@ -54,5 +55,5 @@ def test_cli_runs_the_suite_for_the_robot_named(capsys, tmp_path):
 
   table = tmp_path / "faults.md"
   assert main(["faults", "--robot", "opentrons-ot2", "-o", str(table)]) == 0
-  assert "17 of 20 planted mistakes stopped  (Opentrons OT-2)" in capsys.readouterr().out
+  assert "18 of 21 planted mistakes stopped  (Opentrons OT-2)" in capsys.readouterr().out
   assert "| The plate sits 4.5 mm towards the back of its slot, half a well off. | deck | rehearse |" in table.read_text()

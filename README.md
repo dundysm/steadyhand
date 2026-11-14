@@ -90,7 +90,7 @@ is a draft: see [docs/protocol-format.md](docs/protocol-format.md).
 | `steadyhand rehearse FILE` | Also replays the plan in the physics scene and, if nothing collides, writes the script. |
 | `steadyhand emit FILE -o script.py` | Writes the robot's program without rehearsing. |
 | `steadyhand robots` | Lists the robots, and what `rehearse` checks on each. |
-| `steadyhand faults` | Plants 25 known mistakes in a working protocol and lists which are stopped. |
+| `steadyhand faults` | Plants 26 known mistakes in a working protocol and lists which are stopped. |
 
 `plan`, `rehearse` and `emit` take `--robot`. The rows above describe the Hamilton STARlet, which
 is used when no robot is named; the others are under [Robots](#robots).
@@ -102,6 +102,10 @@ is used when no robot is named; the others are under [Robots](#robots).
 - A volume too small to pipette.
 - A sample too dilute to normalize, or a dilution series that runs off the plate.
 - A declared liquid that no step touches, which usually means a step points at the wrong wells.
+- A reused tip that goes back into the well it draws from after it has been in wells holding
+  another liquid, carrying that with it. Liquids are told apart by the names they are declared
+  under, so two samples under one name are not, and a tip carried down a dilution series is
+  not counted.
 
 ### What `plan` decides
 
@@ -273,20 +277,21 @@ handed back to a person: it moves 38 uL out of a 40 uL eluate in a PCR plate, an
 ## What it stops, measured
 
 A dry run that passes says little unless you know what it would have failed on. `steadyhand faults`
-plants 25 specific mistakes in a short dilution that otherwise runs clean, and records the first
-stage that stops each one. Today **23 of 25 are stopped**; the full table is in
+plants 26 specific mistakes in a short dilution that otherwise runs clean, and records the first
+stage that stops each one. Today **24 of 26 are stopped**; the full table is in
 [docs/faults.md](docs/faults.md), and a test pins it so a change in either direction shows.
 
 The two that get through:
 
-- The same tip is carried down each dilution series, so sample carries over. Nothing checks
-  what a tip has touched.
+- The same tip is carried down each dilution series, so sample carries over. The check on what
+  a tip carries back tells liquids apart by name, and every well of a series holds the same
+  ones; it does not weigh concentrations.
 - A 2 mL deep-well plate is on the deck where the plan expects the shallow plate. The wells line
   up and the tips reach the liquid, so nothing is hit; steadyhand cannot know the deck differs
   from the plan unless it is told.
 
 The same suite, with the mistakes that make sense there, runs on the Opentrons robots with
-`steadyhand faults --robot opentrons-flex`: **17 of 20 are stopped** on both the
+`steadyhand faults --robot opentrons-flex`: **18 of 21 are stopped** on both the
 [Flex](docs/faults-opentrons-flex.md) and the [OT-2](docs/faults-opentrons-ot2.md). The three
 that get through are the same tip carry-over, and a deep-well or a PCR plate standing where the
 flat plate was planned: the wells line up and the tips fit inside them.
@@ -394,8 +399,9 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   rounds of changes to the guide, so they no longer test it from outside. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
   matches the note, so the drafts were also read against their notes: all 56 of the run before,
-  and every step that changed in this one. No draft of this run contradicts its note; one
-  reuses a tip into wells that already hold sample, which nothing in steadyhand catches. The
+  and every step that changed in this one. No draft of this run contradicts its note. One
+  reused a tip into wells that already held sample; `check` now refuses that, and the note was
+  drafted again. The
   reading was done by the project itself, not by an outside reader. Drafting from a PDF is
   untested on real manuals.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the

@@ -166,6 +166,10 @@ def suite(profile: robots.Profile) -> List[Fault]:
     Fault("source-drawn-below-the-tip", "protocol",
           "The sample wells hold 110 uL and the series takes 100 uL: the last of each draw is under the tip, so it is air.",
           text("sample: {in: plate/A1:H1, volume: 200 uL}", "sample: {in: plate/A1:H1, volume: 110 uL}")),
+    Fault("reused-tip-into-samples", "protocol",
+        "The buffer is topped up into wells that now hold sample, with one reused tip: it goes back into the reservoir carrying sample.",
+          text("      mix: {times: 2, volume: 80 uL}\n",
+                "      mix: {times: 2, volume: 80 uL}\n  - transfer: {from: reservoir/A1, to: plate/A1:H4, volume: 20 uL, tips: reuse}\n")),
     Fault("one-tip-down-the-series", "protocol", "The same tip is carried down each dilution series, so sample carries over.",
           text("      volume: 100 uL\n", "      volume: 100 uL\n      tips: reuse\n")),
     # the deck is not what the plan assumed

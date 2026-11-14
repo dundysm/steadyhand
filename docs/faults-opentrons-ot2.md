@@ -1,9 +1,9 @@
 # What steadyhand stops, and what it does not: Opentrons OT-2
 
-Written by `steadyhand faults`, version 0.24.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.25.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
-**17 of 20 planted mistakes stopped.** The unchanged protocol ran clean.
+**18 of 21 planted mistakes stopped.** The unchanged protocol ran clean.
 
 | mistake | level | stopped at | what happened |
 |---|---|---|---|
@@ -14,6 +14,7 @@ dilution that otherwise runs clean. "Stopped at" is the first stage that refused
 | Ten more plates are declared; with tips they need more slots than the Opentrons OT-2 has. | protocol | plan | labware: 13 plates and reservoirs and 1 kinds of tip need 14 slots; the Opentrons OT-2 has 11 for labware |
 | The sample wells hold 25 uL in a flat-bottom plate: under 1 mm of liquid, below where the tip stops. | protocol | rehearse | 8 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the tip stops 0.22 mm above the liquid, so it draws air |
 | The sample wells hold 110 uL and the series takes 100 uL: the last of each draw is under the tip, so it is air. | protocol | rehearse | 8 tips out of the liquid; first: step 72 (aspirate, channel 0) in plate_well_A1: the liquid falls 0.68 mm below the tip before the aspirate ends, so about 21.9 uL of what it delivers is air |
+| The buffer is topped up into wells that now hold sample, with one reused tip: it goes back into the reservoir carrying sample. | protocol | check | steps[2]: a reused tip goes back into reservoir/A1 after it has been in plate/A1, which held sample; it carries that into reservoir/A1. Use tips: fresh for this step, or do it while those wells are still empty |
 | The same tip is carried down each dilution series, so sample carries over. | protocol | **not stopped** | ran clean |
 | The plate and the reservoir are in each other's slots. | deck | rehearse | 24 collisions; first: the tip into plate on descend |
 | The plate sits 4.5 mm towards the back of its slot, half a well off. | deck | rehearse | 176 collisions; first: the tip into plate on descend |

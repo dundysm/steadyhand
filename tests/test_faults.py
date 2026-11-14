@@ -20,6 +20,7 @@ STOPPED_AT = {
   "no-diluent": "check",
   "dilution-starts-in-the-wrong-column": "check",
   "source-drawn-below-the-tip": "rehearse",
+  "reused-tip-into-samples": "check",
   "one-tip-down-the-series": "-",
   "carrier-one-rail-off": "rehearse",
   "plate-and-reservoir-swapped": "rehearse",

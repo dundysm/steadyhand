@@ -224,3 +224,60 @@ steps:
   - transfer: {from: trough/A1, to: plate/A1:H1, volume: 100 uL}
 """))
   assert len(checked.problems) == 1 and "and 5 more times after that" in str(checked.problems[0])
+
+
+# ---------------------------------------------------------------- what a reused tip carries back
+
+CARRY = """
+steadyhand: 0.1
+name: carry-over
+labware:
+  plate:     {type: Cor_96_wellplate_360ul_Fb}
+  reservoir: {type: nest_12_troughplate_15000uL_Vb}
+liquids:
+  reagent: {in: reservoir/A1, volume: 5 mL}
+  sample:  {in: plate/A1:H1, volume: 50 uL}
+steps:
+"""
+
+
+def carried(steps, head=CARRY):
+  return [str(p) for p in check(loads(head + steps)).problems if "reused tip" in str(p)]
+
+
+def test_a_reused_tip_that_has_been_in_sample_may_not_go_back_into_the_reagent():
+  found = carried("  - transfer: {from: reservoir/A1, to: plate/A1:H1, volume: 100 uL, tips: reuse}\n")
+  assert found == [
+    "steps[0]: a reused tip goes back into reservoir/A1 after it has been in plate/A1, which held sample; "
+    "it carries that into reservoir/A1. Use tips: fresh for this step, or do it while those wells are still empty"
+  ]
+
+
+def test_what_is_not_carry_over_is_left_alone():
+  # a fresh tip for every well
+  assert carried("  - transfer: {from: reservoir/A1, to: plate/A1:H1, volume: 100 uL}\n") == []
+  # one tip into wells that are still empty
+  assert carried("  - transfer: {from: reservoir/A1, to: plate/A2:H2, volume: 100 uL, tips: reuse}\n") == []
+  # one tip that tops up wells already holding the same liquid
+  assert carried(
+    "  - transfer: {from: reservoir/A1, to: plate/A2:H2, volume: 50 uL, tips: reuse}\n"
+    "  - transfer: {from: reservoir/A1, to: plate/A2:H2, volume: 50 uL, tips: reuse}\n"
+  ) == []
+  # one tip into a single well of sample: it never goes back
+  assert carried("  - transfer: {from: reservoir/A1, to: plate/A1, volume: 100 uL, tips: reuse}\n") == []
+  # wells emptied to nothing first
+  assert carried(
+    "  - transfer: {from: plate/A1:H1, to: waste, volume: 50 uL}\n"
+    "  - transfer: {from: reservoir/A1, to: plate/A1:H1, volume: 100 uL, tips: reuse}\n"
+  ) == []
+  # one tip down a dilution series: every well of the series ends up with both liquids
+  assert carried(
+    "  - transfer: {from: reservoir/A1, to: plate/A2:H4, volume: 50 uL, tips: reuse}\n"
+    "  - serial_dilution: {start: plate/A1:H1, steps: 3, direction: right, volume: 25 uL, tips: reuse}\n"
+  ) == []
+
+
+def test_the_tip_of_a_transfer_that_mixes_and_is_thrown_away_is_not_carry_over():
+  assert carried(
+    "  - transfer: {from: reservoir/A1, to: plate/A1:H1, volume: 100 uL, mix_after: {times: 3, volume: 80 uL}}\n"
+  ) == []
