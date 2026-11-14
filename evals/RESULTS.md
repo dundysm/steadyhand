@@ -3,9 +3,62 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 Nov 2026 with Claude models. The first four sections are the only tests on text the guide
+All runs are on 13 Nov 2026 with Claude models. The first five sections are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## Five bead kits, with a magnet (0.29.0)
+
+Until 0.29.0 a bead cleanup was refused: nothing here had a magnet. 0.29.0 adds a `magnet` step
+(`- magnet: {plate: beads, state: on}`). On the Opentrons OT-2 the plate stands on a Magnetic Module
+GEN2 for the whole run, the rehearsal has it 82.25 mm up on the module, and the protocol that is
+written calls `engage` and `disengage`, which Opentrons' simulator checks. The Hamilton and the Flex
+refuse the step at plan: there the plate would have to be carried onto the magnet. The guide tells
+the model to write magnet steps for a bead cleanup and never a wait in their place. Committed before
+any of these manuals was read by a model.
+
+**The set.** `MANUALS_5` in [evals/heldout/fetch.py](heldout/fetch.py): Roche KAPA Pure Beads
+(cleanup) and four Zymo kits (Direct-zol-96 MagBead RNA, Quick-RNA MagBead, Quick-DNA/RNA Viral
+MagBead, ZymoBIOMICS 96 MagBead DNA). Two Claude Opus 5.5 agents: one drafting for the OT-2, one
+for the Flex.
+
+| | OT-2 | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 5 of 5 | 0 |
+| at the first attempt | 3 | |
+| at the second | 2 | |
+| Refused: no magnet on this robot | | 5 of 5 |
+
+- **On the OT-2 all five pass** the physics replay with the plate on the module and Opentrons'
+  simulator, run again here on the accepted files. The magnet goes on twice in the KAPA cleanup and
+  six times in each Zymo kit.
+- What sent two drafts back: mixing the bead reagent in its trough left the next draw short
+  (`quickrna_magbead`), and a 10 uL bead volume beside larger ones needed a third pipette
+  (`viral_magbead`). Both passed at the second attempt.
+- **On the Flex all five are refused** with "steadyhand has no magnet for the Opentrons Flex yet",
+  four in round 1. The fifth first put a second plate on the magnet, as its manual moves the beads
+  to a new plate; a run has one magnet, and it used fresh wells of the same plate instead.
+
+**Read against the manuals.** Every draft was traced step by step with the state of the magnet. In
+all five, on the OT-2: liquid is taken off the beads only while the magnet is on; beads are
+resuspended only while it is off; the eluate is drawn with the magnet on. No draft has a wait where
+a magnet should be. The KAPA draft was compared line by line with its page and follows steps 1.2 to
+1.17: beads at 3X, 10 min, magnet, two 80% ethanol washes on the magnet, dry, off the magnet, elute,
+magnet, transfer.
+
+**What this does not show.**
+- That beads behave. The rehearsal knows where the liquid is, not where the beads are: whether
+  2 min clears the liquid, whether a tip 1 mm above the floor takes beads with it, whether the
+  ring of beads sits where this magnet height puts it. That needs a robot.
+- The optional DNase steps were left out of the three kits that offer them, and noted.
+- Heated elution, heated drying and steps before the first pipetting step (bead beating) were
+  written as a wait, an air-dry or left out, each noted. The guide does not say which of two
+  offered alternatives to take.
+- Five kits, one run each, four of them from one maker, one agent per robot. The Hamilton was not
+  drafted for; it refuses the step the same way.
+- As far as the stored runs show, this is the first time drafts were written for the OT-2 directly;
+  before, Flex drafts were re-planned for it. Its two-pipette limit is not in the guide: the model
+  met it as a plan problem.
 
 ## A fourth, small set: spin plates and heat in mid-run (0.28.1)
 

@@ -438,7 +438,10 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   stands on a Magnetic Module GEN2 and the rehearsal has it at that height; Opentrons' simulator
   checks the module calls. On the Hamilton and the Flex the plate would have to be carried onto
   the magnet, steadyhand does not move plates yet, and the step is refused at plan with that
-  reason. No bead protocol has run on a real magnet.
+  reason. Five bead-kit manuals drafted for the OT-2 all reach a rehearsed program with the
+  magnet on and off where the manual has it; the same five are refused on the Flex. The
+  rehearsal knows where the liquid is, not where the beads are, and no bead protocol has run on
+  a real magnet.
 - **Filters and solvents.** A spin or filter plate needs a centrifuge or vacuum to drain it;
   some chemistry needs glass. Neither is here. A protocol file can say so under `needs`, and
   `check` then refuses it with that reason. `draft` is told to use it, so such a text comes
