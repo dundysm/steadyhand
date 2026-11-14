@@ -711,3 +711,18 @@ def test_waste_goes_round_a_limited_set_of_reservoirs():
   names, _, empties = send_waste(work, {}, 100.0, limit=1)
   assert names == ["waste"] and empties == [2, 4, 6] and {u.destination.labware for u in work} == {"waste"}
   assert send_waste(units(1), {"waste": "x"}, 100.0)[1] is not None
+
+
+def test_a_pause_becomes_a_pause_in_the_opentrons_protocol():
+  from test_protocol import PAUSED
+
+  from steadyhand.opentrons_robots import FLEX, emit, plan
+  from steadyhand.protocol import check, loads
+
+  text = (PAUSED % "Spin the plate 1 min at 1000 g and put it back.").replace("name:", "robot: opentrons-flex\nname:", 1)
+  text = text.replace("Cor_96_wellplate_360ul_Fb", "corning_96_wellplate_360ul_flat").replace("nest_12_troughplate_15000uL_Vb", "nest_12_reservoir_15ml")
+  planned = plan(check(loads(text)), FLEX)
+  assert planned.ok, [p.message for p in planned.problems]
+  assert [a.kind for a in planned.actions if a.kind in ("wait", "pause")] == ["wait", "pause", "wait"]
+  assert "pauses: 1" in planned.report()
+  assert 'protocol.pause("Spin the plate 1 min at 1000 g and put it back.")' in emit(planned)

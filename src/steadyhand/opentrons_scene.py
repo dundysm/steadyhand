@@ -267,7 +267,7 @@ async def record_plan(planned: OpentronsPlan, *, prepare=None) -> Tuple[Any, Lis
     handler = LiquidHandler(backend=backend, deck=deck)
     await handler.setup()
     for number, action in enumerate(planned.actions, start=1):
-      if action.kind == "wait":
+      if action.kind in ("wait", "pause"):
         continue
       if action.kind == "reload":
         for name in action.racks:

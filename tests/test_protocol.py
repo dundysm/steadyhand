@@ -281,3 +281,71 @@ def test_the_tip_of_a_transfer_that_mixes_and_is_thrown_away_is_not_carry_over()
   assert carried(
     "  - transfer: {from: reservoir/A1, to: plate/A1:H1, volume: 100 uL, mix_after: {times: 3, volume: 80 uL}}\n"
   ) == []
+
+
+def test_a_labware_name_wrong_only_in_its_capital_letters_gets_the_right_one_named():
+  from steadyhand.protocol import ProtocolError, loads
+
+  text = """
+steadyhand: 0.1
+name: wrong case
+labware:
+  plate: {type: %s}
+liquids:
+  water: {in: plate/A1, volume: 100 uL}
+steps:
+  - transfer: {from: plate/A1, to: plate/A2, volume: 10 uL}
+"""
+  for wrong, right in (
+    ("eppendorf_96_wellplate_250ul_Vb", "Eppendorf_96_wellplate_250ul_Vb"),
+    ("cor_96_wellplate_360ul_fb", "Cor_96_wellplate_360ul_Fb"),
+  ):
+    try:
+      loads(text % wrong)
+    except ProtocolError as error:
+      assert f"did you mean '{right}'?" in str(error), str(error)
+    else:
+      raise AssertionError("a wrong-case name was accepted")
+  try:
+    loads(text % "no_such_plate_at_all")
+  except ProtocolError as error:
+    assert "did you mean" not in str(error)
+
+
+PAUSED = """
+steadyhand: 0.1
+name: a pause between two additions
+labware:
+  plate: {type: Cor_96_wellplate_360ul_Fb}
+  trough: {type: nest_12_troughplate_15000uL_Vb}
+liquids:
+  buffer: {in: trough/A1, volume: 5 mL}
+steps:
+  - transfer: {from: trough/A1, to: plate/A1:H1, volume: 100 uL}
+  - wait: {duration: 5 min}
+  - pause: %s
+  - wait: {duration: 1 min}
+  - wait: {duration: 2 min}
+  - transfer: {from: trough/A1, to: plate/A1:H1, volume: 50 uL}
+"""
+
+
+def test_a_pause_is_read_counted_and_changes_no_volume():
+  from steadyhand.protocol import check, loads
+
+  checked = check(loads(PAUSED % "Spin the plate 1 min at 1000 g and put it back."))
+  assert checked.ok and "pauses for a person: 1" in checked.report()
+  assert "waiting: 8 min" in checked.report()
+  assert [m.text for m in checked.moves if m.kind == "wait"] == ["", "Spin the plate 1 min at 1000 g and put it back.", "", ""]
+
+
+def test_a_pause_needs_a_sentence_short_enough_to_show():
+  from steadyhand.protocol import ProtocolError, loads
+
+  for bad in ('""', "{duration: 5 min}", '"' + "x" * 201 + '"'):
+    try:
+      loads(PAUSED % bad)
+    except ProtocolError as error:
+      assert "steps[2].pause" in str(error)
+    else:
+      raise AssertionError(f"accepted pause: {bad}")

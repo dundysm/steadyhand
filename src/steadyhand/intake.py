@@ -66,7 +66,10 @@ RULES
   plate that no name in the list offers, choose by shape and volume and say so in `notes`.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
-- Do not invent steps the text does not describe.
+- Do not invent steps the text does not describe. The one exception: a liquid the robot makes
+  by adding one liquid to another and then draws from (a diluted stock, each standard of a
+  series, a master mix) has to be uniform first. When the text says only to dilute, prepare or
+  combine it, mix it after the last addition, 3 times, and say so in `notes`.
 - Leave out what a pipetting robot cannot do (vortexing, a magnet, heating, sealing, storage)
   and say so in `notes`, one sentence each. A timed step the plate sits through becomes a `wait`
   of that length, even on equipment the robot lacks (shake 30 s, incubate 2 h, 2 min on a
@@ -74,10 +77,16 @@ RULES
   For "at least" a time, use that time; for "overnight", use 16 h. A wait asked for only in
   words ("a few minutes", "wait a bit", "until clear") gets a `wait` of a conventional length
   that you choose and record in `notes`. A step that mentions no waiting gets no wait.
+- A step between two robot steps that a person has to do with the plate off the deck, and that
+  is more than a time to sit through (spin the plate down, freeze it and thaw it, read it before
+  the next addition), becomes a `pause` saying what the person does. The wells must hold the
+  same afterwards: a hand step that fills or empties wells is not a pause. Do not run straight
+  through a step the text calls necessary.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume
-  the text does not give is about two thirds of what the well holds at that point; a mix with
+  the text does not give is about two thirds of what the well holds at that point, and never
+  more than 1000 uL, the most one tip holds; a mix with
   no count ("mix", "mix briefly", "mix a few times") is a pipette mix of 3 times.
 - When the text asks for something the format cannot say exactly (such as new tips per
   column), use the nearest stricter option and say so in `notes`.
@@ -131,6 +140,7 @@ STEPS
     Needs the `samples` section, and the samples declared under `liquids` like any other
     liquid. mix is optional.
 - wait: {duration: <time>}
+- pause: <one sentence: what a person does by hand while the run is stopped>
 
 EXAMPLE 1 (for a text that states every plate, volume and mix)
 steadyhand: 0.1

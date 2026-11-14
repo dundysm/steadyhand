@@ -430,3 +430,70 @@ def test_a_move_made_before_is_not_simulated_again(dilution):
   again = asyncio.run(rehearse_plan(planned, on_sample=lambda *args: seen.append(1)))  # a callback turns reuse off
   assert once.ok and again.ok and once.path_length == pytest.approx(again.path_length)
   assert once.samples < again.samples == len(seen)
+
+
+DEEP = """
+steadyhand: 0.1
+name: a small volume out of a deep well
+labware:
+  deep:  {type: %s}
+  plate: {type: Cor_96_wellplate_360ul_Fb}
+liquids:
+  stock: {in: deep/A1, volume: 500 uL}
+steps:
+  - transfer: {from: deep/A1, to: plate/A1:A3, volume: 5 uL}
+"""
+
+
+def _tips_for(definition):
+  from steadyhand.planner import plan
+  from steadyhand.protocol import check, loads
+
+  planned = plan(check(loads(DEEP % definition)))
+  assert planned.ok, [p.message for p in planned.problems]
+  return planned
+
+
+def test_a_tip_too_short_for_a_narrow_deep_well_is_swapped_for_one_that_reaches():
+  # A 10 uL tip hangs 21.9 mm below the channel; these wells are 41 mm deep and 7 mm wide.
+  planned = _tips_for("eppendorf_96_wellplate_1000ul_Vb")
+  assert planned.tips == {"hamilton_96_tiprack_50uL_filter": 3}
+  assert len(planned.longer_tips) == 1 and "3 tips are 50 uL where 10 uL would hold the volume" in planned.longer_tips[0]
+  assert "longer tips:" in planned.report()
+
+
+def test_a_shallow_plate_keeps_the_tip_the_volume_asks_for():
+  planned = _tips_for("Cor_96_wellplate_360ul_Fb")
+  assert planned.tips == {"hamilton_96_tiprack_10uL_filter": 3}
+  assert not planned.longer_tips and "longer tips" not in planned.report()
+
+
+def test_the_planner_and_the_replay_agree_on_how_wide_a_channel_is():
+  from steadyhand.planner import CHANNEL_WIDTH
+  from steadyhand.replay import BARREL_RADIUS
+
+  assert CHANNEL_WIDTH == 2 * BARREL_RADIUS
+
+
+def test_the_longer_tip_passes_the_rehearsal_the_short_one_failed(tmp_path):
+  from steadyhand.cli import main
+
+  path = tmp_path / "deep.yaml"
+  path.write_text(DEEP % "eppendorf_96_wellplate_1000ul_Vb", encoding="utf-8")
+  assert main(["rehearse", str(path)]) == 0
+
+
+def test_a_pause_is_a_command_between_the_moves_it_separates_and_waits_around_it_stay_apart():
+  from test_protocol import PAUSED
+
+  from steadyhand.planner import emit, plan
+  from steadyhand.protocol import check, loads
+
+  planned = plan(check(loads(PAUSED % "Spin the plate 1 min at 1000 g and put it back.")))
+  assert planned.ok
+  stops = [(c.kind, c.volumes[0] if c.volumes else c.text) for c in planned.commands if c.kind in ("wait", "pause")]
+  assert stops == [("wait", 300.0), ("pause", "Spin the plate 1 min at 1000 g and put it back."), ("wait", 180.0)]
+  assert "pauses: 1 (the run stops for a person to do a step by hand)" in planned.report()
+  script = emit(planned)
+  assert 'pause(lh, "Spin the plate 1 min at 1000 g and put it back.")' in script
+  compile(script, "emitted", "exec")

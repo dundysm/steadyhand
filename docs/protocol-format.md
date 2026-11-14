@@ -44,7 +44,13 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 | `mix` | `wells`, `volume`, `times` | One mix per well |
 | `serial_dilution` | `start`, `steps`, `direction`, `volume`; optional `mix`, `discard`, `tips` | For each start well, a chain of transfers in that direction, then a discard |
 | `normalize` | `from`, `to`, `diluent`, `target`, `final_volume`; optional `mix` | Diluent first, then each sample, with volumes worked out from the samples table |
-| `wait` | `duration` | A pause |
+| `wait` | `duration` | A timed wait; the plate stays where it is |
+| `pause` | one sentence | The run stops for a person to do that by hand, and goes on when they say |
+
+A `pause` is written `- pause: Spin the plate 1 min at 1000 g and put it back.` The sentence is
+shown to the person at the robot (200 characters at most). steadyhand takes the wells to hold
+afterwards what they held before, and the plate to be back in its place: a hand step that fills or
+empties wells cannot be written this way.
 
 `tips` is `fresh` (the default: a new tip for every transfer) or `reuse` (one tip per source well).
 

@@ -229,12 +229,13 @@ def load_name(labware: Labware) -> Optional[Tuple[str, float]]:
 
 @dataclass(frozen=True)
 class Action:
-  kind: str  # "pick_up", "aspirate", "dispense", "drop", "wait", "reload" or "empty"
+  kind: str  # "pick_up", "aspirate", "dispense", "drop", "wait", "pause", "reload" or "empty"
   mount: str = ""  # "left" or "right"; empty for "wait" and "reload"
   labware: str = ""
   well: str = ""
   amount: float = 0.0  # uL per channel, or seconds for "wait"
   racks: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps; for "empty", the waste reservoirs
+  text: str = ""  # for "pause", what the person does
   surface: bool = False  # an aspirate that stays just under the liquid as it falls
   height: float = 0.0  # mm above the well floor for an aspirate that follows the surface or that the
   # protocol gives a height of its own; 0 for the usual pipetting height
@@ -275,6 +276,8 @@ class OpentronsPlan:
     if "wait" in kinds:
       waited = sum(a.amount for a in self.actions if a.kind == "wait")
       lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
+    if "pause" in kinds:
+      lines.append(f"  pauses: {kinds.count('pause')} (the run pauses for a person to do a step by hand)")
     followed = [a.height for a in self.actions if a.height]
     if followed:
       lines.append(
@@ -339,7 +342,7 @@ def _reach(wells: Sequence[Any], rows: Dict[str, int]) -> Optional[str]:
   return None
 
 
-def _tip_by_tip(units: list, waits: Dict[int, Tuple[float, int]], sinks: Sequence[str]) -> list:
+def _tip_by_tip(units: list, waits: Dict[int, Any], sinks: Sequence[str]) -> list:
   """Put each tip's work together where no well can tell the difference; otherwise keep the order.
 
   Work is only moved inside one step, and never across a wait. Two pieces of work may swap
@@ -605,7 +608,7 @@ def plan(
       sequence.append(("empty", (tuple(reservoirs), units[index].step)))
     if index in waits:
       flush()
-      sequence.append(("wait", waits[index]))
+      sequence.extend(("wait", stop) for stop in waits[index])
     tips = tuple(u.tip for u in units[index : index + 8])
     if index in columns and tips in chosen_sets:
       flush()
@@ -615,8 +618,7 @@ def plan(
       run.append(units[index])
       index += 1
   flush()
-  if len(units) in waits:
-    sequence.append(("wait", waits[len(units)]))
+  sequence.extend(("wait", stop) for stop in waits.get(len(units), []))
 
   # One pass to see when each pipette takes and drops its tips.
   def job(entry: Tuple[str, Any]) -> Tuple[_Fit, Any, int]:
@@ -714,8 +716,8 @@ def plan(
   actions: List[Action] = []
   taken: Dict[Tuple[str, str], int] = {}
   for kind, body in drafts:
-    if kind == "wait":
-      actions.append(Action("wait", amount=body[0], step=body[1]))
+    if kind == "wait":  # a timed wait, or with a text a pause for a person
+      actions.append(Action("pause", text=body[2], step=body[1]) if body[2] else Action("wait", amount=body[0], step=body[1]))
       continue
     if kind == "empty":
       actions.append(Action("empty", racks=body[0], step=body[1]))
@@ -891,6 +893,8 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
       lines.append(f"  # step {step}")
     if action.kind == "wait":
       lines.append(f"  protocol.delay(seconds={action.amount:g})  # {action.amount / 60:g} min")
+    elif action.kind == "pause":
+      lines.append(f"  protocol.pause({json.dumps(action.text)})")
     elif action.kind == "reload":
       where = ", ".join(f"{name} in slot {planned.slots[name]}" for name in action.racks)
       lines.append(f"  protocol.pause({json.dumps('Swap in full tip racks: ' + where)})")

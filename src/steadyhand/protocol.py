@@ -123,7 +123,14 @@ class Wait:
   seconds: float
 
 
-Step = Union[Transfer, Mix, SerialDilution, Normalize, Wait]
+@dataclass(frozen=True)
+class Pause:
+  """The run stops while a person does something by hand, then goes on. The wells hold the same afterwards."""
+
+  text: str
+
+
+Step = Union[Transfer, Mix, SerialDilution, Normalize, Wait, Pause]
 
 
 @dataclass
@@ -156,12 +163,14 @@ class Move:
   times: int = 1
   tip: int = -1
   seconds: float = 0.0
+  text: str = ""  # on a "wait": what a person does while the run is stopped for them; empty for a timed wait
   surface: bool = False  # a transfer drawn from just under the surface, not from the bottom of the well
   height: float = 0.0  # a transfer drawn this many mm above the floor of the well; 0 for the usual height
 
 
 _HEIGHT = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*mm\s*$")
 LOWEST_DRAW = 0.2  # mm above the floor of a well: closer than this a tip can seal against it
+PAUSE_LENGTH = 200  # characters in what a pause tells the person at the robot
 
 _ONE_WELL = re.compile(r"(?<![\w/])([A-Za-z_][\w-]*)/([A-Z]{1,2}[0-9]{1,2})(?![\w:])")
 
@@ -331,12 +340,14 @@ class _Reader:
         elif "type" in body and opentrons_installed():
           self.fail(
             f"{where}.type",
-            f"{body.get('type')!r} is not a plate definition in PyLabRobot, nor a plate or reservoir Opentrons ships",
+            f"{body.get('type')!r} is not a plate definition in PyLabRobot, nor a plate or reservoir Opentrons ships"
+            + _other_case(str(body.get("type"))),
           )
         elif "type" in body:
           self.fail(
             f"{where}.type",
-            f"{body.get('type')!r} is not a plate definition in PyLabRobot. Opentrons load names can be used "
+            f"{body.get('type')!r} is not a plate definition in PyLabRobot{_other_case(str(body.get('type')))}. "
+            "Opentrons load names can be used "
             "once Opentrons' software is installed: pip install 'steadyhand[opentrons]'",
           )
         continue
@@ -399,11 +410,19 @@ class _Reader:
 
   def read_step(self, raw: Any, index: int) -> Optional[Step]:
     where = f"steps[{index}]"
-    kinds = ("transfer", "mix", "serial_dilution", "normalize", "wait")
+    kinds = ("transfer", "mix", "serial_dilution", "normalize", "wait", "pause")
     if not isinstance(raw, dict) or len(raw) != 1 or next(iter(raw)) not in kinds:
       self.fail(where, f"expected exactly one of: {', '.join(kinds)}")
       return None
     kind, body = next(iter(raw.items()))
+    if kind == "pause":
+      if not isinstance(body, str) or not body.strip():
+        self.fail(f"{where}.pause", "expected a sentence saying what a person does while the run is stopped")
+        return None
+      if len(body) > PAUSE_LENGTH:
+        self.fail(f"{where}.pause", f"keep it under {PAUSE_LENGTH} characters: it is shown to the person at the robot")
+        return None
+      return Pause(" ".join(body.split()))
     where = f"{where}.{kind}"
     before = len(self.problems)
 
@@ -664,6 +683,9 @@ def expand(protocol: Protocol) -> Tuple[List[Move], List[Problem]]:
     elif isinstance(step, Wait):
       moves.append(Move(index, "wait", seconds=step.seconds))
 
+    elif isinstance(step, Pause):
+      moves.append(Move(index, "wait", text=step.text))
+
   return moves, problems
 
 
@@ -695,6 +717,9 @@ class Check:
     ]
     if self.wait_seconds:
       lines.append(f"  waiting: {self.wait_seconds / 60:g} min")
+    pauses = sum(1 for m in self.moves if m.text)
+    if pauses:
+      lines.append(f"  pauses for a person: {pauses}")
     by_liquid: Dict[str, float] = {}
     for well, volume in self.drawn.items():
       name = self._liquid_of.get(well)
@@ -710,6 +735,28 @@ class Check:
     lines.append(f"  problems: {len(self.problems)}")
     lines += [f"    - {p}" for p in self.problems]
     return "\n".join(lines)
+
+
+def _other_case(name: str) -> str:
+  """A hint for a labware name that is right but for its capital letters, or nothing."""
+  import pylabrobot.resources as resources
+  from pylabrobot.resources import Plate
+
+  from .opentrons_robots import shipped_labware
+
+  same = []
+  for known in dir(resources):
+    if known.lower() == name.lower() and known != name:
+      try:
+        with warnings.catch_warnings():
+          warnings.simplefilter("ignore")
+          if isinstance(getattr(resources, known)(name="probe"), Plate):
+            same.append(known)
+      except Exception:
+        pass
+  if not same and name != name.lower() and shipped_labware(name.lower()) is not None:
+    same.append(name.lower())
+  return f". Capital letters count: did you mean {same[0]!r}?" if same else ""
 
 
 def _carried_back(protocol: Protocol, moves: List[Move]) -> List[Problem]:

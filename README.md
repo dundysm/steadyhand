@@ -129,6 +129,13 @@ is used when no robot is named; the others are under [Robots](#robots).
   emitted script waits for Enter at each stop.
 - **Waits.** A `wait` step is a command in the plan, between the moves it separates. The script
   sleeps for it on a robot and skips it when it only prints what it would do.
+- **Pauses.** A `pause` step stops the run for a person to do one thing by hand (spin the plate,
+  freeze and thaw it, read it) and goes on when they say. The plan counts them. The wells are
+  taken to hold afterwards what they held before.
+- **Tips that reach.** The tip for each move is the smallest that holds the volume and reaches:
+  a channel is wider than a deep-well plate's wells, so a 10 uL tip, 21.9 mm long below the
+  channel, cannot get to the floor of a well 41 mm deep. There the plan takes the next tip that
+  can and says so.
 - **Where the tip draws.** Normally 1 mm above the floor of the well. A transfer marked
   `draw_from: surface` keeps the tip 1 mm under where the liquid stands once the draw is over,
   to take liquid off cells or a pellet. The planner works that height out from the volume in the
@@ -415,7 +422,7 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.
 - **Washers, shakers, magnets and lids.** There is no plate washer, shaker, magnet or gripper:
-  timed steps on them become waits, washes are done tip by tip, and a plate that ships with a
+  timed steps on them become waits, a step a person must do by hand becomes a pause, washes are done tip by tip, and a plate that ships with a
   lid is planned with the lid assumed off. When a run needs more tips than fit on the deck, the
   plan stops for a person to swap in full racks; nothing loads them automatically.
 - **Adapters beyond one.** A PCR plate with no skirt is planned standing in PyLabRobot's

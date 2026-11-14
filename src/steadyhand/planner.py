@@ -27,6 +27,7 @@ pipetting height of a plan as a small YAML file; edit it and hand it back throug
 
 from __future__ import annotations
 
+import json
 import math
 import re
 import warnings
@@ -47,6 +48,7 @@ SITES = 5
 TIP_CARRIER = "TIP_CAR_480_A00"
 PLATE_CARRIER = "PLT_CAR_L5AC_A00"
 WASTE_TYPE = "nest_1_troughplate_195000uL_Vb"
+CHANNEL_WIDTH = 8.0  # mm; a well narrower than this cannot take the channel itself, only the tip
 PLATE_ADAPTER = "thermo_AB_96_plateadapter_MicroAmp"  # a base that holds PCR plates with no skirt
 
 # Working volume in uL and the PyLabRobot definition, smallest first.
@@ -60,12 +62,13 @@ TIP_TYPES: List[Tuple[float, str]] = [
 
 @dataclass(frozen=True)
 class Command:
-  kind: str  # "pick_up", "aspirate", "dispense", "discard", "wait" or "reload"
+  kind: str  # "pick_up", "aspirate", "dispense", "discard", "wait", "pause" or "reload"
   channels: Tuple[int, ...]
   resource: str = ""  # the plate or tip rack; empty for "discard", "wait" and "reload"
   wells: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps for full ones
   volumes: Tuple[float, ...] = ()  # for "wait", the one number is seconds
   step: int = -1
+  text: str = ""  # for "pause", what the person does
   surface: bool = False  # an aspirate that stays just under the liquid as it falls
   heights: Tuple[float, ...] = ()  # mm above the well floor for each channel, for an aspirate that follows the
   # surface or that the protocol gives a height of its own; empty for the usual pipetting height
@@ -102,6 +105,7 @@ class Plan:
   pipetting_height: float = 1.0  # mm above the well floor for every aspirate and dispense
   tip_types: List[Tuple[float, str]] = field(default_factory=lambda: list(TIP_TYPES))  # what it could choose from
   assumptions: List[str] = field(default_factory=list)  # what has to be true on the bench for the plan to hold
+  longer_tips: List[str] = field(default_factory=list)  # where a longer tip was chosen than the volume alone asks for
 
   @property
   def ok(self) -> bool:
@@ -120,6 +124,8 @@ class Plan:
     if "wait" in kinds:
       waited = sum(c.volumes[0] for c in self.commands if c.kind == "wait")
       lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
+    if "pause" in kinds:
+      lines.append(f"  pauses: {kinds.count('pause')} (the run stops for a person to do a step by hand)")
     followed = [h for c in self.commands for h in c.heights]
     if followed:
       lines.append(
@@ -130,6 +136,7 @@ class Plan:
       f"  commands: {len(self.commands)} ({kinds.count('aspirate')} aspirates, "
       f"{kinds.count('dispense')} dispenses), up to {widest} channels at once"
     )
+    lines += [f"  longer tips: {text}" for text in self.longer_tips]
     lines += [f"  assumes: {text}" for text in self.assumptions]
     if self.problems:
       lines.append(f"  problems: {len(self.problems)}")
@@ -146,6 +153,7 @@ class _Geometry:
   def __init__(self) -> None:
     self._cache: Dict[str, Tuple[Dict[str, Tuple[int, float]], float]] = {}
     self._shared: Dict[str, int] = {}
+    self._wells: Dict[str, Tuple[float, float]] = {}
 
   def _load(self, definition: str) -> Tuple[Dict[str, Tuple[int, float]], float]:
     if definition not in self._cache:
@@ -164,6 +172,17 @@ class _Geometry:
 
   def column_and_y(self, definition: str, well: str) -> Tuple[int, float]:
     return self._load(definition)[0][well]
+
+  def depth_and_width(self, definition: str) -> Tuple[float, float]:
+    """How deep a well of this labware is and how wide at its narrowest, in mm."""
+    if definition not in self._wells:
+      import pylabrobot.resources as resources
+
+      with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        well = getattr(resources, definition)(name="probe").get_all_items()[0]
+      self._wells[definition] = (well.get_size_z(), min(well.get_size_x(), well.get_size_y()))
+    return self._wells[definition]
 
   def channels_in_one_well(self, definition: str) -> int:
     """How many channels PyLabRobot will put side by side in one well of this labware."""
@@ -277,14 +296,20 @@ class _Unit:
   height: float = 0.0  # the transfer is drawn this many mm above the well floor; 0 for the usual height
 
 
-def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, Tuple[float, int]]]:
-  """The work, one tip's worth at a time, and the waits: unit index a wait comes before -> (seconds, step)."""
+def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, List[Tuple[float, int, str]]]]:
+  """The work, one tip's worth at a time, and the stops: unit index they come before -> waits and pauses in order.
+
+  A stop is (seconds, step, text): a timed wait has no text, a pause for a person has no seconds.
+  """
   units: List[_Unit] = []
-  waits: Dict[int, Tuple[float, int]] = {}
+  waits: Dict[int, List[Tuple[float, int, str]]] = {}
   for move in moves:
     if move.kind == "wait":
-      before = waits.get(len(units), (0.0, move.step))
-      waits[len(units)] = (before[0] + move.seconds, before[1])
+      here = waits.setdefault(len(units), [])
+      if here and not move.text and not here[-1][2]:  # two timed waits in a row are one
+        here[-1] = (here[-1][0] + move.seconds, here[-1][1], "")
+      else:
+        here.append((move.seconds, move.step, move.text))
       continue
     if move.kind == "transfer":
       assert move.source is not None and move.destination is not None
@@ -397,10 +422,54 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
   for unit in units:
     carried = max(unit.volume, unit.mix[1] if unit.mix else 0.0)
     largest[unit.tip] = max(largest.get(unit.tip, 0.0), carried)
+  # A tip also has to reach. The channel is wider than a narrow well, so in one the tip alone has to
+  # span from the rim down to where it pipettes: a 10 uL tip cannot reach the floor of a deep well.
+  reach = [_tip_reach(definition) for _, definition in tip_types]
+  deepest: Dict[int, Tuple[float, str]] = {}  # tip -> how far below a narrow well's rim it goes, and where
+  for unit in units:
+    drawn = unit.height or choices.pipetting_height
+    for well, height in ((unit.source, drawn), (unit.destination, choices.pipetting_height)):
+      name = place(well)[0]
+      if not hasattr(resources_module(), labware.get(name, "")):
+        continue
+      depth, width = geometry.depth_and_width(labware[name])
+      if width + EPS >= CHANNEL_WIDTH:
+        continue
+      # The channel's end is rounded, as in the replay, so it sinks a little into the mouth of the well.
+      sinks = CHANNEL_WIDTH / 2 - math.sqrt((CHANNEL_WIDTH / 2) ** 2 - (width / 2) ** 2)
+      span = round(depth - height - sinks, 2)
+      if span > deepest.get(unit.tip, (0.0, ""))[0]:
+        deepest[unit.tip] = (span, name)
   tip_type: Dict[int, int] = {}
+  stepped: Dict[Tuple[int, int, str], int] = {}  # (tip by volume, tip chosen, labware) -> tips
+  out_of_reach: Dict[str, float] = {}
   for tip, volume in largest.items():
     fits = [i for i, (capacity, _) in enumerate(tip_types) if capacity + EPS >= volume]
-    tip_type[tip] = fits[0] if fits else len(tip_types) - 1
+    by_volume = fits[0] if fits else len(tip_types) - 1
+    need, where = deepest.get(tip, (0.0, ""))
+    reaches = [i for i in range(by_volume, len(tip_types)) if reach[i] is None or reach[i] + EPS >= need]
+    tip_type[tip] = reaches[0] if reaches else len(tip_types) - 1
+    if not reaches:
+      out_of_reach[where] = max(out_of_reach.get(where, 0.0), need)
+    elif reaches[0] != by_volume:
+      key = (by_volume, reaches[0], where)
+      stepped[key] = stepped.get(key, 0) + 1
+  for where, need in out_of_reach.items():
+    longest = max(length for length in reach if length is not None)
+    problems.append(
+      Problem(
+        f"labware.{where}",
+        f"no tip reaches: a tip has to span {need:g} mm in a well of {labware[where]}, which is narrower than "
+        f"the channel, and the longest tip is {longest:g} mm below the channel. Use a shallower or wider plate",
+      )
+    )
+  into = {name: max(depth for depth, where in deepest.values() if where == name) for _, name in deepest.values()}
+  longer_tips = [
+    f"{count} tip{'s are' if count > 1 else ' is'} {tip_types[chosen][0]:g} uL where {tip_types[by_volume][0]:g} uL "
+    f"would hold the volume: a {tip_types[by_volume][0]:g} uL tip is {reach[by_volume]:g} mm long below the channel "
+    f"and has to span {into[where]:g} mm in {where}, whose wells are narrower than the channel"
+    for (by_volume, chosen, where), count in sorted(stepped.items())
+  ]
   for unit in units:
     capacity = tip_types[tip_type[unit.tip]][0]
     if unit.mix and unit.mix[1] > capacity + EPS:
@@ -480,8 +549,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
     holding: Dict[int, int] = {}  # channel -> the tip number it has on
     position = 0
     for batch in batches:
-      if position in waits:
-        commands.append(Command("wait", (), volumes=(waits[position][0],), step=waits[position][1]))
+      commands.extend(_stops(waits.get(position, [])))
       channels = tuple(range(len(batch)))
       kind = tip_type[batch[0].tip]
       step = batch[0].step
@@ -534,8 +602,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
         for c in done:
           del holding[c]
 
-    if position in waits:  # a wait after the last move
-      commands.append(Command("wait", (), volumes=(waits[position][0],), step=waits[position][1]))
+    commands.extend(_stops(waits.get(position, [])))  # after the last move
     return commands, most, used
 
   # First with as many racks as it takes. If they do not fit beside the plates, plan again with
@@ -603,6 +670,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
     problems=problems,
     pipetting_height=choices.pipetting_height,
     tip_types=tip_types,
+    longer_tips=longer_tips,
     assumptions=[
       f"the lid is off {name} ({definition} comes with one)"
       for name, definition in labware.items()
@@ -789,6 +857,36 @@ def load_choices(path) -> Choices:
   return loads_choices(Path(path).read_text(encoding="utf-8"))
 
 
+def _stops(stops: Sequence[Tuple[float, int, str]]) -> List[Command]:
+  return [
+    Command("pause", (), text=text, step=step) if text else Command("wait", (), volumes=(seconds,), step=step)
+    for seconds, step, text in stops
+  ]
+
+
+def resources_module() -> Any:
+  import pylabrobot.resources as resources
+
+  return resources
+
+
+_REACH: Dict[str, Optional[float]] = {}
+
+
+def _tip_reach(definition: str) -> Optional[float]:
+  """How many mm of a tip of this PyLabRobot rack hang below the channel, or None when that is not known."""
+  if definition not in _REACH:
+    maker = getattr(resources_module(), definition, None)
+    try:
+      with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        tip = maker(name="probe").get_item("A1").get_tip()
+      _REACH[definition] = round(float(tip.total_tip_length - tip.fitting_depth), 2)
+    except Exception:
+      _REACH[definition] = None
+  return _REACH[definition]
+
+
 def _tip_rack_holds(definition: Any) -> Optional[float]:
   """The most one tip of this PyLabRobot rack holds in uL, or None when it is not a 96-tip rack."""
   import pylabrobot.resources as resources
@@ -917,6 +1015,8 @@ async def run(planned: Plan, handler, *, on_reload=None, on_wait=None) -> None:
     if command.kind == "wait":
       if on_wait is not None:
         await on_wait(command.volumes[0])
+      continue
+    if command.kind == "pause":
       continue
     try:
       await _send(command, handler, deck, height)
@@ -1048,6 +1148,12 @@ def emit(planned: Plan, *, source: str = "") -> str:
     "    await asyncio.sleep(seconds)",
     "",
     "",
+    "def pause(lh, text):",
+    "  # A step a person does by hand. Skipped when this only prints what it would do.",
+    "  if not isinstance(lh.backend, LiquidHandlerChatterboxBackend):",
+    '    input(f"{text} Then press Enter. ")',
+    "",
+    "",
     "def wells(deck, resource, names):",
     "  return [deck.get_resource(resource).get_item(name) for name in names.split()]",
     "",
@@ -1066,6 +1172,9 @@ def emit(planned: Plan, *, source: str = "") -> str:
       continue
     if command.kind == "wait":
       lines.append(f"  await wait(lh, {command.volumes[0]:g})  # {command.volumes[0] / 60:g} min")
+      continue
+    if command.kind == "pause":
+      lines.append(f"  pause(lh, {json.dumps(command.text)})")
       continue
     if command.kind == "discard":
       lines.append(f"  await lh.discard_tips(use_channels={channels})")

@@ -3,7 +3,8 @@
   python evals/heldout/fetch.py
 
 Each manual is downloaded from its maker, the pages named below are read with the same code
-`steadyhand draft manual.pdf --pages ...` uses, and the text is written to evals/out/heldout/CASE.txt.
+`steadyhand draft manual.pdf --pages ...` uses, and the text is written to evals/out/heldout/CASE.txt
+(the second set to evals/out/heldout2).
 Nothing is edited. The text belongs to the makers, so it is not kept in this repository: this
 script and the list below are what is kept, and they rebuild it.
 
@@ -39,11 +40,34 @@ MANUALS = [
   ("elisa_il6", "Thermo Fisher human IL-6 ELISA", THERMO + "213-2CE.pdf", "13-15"),
 ]
 
+ZYMO = "https://files.zymoresearch.com/protocols/"
+
+# The second set, chosen after the first had been drafted and the guide changed in answer to it (0.27.0).
+MANUALS_2 = [
+  ("oneglo", "Promega ONE-Glo luciferase assay", PROMEGA + "0/one-glo-luciferase-assay-system-protocol.pdf", "4-5"),
+  ("lipo3000", "Thermo Fisher Lipofectamine 3000 transfection", THERMO + "lipofectamine3000_protocol.pdf", "1-2"),
+  ("quickdna96", "Zymo Quick-DNA 96 kit (spin plate)", ZYMO + "_d3010_d3011_d3012_quick-dna_96_kit.pdf", "6"),
+  ("magbead_dna", "Zymo Quick-DNA MagBead Plus kit", ZYMO + "_d4081_d4082_quick-dna_magbead_plus_kit.pdf", "8-9"),
+  ("dna_cleanup96", "Zymo ZR-96 DNA Clean-up kit (spin plate)", ZYMO + "_d4017_d4018_zr-96_dna_clean-up_kit.pdf", "6"),
+  ("tbars", "Cayman TBARS assay kit", CAYMAN + "10009055.pdf", "7-8"),
+  ("antioxidant", "Cayman antioxidant assay kit", CAYMAN + "709001.pdf", "8-9"),
+  ("camp_elisa", "Cayman cyclic AMP ELISA kit (competitive)", CAYMAN + "581001.pdf", "9-14"),
+  ("pge2_elisa", "Cayman prostaglandin E2 ELISA kit (competitive)", CAYMAN + "514010.pdf", "10-13"),
+  ("lpo", "Cayman lipid hydroperoxide assay kit", CAYMAN + "705002.pdf", "7-8"),
+  ("gpx", "Cayman glutathione peroxidase assay kit", CAYMAN + "703102.pdf", "7-8"),
+]
+SETS = {"heldout": MANUALS, "heldout2": MANUALS_2}
+
 
 def main() -> int:
-  out = Path(__file__).parents[1] / "out" / "heldout"
+  for name, manuals in SETS.items():
+    build(Path(__file__).parents[1] / "out" / name, manuals)
+  return 0
+
+
+def build(out: Path, manuals: list) -> None:
   (out / "pdf").mkdir(parents=True, exist_ok=True)
-  for case, _, url, pages in MANUALS:
+  for case, _, url, pages in manuals:
     pdf = out / "pdf" / (url.rsplit("/", 1)[1])
     if not pdf.exists():
       request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -51,8 +75,7 @@ def main() -> int:
         pdf.write_bytes(reply.read())
     text = read_source(pdf, pages)
     (out / f"{case}.txt").write_text(text, encoding="utf-8")
-    print(f"{case:12} pages {pages:9} {len(text):6,} characters")
-  return 0
+    print(f"{case:14} pages {pages:9} {len(text):6,} characters")
 
 
 if __name__ == "__main__":
