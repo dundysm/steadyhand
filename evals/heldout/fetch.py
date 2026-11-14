@@ -79,7 +79,15 @@ MANUALS_4 = [
   ("isoprostane_elisa", "Cayman 8-isoprostane ELISA kit (competitive)", CAYMAN + "516351.pdf", "10-13"),
   ("cox_activity", "Cayman COX activity assay kit", CAYMAN + "760151.pdf", "7-8"),
 ]
-SETS = {"heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4}
+# A fifth set, bead kits only, for the magnet step (0.29.0).
+MANUALS_5 = [
+  ("kapa_pure_beads", "Roche KAPA Pure Beads, cleanup", "https://rochesequencingstore.com/wp-content/uploads/2022/07/KAPA-Pure-Beads-Technical-Data-Sheet.pdf", "4-5"),
+  ("directzol_magbead", "Zymo Direct-zol-96 MagBead RNA", ZYMO + "_r2100_r2101_r2102_r2103_r2104_r2105_direct-zol-96_magbead_rna.pdf", "9"),
+  ("quickrna_magbead", "Zymo Quick-RNA MagBead", ZYMO + "_r2132_r2133_quick-rna_magbead.pdf", "12"),
+  ("viral_magbead", "Zymo Quick-DNA/RNA Viral MagBead", ZYMO + "_r2140_r2141_quick-dna-rna_viral_magbead.pdf", "8"),
+  ("zymobiomics_magbead", "Zymo ZymoBIOMICS 96 MagBead DNA kit", ZYMO + "_d4302_d4306_d4308_zymobiomics-96_magbead_dna_kit.pdf", "10-11"),
+]
+SETS = {"heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5}
 
 
 def main() -> int:
