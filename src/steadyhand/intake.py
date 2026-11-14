@@ -137,7 +137,8 @@ STEPS
     draw_from defaults to bottom: the tip stops 1 mm above the floor of the well. surface keeps
     the tip just under the liquid as it falls; use it when the text says to take liquid from
     the top, or without disturbing cells, a pellet or what has settled. It works only in a well
-    the LABWARE list gives an out-of-reach amount for. A height such as 0.5 mm (0.2 mm at the
+    the LABWARE list gives an out-of-reach amount for; in any other well, stay off a pellet
+    with a height of 2 mm, take about a tenth less than is there, and say so in `notes`. A height such as 0.5 mm (0.2 mm at the
     least) puts the tip that far above the floor: lower than usual when a transfer has to take
     nearly all of a small volume, higher to stay off what has settled.
     tips, mix_after and draw_from are optional; without mix_after nothing is mixed.

@@ -70,7 +70,16 @@ MANUALS_3 = [
   ("hmw_magbead", "Zymo Quick-DNA HMW MagBead kit", ZYMO + "d6060_quick-dna_hmw_magbead_kit.pdf", "8-9"),
   ("quickrna96", "Zymo Quick-RNA 96 kit (spin plate)", ZYMO + "_r1052_r1053_quick-rna_96_kit.pdf", "7-8"),
 ]
-SETS = {"heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3}
+# A fourth, small set aimed at what the third left untested: spin plates and heat or cold in mid-run (0.28.1).
+MANUALS_4 = [
+  ("quickrna96_full", "Zymo Quick-RNA 96 kit, with its purification page", ZYMO + "_r1052_r1053_quick-rna_96_kit.pdf", "7-9"),
+  ("fungal96", "Zymo Quick-DNA Fungal/Bacterial 96 kit (bead beating, spin plate)", ZYMO + "_d6006_quick-dna_fungal-bacterial_96_kit.pdf", "7-8"),
+  ("glycogen", "Cayman glycogen assay kit", CAYMAN + "700480.pdf", "7-9"),
+  ("ffa", "Cayman free fatty acid fluorometric assay kit", CAYMAN + "700310.pdf", "8-9"),
+  ("isoprostane_elisa", "Cayman 8-isoprostane ELISA kit (competitive)", CAYMAN + "516351.pdf", "10-13"),
+  ("cox_activity", "Cayman COX activity assay kit", CAYMAN + "760151.pdf", "7-8"),
+]
+SETS = {"heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4}
 
 
 def main() -> int:
