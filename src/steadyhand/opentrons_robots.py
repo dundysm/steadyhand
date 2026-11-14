@@ -235,6 +235,8 @@ class Action:
   well: str = ""
   amount: float = 0.0  # uL per channel, or seconds for "wait"
   racks: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps; for "empty", the waste reservoirs
+  surface: bool = False  # an aspirate that stays just under the liquid as it falls
+  height: float = 0.0  # for such an aspirate, mm above the well floor; 0 for the usual pipetting height
   step: int = -1
   wells: Tuple[str, ...] = ()  # every well or tip the action touches: one, or eight for an 8-channel pipette
 
@@ -272,6 +274,11 @@ class OpentronsPlan:
     if "wait" in kinds:
       waited = sum(a.amount for a in self.actions if a.kind == "wait")
       lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
+    followed = [a.height for a in self.actions if a.height]
+    if followed:
+      lines.append(
+        f"  draws that follow the surface: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
+      )
     eight = any(len(a.wells) == 8 for a in self.actions)
     lines.append(
       f"  commands: {len(self.actions)} ({kinds.count('aspirate')} aspirates, "
@@ -739,7 +746,10 @@ def plan(
       for _ in range(parts):
         amount = round(first.volume / parts, 4)
         actions.append(
-          Action("aspirate", mount, source.labware, draws, amount, step=step, wells=reached(source, draws, channels))
+          Action(
+            "aspirate", mount, source.labware, draws, amount, step=step, wells=reached(source, draws, channels),
+            surface=first.surface,
+          )
         )
         actions.append(
           Action(
@@ -753,6 +763,10 @@ def plan(
           actions.append(
             Action(action, mount, destination.labware, delivers, volume, step=step, wells=reached(destination, delivers, channels))
           )
+
+  if not problems and any(a.surface for a in actions):
+    actions, cannot = _follow_surface(actions, protocol, labware, pipetting_height)
+    problems += cannot
 
   tips_used: Dict[str, int] = {}
   for key in order:
@@ -769,6 +783,50 @@ def plan(
     pipetting_height=pipetting_height,
     notes=notes,
   )
+
+
+def _follow_surface(
+  actions: List[Action], protocol, labware: Dict[str, str], pipetting_height: float
+) -> Tuple[List[Action], List[Problem]]:
+  """Give every aspirate that follows the surface its height above the well floor.
+
+  The tip stops `SUBMERGED` mm under where the liquid stands once the action has drawn, and
+  never lower than the usual pipetting height. With eight channels the lowest surface decides.
+  """
+  from dataclasses import replace
+
+  from .opentrons_scene import inside_shapes, well_height
+  from .planner import SUBMERGED
+
+  held: Dict[Tuple[str, str], float] = {}
+  for wells, volume in protocol.liquids.values():
+    for well in wells:
+      held[(well.labware, well.well)] = volume
+  problems: List[Problem] = []
+  refused = set()
+  out: List[Action] = []
+  for action in actions:
+    if action.kind in ("aspirate", "dispense"):
+      sign = -1 if action.kind == "aspirate" else 1
+      for well in action.wells:
+        held[(action.labware, well)] = held.get((action.labware, well), 0.0) + sign * action.amount
+    if action.kind == "aspirate" and action.surface:
+      shapes = inside_shapes(labware[action.labware])
+      if not shapes:
+        if (action.step, action.labware) not in refused:
+          refused.add((action.step, action.labware))
+          problems.append(
+            Problem(
+              f"steps[{action.step}].draw_from",
+              f"cannot follow the surface in {action.labware} ({labware[action.labware]}): Opentrons gives no inside "
+              "shape for its wells, so the height of the liquid is not known",
+            )
+          )
+      else:
+        lowest = min(well_height(shapes[well], max(0.0, held[(action.labware, well)])) for well in action.wells)
+        action = replace(action, height=round(max(pipetting_height, lowest - SUBMERGED), 2))
+    out.append(action)
+  return out, problems
 
 
 # ---------------------------------------------------------------- writing a protocol
@@ -841,9 +899,10 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
     elif action.kind == "pick_up":
       lines.append(f'  {action.mount}.pick_up_tip(deck[{json.dumps(action.labware)}]["{action.well}"])')
     else:
+      height = f"{action.height!r}))  # just under the surface" if action.height else "HEIGHT))"
       lines.append(
         f"  {action.mount}.{action.kind}({action.amount!r}, "
-        f'deck[{json.dumps(action.labware)}]["{action.well}"].bottom(HEIGHT))'
+        f'deck[{json.dumps(action.labware)}]["{action.well}"].bottom({height}'
       )
   return "\n".join(lines) + "\n"
 

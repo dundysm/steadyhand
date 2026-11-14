@@ -40,13 +40,19 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 
 | Step | Fields | Expands to |
 | --- | --- | --- |
-| `transfer` | `from`, `to`, `volume`; optional `tips`, `mix_after` | One source to many wells, many to one, or pairs of equal count |
+| `transfer` | `from`, `to`, `volume`; optional `tips`, `mix_after`, `draw_from` | One source to many wells, many to one, or pairs of equal count |
 | `mix` | `wells`, `volume`, `times` | One mix per well |
 | `serial_dilution` | `start`, `steps`, `direction`, `volume`; optional `mix`, `discard`, `tips` | For each start well, a chain of transfers in that direction, then a discard |
 | `normalize` | `from`, `to`, `diluent`, `target`, `final_volume`; optional `mix` | Diluent first, then each sample, with volumes worked out from the samples table |
 | `wait` | `duration` | A pause |
 
 `tips` is `fresh` (the default: a new tip for every transfer) or `reuse` (one tip per source well).
+
+`draw_from` says where in the liquid a transfer's tip draws. `bottom` (the default) stops it 1 mm above
+the floor of the well. `surface` keeps it 1 mm under where the liquid stands when the draw is over, and
+never lower than `bottom` would: for taking liquid off cells, a pellet or anything settled. The planner
+works the height out from the volume in the well, so it needs a well whose inside shape is known (any
+flat-bottom well; on an Opentrons robot nearly every well) and refuses the plan where it is not.
 
 Every liquid under `liquids` must be touched by at least one step (drawn from, added to or mixed);
 one that is not is reported as a problem.

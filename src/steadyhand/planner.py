@@ -30,7 +30,7 @@ from __future__ import annotations
 import math
 import re
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import yaml
@@ -66,6 +66,11 @@ class Command:
   wells: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps for full ones
   volumes: Tuple[float, ...] = ()  # for "wait", the one number is seconds
   step: int = -1
+  surface: bool = False  # an aspirate that stays just under the liquid as it falls
+  heights: Tuple[float, ...] = ()  # for such an aspirate, mm above the well floor for each channel
+
+
+SUBMERGED = 1.0  # mm a tip that follows the surface stays under it, measured when the draw is over
 
 
 @dataclass(frozen=True)
@@ -114,6 +119,11 @@ class Plan:
     if "wait" in kinds:
       waited = sum(c.volumes[0] for c in self.commands if c.kind == "wait")
       lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
+    followed = [h for c in self.commands for h in c.heights]
+    if followed:
+      lines.append(
+        f"  draws that follow the surface: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
+      )
     widest = max((len(c.channels) for c in self.commands), default=0)
     lines.append(
       f"  commands: {len(self.commands)} ({kinds.count('aspirate')} aspirates, "
@@ -262,6 +272,7 @@ class _Unit:
   destination: Well  # the same as `source` for a mix on its own
   volume: float  # 0 for a mix on its own
   mix: Optional[Tuple[int, float]]  # (times, volume), done in `destination`
+  surface: bool = False  # the transfer is drawn from just under the surface
 
 
 def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, Tuple[float, int]]]:
@@ -275,7 +286,7 @@ def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, Tuple[float, i
       continue
     if move.kind == "transfer":
       assert move.source is not None and move.destination is not None
-      units.append(_Unit(move.step, move.tip, move.source, move.destination, move.volume, None))
+      units.append(_Unit(move.step, move.tip, move.source, move.destination, move.volume, None, move.surface))
     elif move.kind == "mix":
       assert move.source is not None
       last = units[-1] if units else None
@@ -493,7 +504,10 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
           volumes = tuple(round(batch[c].volume / parts[c], 4) for c in active)
           source, destination = place(batch[0].source)[0], place(batch[0].destination)[0]
           commands.append(
-            Command("aspirate", tuple(active), source, tuple(place(batch[c].source)[1] for c in active), volumes, step)
+            Command(
+              "aspirate", tuple(active), source, tuple(place(batch[c].source)[1] for c in active), volumes, step,
+              surface=batch[0].surface,
+            )
           )
           commands.append(
             Command(
@@ -568,6 +582,12 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
           "The planner cannot reload tips during a run",
         )
       )
+
+  if not problems and any(c.surface for c in commands):
+    commands, cannot = _follow_surface(
+      Plan(protocol, labware, placements, commands, {}, [], choices.pipetting_height, tip_types), protocol
+    )
+    problems += cannot
 
   return Plan(
     protocol=protocol,
@@ -827,6 +847,51 @@ def build_deck(planned: Plan):
   return deck
 
 
+def _follow_surface(planned: Plan, protocol) -> Tuple[List[Command], List[Problem]]:
+  """Give every aspirate that follows the surface its height above the well floor, channel by channel.
+
+  The tip stops `SUBMERGED` mm under where the liquid stands once the whole command has drawn,
+  and never lower than the usual pipetting height. That takes the liquid height, so the inside
+  shape of the well has to be known.
+  """
+  from .scene import liquid_height, liquid_height_is_known
+
+  deck = build_deck(planned)
+  held: Dict[Tuple[str, str], float] = {}
+  for wells, volume in protocol.liquids.values():
+    for well in wells:
+      held[(well.labware, well.well)] = volume
+  problems: List[Problem] = []
+  refused = set()
+  commands: List[Command] = []
+  for command in planned.commands:
+    if command.kind in ("aspirate", "dispense"):
+      sign = -1 if command.kind == "aspirate" else 1
+      for well, volume in zip(command.wells, command.volumes):
+        held[(command.resource, well)] = held.get((command.resource, well), 0.0) + sign * volume
+    if command.kind == "aspirate" and command.surface:
+      heights = []
+      for well in command.wells:
+        container = deck.get_resource(command.resource).get_item(well)
+        if not liquid_height_is_known(container):
+          if (command.step, command.resource) not in refused:
+            refused.add((command.step, command.resource))
+            problems.append(
+              Problem(
+                f"steps[{command.step}].draw_from",
+                f"cannot follow the surface in {command.resource} ({planned.labware[command.resource]}): the inside "
+                "shape of its wells is not known, so neither is the height of the liquid. Use a flat-bottom plate there",
+              )
+            )
+          heights.append(planned.pipetting_height)
+          continue
+        after = liquid_height(container, max(0.0, held[(command.resource, well)]))
+        heights.append(round(max(planned.pipetting_height, after - SUBMERGED), 2))
+      command = replace(command, heights=tuple(heights))
+    commands.append(command)
+  return commands, problems
+
+
 async def run(planned: Plan, handler, *, on_reload=None, on_wait=None) -> None:
   """Send every command in the plan to a PyLabRobot LiquidHandler.
 
@@ -865,7 +930,10 @@ async def _send(command: Command, handler, deck, height: float) -> None:
     await handler.pick_up_tips(items, use_channels=channels)
   elif command.kind == "aspirate":
     await handler.aspirate(
-      items, vols=list(command.volumes), use_channels=channels, liquid_height=[height] * len(items)
+      items,
+      vols=list(command.volumes),
+      use_channels=channels,
+      liquid_height=list(command.heights) if command.heights else [height] * len(items),
     )
   else:
     await handler.dispense(
@@ -1001,9 +1069,12 @@ def emit(planned: Plan, *, source: str = "") -> str:
     if command.kind == "pick_up":
       lines.append(f"  await lh.pick_up_tips({picked}, use_channels={channels})")
     else:
+      if command.heights:
+        height = f"liquid_height={list(command.heights)})  # just under the surface"
+      else:
+        height = f"liquid_height=[HEIGHT] * {len(channels)})"
       lines.append(
-        f"  await lh.{command.kind}({picked}, vols={list(command.volumes)}, use_channels={channels}, "
-        f"liquid_height=[HEIGHT] * {len(channels)})"
+        f"  await lh.{command.kind}({picked}, vols={list(command.volumes)}, use_channels={channels}, {height}"
       )
   lines += [
     "",

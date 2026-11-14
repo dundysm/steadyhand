@@ -85,6 +85,7 @@ class Transfer:
   volume: float
   tips: str  # "fresh" or "reuse"
   mix_after: Optional[Tuple[int, float]]  # (times, volume)
+  draw_from: str = "bottom"  # "bottom", or "surface": the tip stays just under the liquid as it falls
 
 
 @dataclass(frozen=True)
@@ -154,6 +155,7 @@ class Move:
   times: int = 1
   tip: int = -1
   seconds: float = 0.0
+  surface: bool = False  # a transfer drawn from just under the surface, not from the bottom of the well
 
 
 _ONE_WELL = re.compile(r"(?<![\w/])([A-Za-z_][\w-]*)/([A-Z]{1,2}[0-9]{1,2})(?![\w:])")
@@ -387,7 +389,9 @@ class _Reader:
     before = len(self.problems)
 
     if kind == "transfer":
-      body = self.keys(body, where, ("from", "to", "volume"), ("tips", "mix_after"))
+      body = self.keys(body, where, ("from", "to", "volume"), ("tips", "mix_after", "draw_from"))
+      if body.get("draw_from", "bottom") not in ("bottom", "surface"):
+        self.fail(f"{where}.draw_from", f"expected 'bottom' or 'surface', got {body['draw_from']!r}")
       source = self.wells(body.get("from"), f"{where}.from") if "from" in body else []
       if body.get("to") == "waste":  # thrown away: no labware or well to name
         destination = [WASTE]
@@ -408,6 +412,7 @@ class _Reader:
         volume or 0.0,
         self.tips(body.get("tips", "fresh"), f"{where}.tips"),
         self.mixing(body.get("mix_after"), f"{where}.mix_after"),
+        "surface" if body.get("draw_from") == "surface" else "bottom",
       )
     elif kind == "mix":
       body = self.keys(body, where, ("wells", "volume", "times"))
@@ -559,7 +564,9 @@ def expand(protocol: Protocol) -> Tuple[List[Move], List[Problem]]:
           use = by_source.setdefault(source, fresh() if source not in by_source else by_source[source])
         else:
           use = fresh()
-        moves.append(Move(index, "transfer", source, destination, step.volume, tip=use))
+        moves.append(
+          Move(index, "transfer", source, destination, step.volume, tip=use, surface=step.draw_from == "surface")
+        )
         mix(index, destination, step.mix_after, use)
 
     elif isinstance(step, Mix):

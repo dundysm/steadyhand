@@ -54,20 +54,29 @@ RULES
   trough or reservoir. When it gives none for what is already in wells the steps add
   to or empty, treat those wells as empty and say so in `notes`.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
-  the labware, choose one whose wells hold the largest volume any well reaches with room to spare.
+  the labware, choose one of the kind it asks for (a PCR plate, a deep-well plate) whose wells
+  hold the largest volume any well reaches; a well may be filled to what the list says it holds.
   For wells a tip draws from or mixes in while they hold 50 uL or less, choose a V- or
   U-bottom plate: in a flat-bottom well that little liquid is too shallow for a tip to reach.
+  For a trough or reservoir the text does not describe, choose the one with the least out of
+  reach whose well holds the liquid; liquids "in their own troughs" may each take one well of
+  the same multi-well trough. The list does not give a plate's colour: for a black or white
+  plate that no name in the list offers, choose by shape and volume and say so in `notes`.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
 - Do not invent steps the text does not describe.
 - Leave out what a pipetting robot cannot do (vortexing, a magnet, heating, sealing, storage)
-  and say so in `notes`, one sentence each. A timed step becomes a `wait` of that length, even on
-  equipment the robot lacks (shake 30 s, incubate 2 h). For "at least" a time, use that time;
-  for "overnight", use 16 h; a step with no time at all gets no wait.
+  and say so in `notes`, one sentence each. A timed step the plate sits through becomes a `wait`
+  of that length, even on equipment the robot lacks (shake 30 s, incubate 2 h, 2 min on a
+  magnet); a timed action on something else (vortex the reagent 30 s before use) is left out.
+  For "at least" a time, use that time; for "overnight", use 16 h. A time given only in words
+  ("a few minutes", "wait a bit", "briefly") gets a `wait` of a conventional length that you
+  choose and record in `notes`. A step that mentions no time gets no wait.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume
-  the text does not give is about two thirds of what the well holds at that point.
+  the text does not give is about two thirds of what the well holds at that point; a mix with
+  no count is 3 times.
 - When the text asks for something the format cannot say exactly (such as new tips per
   column), use the nearest stricter option and say so in `notes`.
 - Use `normalize` only when the text asks to bring samples to a common concentration and a
@@ -94,11 +103,15 @@ limits: {min_volume: <volume>}   (optional; default 1 uL)
 steps:                   (required) a list; each item is exactly one of the steps below
 
 STEPS
-- transfer: {from: <wells>, to: <wells>|waste, volume: <volume>, tips: fresh|reuse, mix_after: {times: <n>, volume: <volume>}}
+- transfer: {from: <wells>, to: <wells>|waste, volume: <volume>, tips: fresh|reuse, mix_after: {times: <n>, volume: <volume>}, draw_from: bottom|surface}
     from/to pair up as: one source to many wells, many sources to one well, or equal counts.
     volume is the amount per destination. tips defaults to fresh (a new tip per transfer);
     reuse keeps one tip per source well and suits clean liquid going into empty wells.
-    tips and mix_after are optional; without mix_after nothing is mixed.
+    draw_from defaults to bottom: the tip stops 1 mm above the floor of the well. surface keeps
+    the tip just under the liquid as it falls; use it when the text says to take liquid from
+    the top, or without disturbing cells, a pellet or what has settled. It works only in a well
+    the LABWARE list gives an out-of-reach amount for.
+    tips, mix_after and draw_from are optional; without mix_after nothing is mixed.
 - mix: {wells: <wells>, volume: <volume>, times: <n>}
 - serial_dilution: {start: <wells>, steps: <n>, direction: right|left|down|up, volume: <volume>, mix: {times: <n>, volume: <volume>}, discard: true|false, tips: fresh|reuse}
     Each start well begins a chain: move `volume` to the next well in `direction`, mix, repeat
@@ -132,13 +145,13 @@ steps:
       volume: 100 uL
       mix: {times: 3, volume: 80 uL}
 
-EXAMPLE 2 (for the text: "wash the 8 samples in column 1 once with buffer, 1 mL plate")
+EXAMPLE 2 (for the text: "wash the 8 samples in column 1 once with buffer, leave it on briefly, 1 mL plate")
 steadyhand: 0.1
 name: One wash of column 1
 notes:
   - The text does not name the plate, so a 2 mL deep-well plate was chosen to hold 1 mL wells.
   - The wash volume is not stated; 500 uL was chosen.
-  - The text does not say how long to leave the buffer on; 1 min was chosen.
+  - The text says only to leave the buffer on briefly; 1 min was chosen.
 labware:
   plate:  {type: Cor_96_wellplate_2mL_Vb}
   trough: {type: nest_1_troughplate_195000uL_Vb}

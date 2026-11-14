@@ -6,6 +6,66 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## Drawing near the surface, clearer rules, and every note drafted again (0.24.0)
+
+What changed in the first message, following the reading below:
+
+- A transfer can say `draw_from: surface`: the tip stays 1 mm under where the liquid stands once the
+  draw is over. Both planners work the height out from the volume in the well; the replay checks it.
+- A time given only in words gets a wait the model chooses and notes; a step that mentions no time
+  gets none. The worked example that contradicted this was changed to fit.
+- A timed action on something other than the plate ("vortex the reagent 30 s") is left out.
+- A mix with no count is 3 times. A plate is chosen by the kind the text asks for. An undescribed
+  trough is the one with the least out of reach. Plate colour is not in the list.
+
+All 31 notes were then drafted again for both robots by four Claude Opus 5.5 agents, as in 0.22.0.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 28 of 31 | 27 of 31 |
+| at the first attempt | 28 | 26 |
+| at the second | 0 | 1 (`sandwich_elisa`) |
+| Refused, as they should be | 3 | 3 |
+| Handed back to a person | 0 | 1 (`ampure_cleanup`) |
+
+- The 27 Flex drafts pass the physics replay and Opentrons' simulator on the Flex and, with the robot
+  line changed, on the OT-2: 54 runs. The 28 Hamilton drafts pass `steadyhand rehearse`.
+- **The Flex lost a note, and the reason is real.** `ampure_cleanup` moves 38 uL of a 40 uL eluate to a
+  fresh plate. In the PCR plate the model chose, 3.1 uL sits under a tip that stops 1 mm above the
+  floor, so the last 0.9 uL of the draw is air. That is the check added in 0.23.0. Both amounts are
+  stated in the note, so the model could not change them and handed the file to a person, which is
+  what the guide asks. In 0.22.0 the same note passed in a wider plate, before that check existed.
+  On the Hamilton the same transfer passes only because the shape of that PCR plate is not known there.
+  The honest fix is a lower tip for that draw, which the format cannot ask for yet.
+- **The ELISA needed a second attempt on the Flex because of a rule added in this version.** "Choose
+  one of the kind the text asks for" led the model to the list's ELISA plate, which holds 350 uL; the
+  note's 400 uL wash overflows it. It switched to a 450 uL plate after the check said so.
+- `ldh_release` now uses `draw_from: surface` on both robots, and it is the only note that does. In
+  that plate the tip ends 1.17 mm above the floor instead of 1 mm: taking 50 uL out of 120 uL leaves
+  a liquid 2.2 mm deep. The instruction is followed; what it buys in a well that shallow is small.
+- `vague` now has the wait on both robots (1 minute, noted). `kit_manual` no longer turns "vortex
+  30 s" into a wait.
+
+**Read against the notes.** Every step that differs from the 0.22.0 drafts (12 Hamilton drafts,
+13 Flex drafts) was read against its note; the unchanged steps were read in the section below. No
+draft contradicts its note. Two things a reader should still know:
+
+- `pierce_660` on the Flex adds the assay reagent with one reused tip to wells that already hold
+  sample. The note says nothing about tips. The tip goes back into the reagent between wells, so
+  sample is carried into it. Nothing in steadyhand checks what a tip has touched; this is the same
+  gap as the planted mistake "one tip down the series", and it is next.
+- The Hamilton ELISA draft chose a U-bottom plate so that the wells empty fully. A plate reader
+  wants a flat bottom. The guide's remarks about what a tip cannot reach pushed it there.
+
+**Caveats.**
+- One run per note and robot; 15 or 16 notes per agent in one session.
+- The 31 notes have now been used to change the guide three times. They are a development set, not a
+  test of it. A set the guide has never seen is needed, best of all from real manuals.
+- What the agents found unclear this time: whether a trough the list gives no out-of-reach amount
+  for counts as none or as 2 mL; "whose wells hold the largest volume any well reaches" can be read
+  as "the biggest plate"; "until clear" and "mix briefly" are neither times in words nor steps with
+  no time; whether the kind of plate or its capacity wins when they clash.
+
 ## All 56 accepted drafts read against their notes (after 0.23.0)
 
 A pass says the file runs. To see whether it says what the note says, every draft accepted in the

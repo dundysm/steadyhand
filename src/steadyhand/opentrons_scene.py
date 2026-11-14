@@ -296,7 +296,7 @@ async def record_plan(planned: OpentronsPlan, *, prepare=None) -> Tuple[Any, Lis
           items,
           vols=[action.amount] * len(items),
           use_channels=use,
-          liquid_height=[height] * len(items),
+          liquid_height=[action.height or height] * len(items),
           offsets=offsets,
           spread="custom",
         )
