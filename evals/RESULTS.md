@@ -3,9 +3,83 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 Nov 2026 with Claude models. The first two sections are the only tests on text the guide
+All runs are on 13 Nov 2026 with Claude models. The first three sections are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## A third set from outside: refusing what cannot work (0.28.0)
+
+The second set (next section) showed that the serious faults pass rehearsal. 0.28.0 answers with
+`needs`, a list a protocol file can carry of what it cannot work without and no robot here gives (a
+magnet under the plate, a filter plate drained by a spin, glass); `check` refuses such a file with
+that reason, and drafting hands it to a person at once. The guide now tells the model to use it,
+makes a step that does not happen on the deck a `pause` that names the temperature and the time,
+turns a vortex mix of a liquid that is then drawn from into a pipette mix, and has smaller rules for
+time ranges, quoted notes and fixed volumes in troughs. Committed before any of these 11 manuals was
+read by a model; nothing changed until this was written.
+
+**The set.** `MANUALS_3` in [evals/heldout/fetch.py](heldout/fetch.py): seven Cayman kits (glucose,
+cholesterol, triglyceride, protein carbonyl, a COX inhibitor screen, a glycolysis cell assay, BCA),
+Promega Dual-Glo and Steady-Glo, and two Zymo kits (Quick-DNA HMW MagBead, Quick-RNA 96). Four
+Claude Opus 5.5 agents, two per robot, told this time to run no tool on a reply before handing it in.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 10 of 11 | 10 of 11 |
+| at the first attempt | 10 | 10 |
+| Refused in round 1 for what it needs | 1 | 1 |
+
+- No draft was sent back for a second attempt on either robot.
+- The 10 Flex drafts pass the physics replay and Opentrons' simulator on the Flex. Nine pass on the
+  OT-2; `glucose` is refused at plan there (three pipettes, and an OT-2 holds two). 19 simulator
+  runs. The 10 Hamilton drafts pass `steadyhand rehearse`.
+
+**Did the fixes do their work?**
+- **The bead kit is refused, for its real reason, on both robots.** `hmw_magbead` came back in round
+  1 with "needs a magnet under the plate while the supernatant is taken off the beads", where the
+  bead kit of the second set rehearsed clean. None of the other 20 drafts was refused: no false
+  alarm in this set.
+- **Hand steps are pauses.** `protein_carbonyl` (an hour in the dark, ice, six spins, a spatula) has
+  10 pauses on the Hamilton and 8 on the Flex, each saying what to do, with the robot doing every
+  addition and every supernatant between them. `dualglo` pauses for the first reading between its
+  two reagents; a draft of the first set ran straight through a step like that. `glycolysis` pauses
+  for its spin and then draws from the surface.
+- **Dilutions are mixed** wherever a stock or standard is made and drawn from (`glucose`,
+  `triglyceride`, `cholesterol`, `glycolysis`, the BCA working reagent), on both robots.
+- **Not tested by this set:** a heated step in the middle of a run. The 37 C incubations here
+  (`glucose`, `bca_cayman`) are the last step before the read, and are left out and noted, as the
+  guide says for anything after the last pipetting step. The spin-plate rule is not tested either:
+  see the caveats.
+
+**Read against the manuals.** Steps and volumes of all 20 accepted drafts were compared with the
+procedure section of their pages, by the project.
+
+- All 20 follow the pipetting of the pages they were given.
+- **A pellet drawn from the bottom.** `protein_carbonyl` on the Hamilton discards each supernatant
+  from 1 mm above the floor, where the pellet is. `draw_from: surface` is not available in a
+  deep-well plate there (its inside shape is not known), and the model did not think to give a
+  height instead; the guide does not suggest it. The Flex draft draws from the surface. It passes
+  rehearsal on both.
+- Layouts, sample counts and which of two offered methods to run are still the model's choice in
+  every draft, and are noted.
+
+**What this shows.**
+- Over the three outside sets, 68 of 72 drafts reach a rehearsed program, 59 at the first attempt,
+  and 2 more are refused for a reason that is true. First attempts were 23 of 28, then 16 of 22,
+  then 20 of the 20 not refused; the sets differ, so that is not a trend to lean on.
+- The refusal works the one time it was called for. One bead kit is one bead kit.
+- What a reader of a passing draft still has to check by hand: the layout and counts, anything
+  the notes say was left out, and whether a draw over a pellet stays off it.
+
+**Caveats.**
+- **Two of the eleven excerpts were cut short by the pages the project chose.** `quickrna96` stops
+  before the spin-plate purification and `cholesterol` stops at "prepare the reaction mix". Both
+  drafts end where the text ends and pass. So this set says nothing about spin-plate kits, and
+  those two passes are passes on a fragment.
+- 11 protocols, one run each per robot, five or six per agent in a row. One agent saved the prompts
+  to compare their guide sections.
+- The reading is the project's, at the level of steps and volumes.
+- Claude Opus 5.5 only. Nothing here has run on a robot.
 
 ## A second set from outside, after the fixes: 11 protocols (0.27.0)
 

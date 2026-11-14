@@ -56,7 +56,21 @@ MANUALS_2 = [
   ("lpo", "Cayman lipid hydroperoxide assay kit", CAYMAN + "705002.pdf", "7-8"),
   ("gpx", "Cayman glutathione peroxidase assay kit", CAYMAN + "703102.pdf", "7-8"),
 ]
-SETS = {"heldout": MANUALS, "heldout2": MANUALS_2}
+# The third set, chosen after the second had been drafted and the guide changed again (0.28.0).
+MANUALS_3 = [
+  ("glucose", "Cayman glucose colorimetric assay kit", CAYMAN + "10009582.pdf", "6-7"),
+  ("cholesterol", "Cayman cholesterol fluorometric/colorimetric assay kit", CAYMAN + "10007640.pdf", "13-17"),
+  ("triglyceride", "Cayman triglyceride colorimetric assay kit", CAYMAN + "10010303.pdf", "8-10"),
+  ("protein_carbonyl", "Cayman protein carbonyl colorimetric assay kit", CAYMAN + "10005020.pdf", "7-8"),
+  ("cox_screen", "Cayman COX fluorescent inhibitor screening assay kit", CAYMAN + "700100.pdf", "6-7"),
+  ("glycolysis", "Cayman glycolysis cell-based assay kit", CAYMAN + "600450.pdf", "5-6"),
+  ("bca_cayman", "Cayman protein determination (BCA) kit", CAYMAN + "701780.pdf", "5-6"),
+  ("dualglo", "Promega Dual-Glo luciferase assay", PROMEGA + "0/dual-glo-luciferase-assay-system-protocol.pdf", "8-9"),
+  ("steadyglo", "Promega Steady-Glo luciferase assay", PROMEGA + "0/steady-glo-luciferase-assay-system-protocol.pdf", "6-7"),
+  ("hmw_magbead", "Zymo Quick-DNA HMW MagBead kit", ZYMO + "d6060_quick-dna_hmw_magbead_kit.pdf", "8-9"),
+  ("quickrna96", "Zymo Quick-RNA 96 kit (spin plate)", ZYMO + "_r1052_r1053_quick-rna_96_kit.pdf", "7-8"),
+]
+SETS = {"heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3}
 
 
 def main() -> int:
