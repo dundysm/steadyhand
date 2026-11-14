@@ -345,8 +345,8 @@ steadyhand draft kit-manual.pdf --pages 4-6 -o protocol.yaml --model-command "my
 ```
 
 The text is taken as the PDF stores it, so tables come out as runs of words and a scanned page
-has no text at all. This has been tested on small PDFs made for the tests, not yet on a
-manufacturer's manual.
+has no text at all. It has been run on the protocol pages of 13 manufacturers' manuals: see
+[what it does not do yet](#what-it-does-not-do-yet) for how that went.
 
 When the text asks for something that cannot work (more liquid than a named plate holds, a sample
 too dilute to reach its target), the model is told to write it as stated and not to change your
@@ -397,19 +397,20 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 ## What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. On the latest run (0.26.0, every note drafted again for both
-  robots), of 31 notes (20 from public kit manuals), 28 go from plain text to a rehearsed
-  program with no hand edits, all at the first attempt, on the Hamilton and on an Opentrons
-  Flex; the Flex files pass on the OT-2 too. The other three cannot work as written and are
-  refused for the right reason. Each agent drafted 15 or 16 notes in a row, so later notes may
-  have gained from earlier ones. More important: the same 31 notes have guided four rounds of
-  changes to the guide, so this is how well the guide fits the notes it was tuned on, not a
-  test from outside. The runs, the notes
-  and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
-  matches the note, so the drafts were also read against their notes: all 56 of an earlier run,
-  and every step that changed in each run since. No draft of this run contradicts its note. The
-  reading was done by the project itself, not by an outside reader. Drafting from a PDF is
-  untested on real manuals.
+  model one turn at a time. The one test from outside (0.26.1): the protocol pages of 13
+  manufacturers' manuals, 14 protocols, read straight from the PDFs with the guide frozen
+  beforehand. On the Hamilton 14 of 14 reach a rehearsed program with no hand edits, 10 at the
+  first attempt; on an Opentrons Flex 13 of 14, all 13 at the first attempt, and one handed back
+  to a person. A pass means the file runs, not that it matches the manual, so all 27 drafts were
+  read against their pages. Most follow them. Five dilute standards without mixing, because the
+  manual does not say to mix and the model is told not to invent steps; one skips a freeze its
+  manual calls important. Each says so in its notes, and none of it is caught by rehearsal. No
+  manual says how many samples a run has, so every layout is the model's choice. Read the notes
+  of a draft before you trust it. The set is small, leans to plate assays, was run once, and was
+  read by the project itself, not by someone who has run these kits. On the 31 notes the guide
+  was tuned on (20 from public kit manuals), 28 pass at the first attempt on both robots and the
+  other three are refused for the right reason; that is a fit, not a test. All of it, with the
+  manuals and the notes, is in [evals](evals/RESULTS.md).
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.

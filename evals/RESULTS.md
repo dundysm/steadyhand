@@ -3,8 +3,112 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
-checks changed between runs.
+All runs are on 13 Nov 2026 with Claude models. The first section is the only test on text the guide
+was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
+between runs.
+
+## The first test from outside: 14 protocols from manufacturers' manuals (0.26.1)
+
+Everything below this section was measured on 31 notes that also guided the guide. This run is on
+text the guide had never seen. The guide, the checks and the code were frozen at 0.26.1 before the
+first manual was downloaded, and nothing was changed until this was written.
+
+**The set.** 13 manuals from four makers, 14 protocols (one manual is drafted twice, the second time
+with its dose-response page). Each PDF is downloaded from its maker and the protocol pages are read
+by the same code `steadyhand draft manual.pdf --pages ...` uses: no retyping, no tidying. The pages
+were chosen from the manuals' own headings before anything was drafted.
+[evals/heldout/fetch.py](heldout/fetch.py) holds the list and rebuilds the text; the makers' text is
+not kept here.
+
+| Case | Manual | Pages |
+|---|---|---|
+| `accugreen` | Biotium AccuGreen High Sensitivity dsDNA quantitation | 1 |
+| `ribogreen` | Thermo Fisher Quant-iT RiboGreen RNA assay | 2-5 |
+| `cyquant` | Thermo Fisher CyQUANT cell proliferation assay | 4-5 |
+| `nanoorange` | Thermo Fisher NanoOrange protein quantitation | 3-4 |
+| `brightglo` | Promega Bright-Glo luciferase assay | 5 |
+| `adpglo` | Promega ADP-Glo kinase assay | 14-15 |
+| `adpglo_ic50` | the same manual, with the IC50 page | 14-15, 17 |
+| `celltox` | Promega CellTox Green cytotoxicity assay, endpoint method | 12-13 |
+| `gsh` | Cayman glutathione assay kit | 8-10 |
+| `sod` | Cayman superoxide dismutase assay kit | 8-10 |
+| `catalase` | Cayman catalase assay kit | 7-10 |
+| `nitrate` | Cayman nitrate/nitrite colorimetric assay kit | 7-10 |
+| `ssiv` | Thermo Fisher SuperScript IV first-strand synthesis | 3 |
+| `elisa_il6` | Thermo Fisher human IL-6 ELISA | 13-15 |
+
+Drafted for both robots by four Claude Opus 5.5 agents, two per robot, seven protocols each.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 14 of 14 | 13 of 14 |
+| at the first attempt | 10 | 13 |
+| at the second | 3 | 0 |
+| at the third | 1 | 0 |
+| Handed back to a person after three attempts | 0 | 1 |
+
+- The 13 Flex drafts pass the physics replay and Opentrons' simulator on the Flex. With the robot
+  line changed, 12 of them pass on the OT-2 as well; `nanoorange` is refused at plan there, because
+  its volumes need three pipettes and an OT-2 holds two. 25 simulator runs. The 14 Hamilton drafts
+  pass `steadyhand rehearse`.
+- What sent the four Hamilton drafts back: a labware name typed in the wrong letter case (`ribogreen`,
+  `nitrate`); a mix of 11 mL where the largest tip holds 1 mL (`gsh`); tips hitting a deep-well plate
+  used for standards, 56 times (`sod`, and `nitrate` on its second attempt). All four were put right
+  by the model from the message.
+- `ssiv` on the Flex was handed back. The manual moves the whole 7 uL of reaction mix out of its
+  well. A tip cannot take the last of a well, and at the lowest height the format allows (0.2 mm)
+  about 0.1 uL of the draw would still be air. The model was shown the height hint, new in 0.26.0,
+  and used it; it was not enough. On the Hamilton the same protocol passes only because the inside
+  shape of that PCR plate is not known there, so the check cannot say.
+
+**Read against the manuals.** A pass means the file runs. All 27 accepted drafts were then read
+against their pages by the project, step by step.
+
+- Follow the manual on both robots: `brightglo`, `adpglo`, `adpglo_ic50`, `ribogreen`, `accugreen`,
+  `celltox`, `elisa_il6`, and the volumes, tables and order of `gsh`, `sod`, `catalase` and
+  `nitrate`. Small differences, each noted in the draft: the Hamilton `accugreen` leaves out the
+  vortex mix; the Hamilton `celltox` ends its no-cell column at 150 uL where the others hold 200.
+- **Dilutions made without mixing.** On the Flex, `gsh`, `sod`, `catalase` and `nitrate` dilute their
+  stocks and standards and do not mix them (one of them 10 uL into 9.99 mL); on the Hamilton
+  `nanoorange` does the same with 30 uL into 5.97 mL. The manuals say "dilute" and leave the mixing
+  unsaid, and the guide tells the model not to invent steps. Each draft says so in its notes. The
+  Hamilton agent added a mix to the same four kits and said so. Run as written, the unmixed
+  standards would give a wrong curve. Rehearsal cannot see this.
+- **One draft departs from its manual.** `cyquant` on the Flex seeds the cells, waits, takes the
+  medium off and lyses in one run. That skips the freeze the manual calls important, and leaves
+  34 uL of medium in each well where the manual blots the plate dry. Both are in the draft's notes.
+  The Hamilton draft starts from the thawed plate instead: a part of the manual's procedure,
+  followed as written.
+- `nanoorange`: the Hamilton draft keeps the manual's 2.5 mL assays in a deep-well plate; the Flex
+  draft scales to a tenth, which the manual offers for microplates.
+- Neither `elisa_il6` draft is planned in an ELISA plate. The kit's 400 uL wash is more than the
+  one ELISA plate in the lists holds, and the guide puts size first. The Flex draft says the coated
+  strips must be used on the real run.
+
+**What this shows.**
+- A model drafting from real manual pages reaches a program that rehearses 27 times in 28. That
+  part held up outside the notes it was tuned on. First attempts held up on the Flex (13 of 13
+  that passed) and less well on the Hamilton (10 of 14).
+- The real gap is not whether the file runs. It is what the manuals leave out: none of the 13 says
+  how many samples a run has, so every layout is the model's choice, and most leave mixing unsaid.
+- Things to fix, none touched yet: whether a dilution made on the robot is mixed unless the text
+  says otherwise; a labware name that is wrong only in its letter case gets no hint; the two-thirds
+  mix rule asks for more than a tip holds in a reservoir; the collision in the deep-well standards
+  plate on the Hamilton is not yet explained (`catalase` passed with the same plate); a transfer
+  that must empty a well cannot pass on the Flex; the lists have no white or black plates, which
+  luminescence and fluorescence assays are read in.
+
+**Caveats.**
+- 14 protocols, one run each per robot. Each agent drafted seven in a row, so later ones may have
+  gained from earlier ones.
+- The set leans to plate assays. No bead cleanup: the one manual tried could not be downloaded. One
+  ELISA, from the second maker tried; the first refused the download.
+- The pages were chosen by the project. A person choosing other pages, or more of them, would get
+  other text.
+- The reading was done by the project itself, not by an outside reader, and not by someone who has
+  run these kits.
+- Claude Opus 5.5 only, agents playing the model one turn at a time.
+- Nothing here has run on a robot.
 
 ## A draw can name its height, and every note drafted again (0.26.0)
 

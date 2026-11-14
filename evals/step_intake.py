@@ -29,8 +29,9 @@ def state_of(case: str):
   path = folder / "state.json"
   if path.exists():
     return folder, json.loads(path.read_text(encoding="utf-8"))
-  # a case is a note in evals/intake or evals/acceptance
-  note = next(path for path in (HERE / "intake" / f"{case}.txt", HERE / "acceptance" / f"{case}.txt") if path.exists())
+  # a case is a note in evals/intake or evals/acceptance, or manual pages fetched by evals/heldout/fetch.py
+  places = (HERE / "intake", HERE / "acceptance", HERE / "out" / "heldout")
+  note = next(path for path in (place / f"{case}.txt" for place in places) if path.exists())
   source = note.read_text(encoding="utf-8")
   table = note.with_suffix(".csv")  # a samples file beside the note is offered with it
   return folder, {
