@@ -98,8 +98,9 @@ RULES
 - When the text stands the plate on a magnet (bead cleanups), write `magnet` steps: `on` before
   the wait for the beads to gather, `off` before they are resuspended, and take the liquid off
   while it is on. Never write a wait in place of the magnet. For the bead plate choose one that
-  LABWARE says can stand on the magnet, if it marks any. A robot that has no magnet refuses
-  the step, and that is the right outcome there: send nothing else in its place. "Until the
+  LABWARE says can stand on the magnet; no other plate can. On some robots a person carries
+  the plate onto the magnet and off it at each of these steps: that is the plan's business,
+  not yours, so write the same steps. "Until the
   beads have gathered" or "until clear" with no time is a wait of 2 min, noted.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
@@ -246,7 +247,9 @@ def labware_catalogue(robot: str = "") -> str:
   if robot and robot != "hamilton-starlet":
     from .opentrons_robots import catalogue
 
-    return catalogue(magnets=robot == "opentrons-ot2")
+    from .opentrons_robots import block_plates, magnet_plates
+
+    return catalogue(magnets=magnet_plates() if robot == "opentrons-ot2" else block_plates())
 
   import pylabrobot.resources as resources
   from pylabrobot.resources import Plate
@@ -272,13 +275,14 @@ def labware_catalogue(robot: str = "") -> str:
     holds = capacity(wells[0])
     if holds < 1.0:
       continue  # under 1 uL a well is a mistake in the definition, not a plate to offer
-    from .planner import _real_shape
+    from .planner import _magnet_problem, _real_shape
 
     _real_shape(plate, name)  # where Opentrons ships the same plate, its inside shape is the one rehearsed
     under_tip = _volume_to_cover(wells[0], 1.0)  # a tip stops 1 mm above the floor of a well, and has to dip in
     lines.append(
       f"{name}: {len(wells)} wells ({plate.num_items_y} rows x {plate.num_items_x} columns), "
       f"{holds:g} uL each" + (f", last {under_tip:g} uL out of reach" if under_tip else "")
+      + (", can stand on the magnet" if len(wells) == 96 and _magnet_problem(name) is None else "")
     )
   return "\n".join(lines)
 

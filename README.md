@@ -433,12 +433,14 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   a pause for a person, washes are done tip by tip, and a plate that ships with a
   lid is planned with the lid assumed off. When a run needs more tips than fit on the deck, the
   plan stops for a person to swap in full racks; nothing loads them automatically.
-- **A magnet on two of the three robots.** A bead cleanup needs a magnet under the plate while
-  the liquid is taken off. A `magnet` step does that on the Opentrons OT-2, where the plate
-  stands on a Magnetic Module GEN2 and the rehearsal has it at that height; Opentrons' simulator
-  checks the module calls. On the Hamilton and the Flex the plate would have to be carried onto
-  the magnet, steadyhand does not move plates yet, and the step is refused at plan with that
-  reason. Five bead-kit manuals drafted for the OT-2 all reach a rehearsed program with the
+- **A magnet, by hand on two of the three robots.** A bead cleanup needs a magnet under the
+  plate while the liquid is taken off. A `magnet` step does that. On the Opentrons OT-2 the
+  plate stands on a Magnetic Module GEN2 and the step raises and lowers its magnets. On the Flex
+  the run stops and a person carries the plate onto a Magnetic Block and back; on the Hamilton,
+  onto a magnet adapter on the plate carrier and back. No gripper is driven yet. The rehearsal
+  has the plate at the right height in each place and carries its contents with it, and on the
+  Opentrons robots their simulator checks the module and the moves. On the Hamilton no deep-well
+  plate fits: on the adapter it stands higher than the channels travel, and the plan says so. Five bead-kit manuals drafted for the OT-2 all reach a rehearsed program with the
   magnet on and off where the manual has it; the same five are refused on the Flex. The
   rehearsal knows where the liquid is, not where the beads are, and no bead protocol has run on
   a real magnet.

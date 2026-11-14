@@ -28,6 +28,8 @@ from pylabrobot.resources import Container, Resource, TipSpot
 Vec3 = Tuple[float, float, float]
 
 
+CARRY = "carry"  # a step that is a plate changing places, not a channel moving
+
 @dataclass(frozen=True)
 class Step:
   """One channel doing one thing.
@@ -38,7 +40,8 @@ class Step:
 
   index: int
   command: int  # steps recorded from the same PyLabRobot call share a command number
-  kind: str  # "pick_up_tip", "aspirate", "dispense", "drop_tip" or "unsimulated:<name>"
+  kind: str  # "pick_up_tip", "aspirate", "dispense", "drop_tip", "carry" or "unsimulated:<name>"; a "carry"
+  # is a plate taken from one place to another, its resource "<plate it stood as>><plate it stands as>"
   channel: int
   resource: str
   reference: Optional[Vec3]
@@ -61,7 +64,15 @@ class Step:
 
   @property
   def simulated(self) -> bool:
-    return not self.kind.startswith("unsimulated:")
+    return self.kind != CARRY and not self.kind.startswith("unsimulated:")
+
+  @property
+  def carried(self) -> Optional[Tuple[str, str]]:
+    """For a carry, the name the plate stood under and the name it stands under now."""
+    if self.kind != CARRY:
+      return None
+    before, _, after = self.resource.partition(">")
+    return before, after
 
 
 def _centre_bottom(resource: Resource) -> Vec3:
@@ -154,6 +165,11 @@ class RecordingBackend(LiquidHandlerChatterboxBackend):
 
   async def dispense(self, ops: List[SingleChannelDispense], use_channels: List[int], **backend_kwargs):
     self._pipette("dispense", ops, use_channels)
+
+  def carry(self, before: str, after: str) -> None:
+    """Record that the plate standing as `before` now stands as `after`, with everything in it."""
+    self._command += 1
+    self._add(kind=CARRY, channel=-1, resource=f"{before}>{after}", reference=None)
 
   # Everything below is recorded so a report can say plainly that it was not rehearsed.
 

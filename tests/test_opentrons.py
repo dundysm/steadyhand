@@ -768,19 +768,66 @@ def test_on_the_ot2_a_magnet_step_puts_the_plate_on_a_magnetic_module():
   assert "Magnetic Module GEN2" in planned.report()
 
 
-def test_a_magnet_step_is_refused_where_there_is_no_magnet_and_for_a_plate_with_no_magnet_height():
-  from steadyhand.intake import for_a_person
-  from steadyhand.opentrons_robots import FLEX, OT2, plan
-  from steadyhand.planner import plan as hamilton_plan
+def test_on_the_flex_a_person_carries_the_plate_onto_a_magnetic_block_and_its_liquid_goes_with_it():
+  import asyncio
+
+  from steadyhand.opentrons_robots import FLEX, ON_BLOCK, emit, plan
+  from steadyhand.opentrons_scene import build_deck, rehearse_plan
   from steadyhand.protocol import check, loads
 
-  flex = plan(check(loads(BEADS % ("opentrons-flex", "nest_96_wellplate_2ml_deep"))), FLEX)
-  assert not flex.ok and "no magnet for the Opentrons Flex" in flex.problems[0].message and for_a_person(flex.problems[0])
-  hamilton = hamilton_plan(check(loads(BEADS % ("hamilton-starlet", "nest_96_wellplate_2ml_deep"))))
-  assert not hamilton.ok and any("no magnet for the Hamilton STARlet" in p.message for p in hamilton.problems)
-  flat = plan(check(loads(BEADS % ("opentrons-ot2", "corning_96_wellplate_360ul_flat"))), OT2)
-  assert not flat.ok and "gives no magnet height" in flat.problems[0].message
-  assert not for_a_person(flat.problems[0])  # another plate settles this one
+  planned = plan(check(loads(BEADS % ("opentrons-flex", "nest_96_wellplate_2ml_deep"))), FLEX)
+  assert planned.ok, [p.message for p in planned.problems]
+  home, block = planned.slots["beads"], planned.magnet_slot
+  assert block and block != home and block not in planned.slots.values()
+  script = emit(planned)
+  assert f'block = protocol.load_module("magneticBlockV1", "{block}")' in script
+  onto = script.index('protocol.move_labware(deck["beads"], block, use_gripper=False)')
+  back = script.index(f'protocol.move_labware(deck["beads"], "{home}", use_gripper=False)')
+  assert onto < back
+  compile(script, "emitted", "exec")
+  deck = build_deck(planned)
+  rise = deck.get_resource(ON_BLOCK + "beads").get_absolute_location().z - deck.get_resource("beads").get_absolute_location().z
+  assert round(rise, 2) == round(38 - 2.66, 2)  # the block's height less how far this plate sinks into it
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok and not result.collisions
+  assert [s.carried for s in result.steps if s.carried] == [("beads", ON_BLOCK + "beads"), (ON_BLOCK + "beads", "beads")]
+  assert not [i for i in result.liquid if i.kind == "air"]  # the supernatant is found where the plate was carried to
+  assert not result.not_rehearsed
+
+
+def test_a_plate_opentrons_does_not_place_on_a_magnet_is_refused_by_name():
+  from steadyhand.intake import for_a_person
+  from steadyhand.opentrons_robots import FLEX, OT2, plan
+  from steadyhand.protocol import check, loads
+
+  for profile, robot, words in ((OT2, "opentrons-ot2", "gives no magnet height"), (FLEX, "opentrons-flex", "does not say how")):
+    flat = plan(check(loads(BEADS % (robot, "corning_96_wellplate_360ul_flat"))), profile)
+    assert not flat.ok and words in flat.problems[0].message and "nest_96_wellplate_2ml_deep" in flat.problems[0].message
+    assert not for_a_person(flat.problems[0])  # another plate settles this one
+
+
+def test_on_the_hamilton_the_plate_is_carried_onto_a_magnet_adapter_unless_it_would_stand_too_high():
+  import asyncio
+
+  from steadyhand.planner import MAGNET_ADAPTER, ON_MAGNET, emit, plan, rehearse_plan
+  from steadyhand.protocol import check, loads
+
+  text = (BEADS % ("hamilton-starlet", "%s")).replace("nest_12_reservoir_15ml", "nest_12_troughplate_15000uL_Vb")
+  tall = plan(check(loads(text % "Cor_96_wellplate_2mL_Vb")))
+  assert not tall.ok and "stands 257 mm high" in tall.problems[0].message
+  planned = plan(check(loads(text % "Cor_96_wellplate_360ul_Fb")))
+  assert planned.ok, [p.message for p in planned.problems]
+  assert planned.magnet == "beads" and planned.labware[ON_MAGNET + "beads"] == "Cor_96_wellplate_360ul_Fb"
+  assert [c.volumes[0] for c in planned.commands if c.kind == "magnet"] == [1.0, 0.0]
+  used = [c.resource for c in planned.commands if c.kind in ("aspirate", "dispense") and "beads" in c.resource]
+  assert used[0] == ON_MAGNET + "beads" and used[-1] == "beads"  # supernatant off on the magnet, wash added off it
+  script = emit(planned)
+  assert f'on_magnet(Cor_96_wellplate_360ul_Fb(name="{ON_MAGNET}beads"))' in script and MAGNET_ADAPTER in script
+  assert 'carry(lh, deck, "beads", "onmagnet_beads", "Carry beads onto the magnet.")' in script
+  compile(script, "emitted", "exec")
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok and not result.collisions and not result.not_rehearsed
+  assert not [i for i in result.liquid if i.kind == "air"]
 
 
 def test_the_magnet_goes_on_before_it_goes_off_and_stays_under_one_plate():

@@ -72,12 +72,18 @@ def replay_data(rehearsal: "Rehearsal", *, title: str = "") -> dict:
   """Everything the viewer needs, as one JSON-ready dictionary."""
   commands: List[dict] = []
   index_of: Dict[int, int] = {}
+  carries: List[List[str]] = []  # plates that changed places since the last command
   for step in rehearsal.steps:
+    if step.carried is not None:
+      carries.append(list(step.carried))
+      continue
     if not step.simulated or step.reference is None:
       continue
     if step.command not in index_of:
       index_of[step.command] = len(commands)
       commands.append({"kind": step.kind, "channels": []})
+      if carries:
+        commands[-1]["carry"], carries = carries, []
     commands[index_of[step.command]]["channels"].append(
       [
         step.channel,
@@ -261,6 +267,11 @@ function stateAt(t) {
   for (const command of D.commands) for (const ch of command.channels)   // park each above its first target
     if (chan[ch[0]].x === null) { chan[ch[0]].x = ch[1]; chan[ch[0]].y = ch[2]; }
   const apply = command => {
+    for (const [from, to] of command.carry || [])  // a plate was taken to its other place, with what it held
+      for (const name in volume) if (cav[name].parent === from) {
+        const twin = to + name.slice(from.length);
+        if (twin in volume) { volume[twin] = volume[name]; volume[name] = 0; }
+      }
     for (const [c, x, y, z, reach, name, vol] of command.channels) {
       const s = chan[c];
       s.x = x; s.y = y;

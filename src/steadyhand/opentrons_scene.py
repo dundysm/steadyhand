@@ -204,7 +204,7 @@ def build_deck(planned: OpentronsPlan):
   """The deck the plan describes, as PyLabRobot resources, with the protocol's starting liquids in place."""
   from pylabrobot.resources import Coordinate, Deck, Resource, Trash
 
-  from .opentrons_robots import MAGNET_OFFSET
+  from .opentrons_robots import BLOCK_HEIGHT, MAGNET_OFFSET, ON_BLOCK, block_overlap
 
   profile = planned.profile
   (trash_x, trash_y), trash_size = _TRASH[profile.robot_type]
@@ -219,7 +219,17 @@ def build_deck(planned: OpentronsPlan):
     deck.assign_child_resource(Trash("trash", *trash_size), location=Coordinate(trash_x, trash_y, DECK_THICKNESS))
     for name, slot in planned.slots.items():
       x, y = slot_origin(profile, slot)
-      if name == planned.magnet:  # the plate stands on the module, and the module on the deck
+      if name == planned.magnet and planned.magnet_slot:
+        # The plate is carried between its slot and the block. The scene holds it in both places, so a
+        # tip sent to either meets the plate there; what the wells hold goes with the plate (see record_plan).
+        bx, by = slot_origin(profile, planned.magnet_slot)
+        rest = BLOCK_HEIGHT - (block_overlap(planned.labware[name]) or 0.0)
+        block = Resource("magnetic_block", size_x=SLOT[0], size_y=SLOT[1], size_z=rest, category="module")
+        deck.assign_child_resource(block, location=Coordinate(bx, by, DECK_THICKNESS))
+        deck.assign_child_resource(
+          labware_resource(planned.labware[name], ON_BLOCK + name), location=Coordinate(bx, by, DECK_THICKNESS + rest)
+        )
+      elif name == planned.magnet:  # the plate stands on the module, and the module on the deck
         dx, dy, dz = MAGNET_OFFSET
         module = Resource("magnetic_module", size_x=SLOT[0], size_y=SLOT[1], size_z=dz, category="module")
         deck.assign_child_resource(module, location=Coordinate(x, y, DECK_THICKNESS))
@@ -248,9 +258,10 @@ def tallest(planned: OpentronsPlan) -> float:
   heights = [_TRASH[planned.profile.robot_type][1][2]]
   heights += [_body(load_name)["dimensions"]["zDimension"] for load_name in set(planned.labware.values())]
   if planned.magnet:
-    from .opentrons_robots import MAGNET_OFFSET
+    from .opentrons_robots import BLOCK_HEIGHT, MAGNET_OFFSET
 
-    heights.append(MAGNET_OFFSET[2] + _body(planned.labware[planned.magnet])["dimensions"]["zDimension"])
+    under = BLOCK_HEIGHT if planned.magnet_slot else MAGNET_OFFSET[2]
+    heights.append(under + _body(planned.labware[planned.magnet])["dimensions"]["zDimension"])
   return max(heights)
 
 
@@ -262,6 +273,8 @@ async def record_plan(planned: OpentronsPlan, *, prepare=None) -> Tuple[Any, Lis
   """
   from pylabrobot.liquid_handling import LiquidHandler
   from pylabrobot.resources import Coordinate, set_tip_tracking, set_volume_tracking
+
+  from .opentrons_robots import ON_BLOCK
 
   set_volume_tracking(True)
   set_tip_tracking(True)
@@ -280,7 +293,19 @@ async def record_plan(planned: OpentronsPlan, *, prepare=None) -> Tuple[Any, Lis
     warnings.simplefilter("ignore")
     handler = LiquidHandler(backend=backend, deck=deck)
     await handler.setup()
+    stands: Dict[str, str] = {}  # the plate with a magnet -> the name it stands under just now
     for number, action in enumerate(planned.actions, start=1):
+      if action.kind == "magnet" and planned.magnet_slot:
+        before = stands.get(action.labware, action.labware)
+        after = ON_BLOCK + action.labware if action.amount else action.labware
+        if after != before:
+          for well, twin in zip(deck.get_resource(before).get_all_items(), deck.get_resource(after).get_all_items()):
+            volume = well.tracker.get_used_volume()
+            twin.tracker.set_liquids([(None, volume)] if volume > 0 else [])
+            well.tracker.set_liquids([])
+          backend.carry(before, after)
+          stands[action.labware] = after
+        continue
       if action.kind in ("wait", "pause", "magnet"):
         continue
       if action.kind == "reload":
@@ -297,7 +322,7 @@ async def record_plan(planned: OpentronsPlan, *, prepare=None) -> Tuple[Any, Lis
         if action.kind == "drop":
           await handler.discard_tips(use_channels=use)
           continue
-        resource = deck.get_resource(action.labware)
+        resource = deck.get_resource(stands.get(action.labware, action.labware))
         items = [resource.get_item(well) for well in action.wells]
         if action.kind == "pick_up":
           await handler.pick_up_tips(items, use_channels=use)

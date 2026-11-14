@@ -49,11 +49,21 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 | `magnet` | `plate`, `state` | The magnet under that plate goes on or off |
 
 A `magnet` step is written `- magnet: {plate: beads, state: on}` (or `off`). One plate in a run can
-have a magnet. What that means on the deck is the robot's business: on the Opentrons OT-2 the plate
-stands on a Magnetic Module GEN2 for the whole run and the step raises or lowers its magnets, and
-the plate has to be one Opentrons gives a magnet height for. The Hamilton STARlet and the Opentrons
-Flex refuse the step at plan for now, because there the plate would have to be carried onto the
-magnet and steadyhand does not move plates yet.
+have a magnet. What that means on the deck is the robot's business:
+
+- **Opentrons OT-2.** The plate stands on a Magnetic Module GEN2 for the whole run and the step
+  raises or lowers its magnets. The plate has to be one Opentrons gives a magnet height for.
+- **Opentrons Flex.** A Magnetic Block takes a slot of its own. At each step the run stops and the
+  Opentrons app asks a person to carry the plate onto the block or back to its slot. The plate has
+  to be one Opentrons says how to stand on the block.
+- **Hamilton STARlet.** A magnet adapter (`alpaqua_96_plateadapter_magnum_flx`) takes a site on the
+  plate carrier. At each step the script stops and asks a person to carry the plate over or back.
+  A plate that would stand higher there than the channels travel, as every deep-well plate does, is
+  refused at plan.
+
+In the rehearsal a carried plate is in both of its places, so a tip sent to either meets it, and
+what its wells hold goes with it at each move. The labware list `draft` shows a model marks the
+plates that can stand on that robot's magnet.
 
 A file can also carry `needs`, a list of sentences naming what the protocol cannot work without
 and steadyhand cannot provide or check: a magnet under the plate, a filter plate drained by a

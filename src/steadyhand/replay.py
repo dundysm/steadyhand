@@ -540,7 +540,7 @@ def rehearse(
   return Rehearsal(
     steps=steps,
     collisions=collisions,
-    not_rehearsed=[s for s in steps if not s.simulated],
+    not_rehearsed=[s for s in steps if not s.simulated and s.carried is None],
     path_length=path_length,
     samples=samples,
     volumes=volumes(root),
@@ -578,11 +578,26 @@ def liquid_issues(
       walk(child)
 
   walk(root)
-  acting = [s for s in steps if s.kind in ("aspirate", "dispense") and s.reference is not None and s.resource in containers]
+
+  def carry(held: Dict[str, float], before: str, after: str) -> None:
+    """A plate changes places: what its wells held, the wells of its other self hold now."""
+    for name in [n for n in held if n.startswith(before + "_")]:
+      twin = after + name[len(before):]
+      if twin in held:
+        held[twin], held[name] = held[name], 0.0
+
+  acting = [
+    s
+    for s in steps
+    if s.carried is not None or (s.kind in ("aspirate", "dispense") and s.reference is not None and s.resource in containers)
+  ]
   if start_volumes is None:
     held = {name: float(c.tracker.get_used_volume()) for name, c in containers.items()}
-    for s in acting:
-      held[s.resource] += (s.volume or 0.0) if s.kind == "aspirate" else -(s.volume or 0.0)
+    for s in reversed(acting):
+      if s.carried is not None:
+        carry(held, s.carried[1], s.carried[0])
+      else:
+        held[s.resource] += (s.volume or 0.0) if s.kind == "aspirate" else -(s.volume or 0.0)
   else:
     held = {name: float(start_volumes.get(name, 0.0)) for name in containers}
 
@@ -590,6 +605,8 @@ def liquid_issues(
   thrown_away: Dict[int, bool] = {}
   next_dispense: Dict[int, str] = {}
   for s in reversed(acting):
+    if s.carried is not None:
+      continue
     if s.kind == "dispense":
       next_dispense[s.channel] = s.resource
     else:
@@ -597,6 +614,9 @@ def liquid_issues(
 
   issues: List[LiquidIssue] = []
   for s in acting:
+    if s.carried is not None:
+      carry(held, *s.carried)
+      continue
     container = containers[s.resource]
     floor, rim = cavity_floor_z(container), bounds(container)[1][2]
     end = s.tip_end[2]  # type: ignore[index]

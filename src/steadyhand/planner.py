@@ -28,6 +28,7 @@ pipetting height of a plan as a small YAML file; edit it and hand it back throug
 from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 import warnings
@@ -49,6 +50,9 @@ TIP_CARRIER = "TIP_CAR_480_A00"
 PLATE_CARRIER = "PLT_CAR_L5AC_A00"
 WASTE_TYPE = "nest_1_troughplate_195000uL_Vb"
 CHANNEL_WIDTH = 8.0  # mm; a well narrower than this cannot take the channel itself, only the tip
+TRAVEL_HEIGHT = 245.0  # mm; the height the STAR backend carries a tip's end at between wells
+MAGNET_ADAPTER = "alpaqua_96_plateadapter_magnum_flx"  # a magnet a plate is stood on, on the plate carrier
+ON_MAGNET = "onmagnet_"  # the plate has a second self on the magnet, under this name
 PLATE_ADAPTER = "thermo_AB_96_plateadapter_MicroAmp"  # a base that holds PCR plates with no skirt
 
 # Working volume in uL and the PyLabRobot definition, smallest first.
@@ -62,7 +66,8 @@ TIP_TYPES: List[Tuple[float, str]] = [
 
 @dataclass(frozen=True)
 class Command:
-  kind: str  # "pick_up", "aspirate", "dispense", "discard", "wait", "pause" or "reload"
+  kind: str  # "pick_up", "aspirate", "dispense", "discard", "wait", "pause", "magnet" or "reload"; a "magnet"
+  # names the plate in `resource` and has one volume, 1 for onto the magnet and 0 for off it
   channels: Tuple[int, ...]
   resource: str = ""  # the plate or tip rack; empty for "discard", "wait" and "reload"
   wells: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps for full ones
@@ -106,6 +111,7 @@ class Plan:
   tip_types: List[Tuple[float, str]] = field(default_factory=lambda: list(TIP_TYPES))  # what it could choose from
   assumptions: List[str] = field(default_factory=list)  # what has to be true on the bench for the plan to hold
   longer_tips: List[str] = field(default_factory=list)  # where a longer tip was chosen than the volume alone asks for
+  magnet: str = ""  # the plate a person carries onto the magnet and off it, if any
 
   @property
   def ok(self) -> bool:
@@ -126,6 +132,10 @@ class Plan:
       lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
     if "pause" in kinds:
       lines.append(f"  pauses: {kinds.count('pause')} (the run stops for a person to do a step by hand)")
+    if self.magnet:
+      lines.append(
+        f"  magnet: a person carries {self.magnet} onto a {MAGNET_ADAPTER} and back, {kinds.count('magnet')} moves in all"
+      )
     followed = [h for c in self.commands for h in c.heights]
     if followed:
       lines.append(
@@ -387,18 +397,15 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
   problems: List[Problem] = []
   geometry = _Geometry()
   units, waits = _units(checked.moves)
-  for move in checked.moves:
-    if move.magnet:
-      problems.append(
-        Problem(
-          f"steps[{move.step}].magnet",
-          "steadyhand has no magnet for the Hamilton STARlet yet: its plate would have to be carried onto one. "
-          "A magnet step is planned on the Opentrons OT-2, where the plate stands on a Magnetic Module",
-        )
-      )
-      break
+  magnet = next((move.plate for move in checked.moves if move.magnet), "")
 
   labware = {name: item.type for name, item in protocol.labware.items()}
+  if magnet in labware:
+    reason = _magnet_problem(labware[magnet])
+    if reason is not None:
+      problems.append(Problem(f"labware.{magnet}.type", reason))
+    else:
+      labware[ON_MAGNET + magnet] = labware[magnet]  # the same plate, where it stands while the magnet has it
   for name, item in protocol.labware.items():
     if item.library != "pylabrobot":  # named the Opentrons way: use the same plate from PyLabRobot, if there is one
       from .opentrons_robots import TWINS
@@ -672,6 +679,16 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
       Plan(protocol, labware, placements, commands, {}, [], choices.pipetting_height, tip_types), protocol
     )
     problems += cannot
+  if magnet:  # from here on a command says where the plate is standing when it is carried out
+    standing, moved = False, []
+    for command in commands:
+      if command.kind == "magnet":
+        standing = bool(command.volumes[0])
+        command = replace(command, resource=magnet)
+      elif standing and command.resource == magnet:
+        command = replace(command, resource=ON_MAGNET + magnet)
+      moved.append(command)
+    commands = moved
 
   return Plan(
     protocol=protocol,
@@ -683,16 +700,25 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
     pipetting_height=choices.pipetting_height,
     tip_types=tip_types,
     longer_tips=longer_tips,
+    magnet=magnet,
     assumptions=[
       f"the lid is off {name} ({definition} comes with one)"
       for name, definition in labware.items()
-      if comes_with_lid(definition)
+      if comes_with_lid(definition) and not name.startswith(ON_MAGNET)
     ]
     + [
       f"{name} stands in a {PLATE_ADAPTER} ({definition} has no skirt)"
       for name, definition in labware.items()
-      if needs_adapter(definition)
-    ],
+      if needs_adapter(definition) and not name.startswith(ON_MAGNET)
+    ]
+    + (
+      [
+        f"{magnet} ({labware[magnet]}) fits the {MAGNET_ADAPTER} and its beads gather there; "
+        "a person carries it over and back each time the run stops for that"
+      ]
+      if magnet in labware
+      else []
+    ),
   )
 
 
@@ -877,9 +903,64 @@ def _share(volume: float, parts: int, part: int) -> float:
 
 def _stops(stops: Sequence[Tuple[float, int, str, str]]) -> List[Command]:
   return [
-    Command("pause", (), text=text, step=step) if text else Command("wait", (), volumes=(seconds,), step=step)
-    for seconds, step, text, _ in stops
+    Command("magnet", (), volumes=(1.0 if magnet == "on" else 0.0,), step=step)
+    if magnet
+    else Command("pause", (), text=text, step=step)
+    if text
+    else Command("wait", (), volumes=(seconds,), step=step)
+    for seconds, step, text, magnet in stops
   ]
+
+
+def _magnet_problem(definition: str) -> Optional[str]:
+  """Why this plate cannot stand on the magnet adapter; None when PyLabRobot lets it."""
+  import pylabrobot.resources as resources
+  import pylabrobot.resources.hamilton as hamilton
+
+  if not hasattr(resources, definition):
+    return None  # not a PyLabRobot plate: said elsewhere
+  if definition in _MAGNET_PROBLEMS:
+    return _MAGNET_PROBLEMS[definition]
+  reason: Optional[str] = None
+  try:
+    with warnings.catch_warnings():
+      warnings.simplefilter("ignore")
+      logging.disable(logging.CRITICAL)  # PyLabRobot logs every well of a plate that stands high
+      try:
+        adapter = getattr(resources, MAGNET_ADAPTER)(name="probe_magnet")
+        plate = getattr(resources, definition)(name="probe")
+        adapter.assign_child_resource(plate)
+        carrier = getattr(hamilton, PLATE_CARRIER)(name="probe_carrier")
+        carrier[0] = adapter
+        hamilton.STARLetDeck().assign_child_resource(carrier, rails=7)
+        top = plate.get_absolute_location().z + plate.get_size_z()
+      finally:
+        logging.disable(logging.NOTSET)
+    if top > TRAVEL_HEIGHT:
+      reason = (
+        f"{definition} on the magnet ({MAGNET_ADAPTER}, on the plate carrier) stands {top:.0f} mm high, and the "
+        f"channels travel at {TRAVEL_HEIGHT:g} mm. Use a shallower plate for the beads"
+      )
+  except Exception as error:
+    reason = f"{definition} cannot stand on the magnet ({MAGNET_ADAPTER}): {error}"
+  _MAGNET_PROBLEMS[definition] = reason
+  return reason
+
+
+_MAGNET_PROBLEMS: Dict[str, Optional[str]] = {}
+
+
+def magnet_plates(definitions: Sequence[str]) -> List[str]:
+  """Those of these PyLabRobot plates that can stand on the magnet and stay under the channels."""
+  return [definition for definition in definitions if _magnet_problem(definition) is None]
+
+
+def _carry(deck: Any, before: str, after: str) -> None:
+  """What the wells of `before` hold, the wells of `after` hold now: it is one plate, carried."""
+  for well, twin in zip(deck.get_resource(before).get_all_items(), deck.get_resource(after).get_all_items()):
+    volume = well.tracker.get_used_volume()
+    twin.tracker.set_liquids([(None, volume)] if volume > 0 else [])
+    well.tracker.set_liquids([])
 
 
 def resources_module() -> Any:
@@ -956,7 +1037,11 @@ def build_deck(planned: Plan):
           if getattr(item, "has_lid", lambda: False)():  # the plan assumes lids are off; it cannot move them
             item.unassign_child_resource(item.lid)
           _real_shape(item, planned.labware[name])
-          if needs_adapter(planned.labware[name]):
+          if name.startswith(ON_MAGNET):
+            adapter = getattr(resources, MAGNET_ADAPTER)(name=f"{name}_adapter")
+            adapter.assign_child_resource(item)
+            item = adapter
+          elif needs_adapter(planned.labware[name]):
             adapter = getattr(resources, PLATE_ADAPTER)(name=f"{name}_adapter")
             adapter.assign_child_resource(item)
             item = adapter
@@ -1036,6 +1121,13 @@ async def run(planned: Plan, handler, *, on_reload=None, on_wait=None) -> None:
       continue
     if command.kind == "pause":
       continue
+    if command.kind == "magnet":
+      twin = ON_MAGNET + command.resource
+      before, after = (command.resource, twin) if command.volumes[0] else (twin, command.resource)
+      _carry(deck, before, after)
+      if hasattr(handler.backend, "carry"):
+        handler.backend.carry(before, after)
+      continue
     try:
       await _send(command, handler, deck, height)
     except Exception as error:  # a tracker or a check inside PyLabRobot said no
@@ -1100,7 +1192,11 @@ def emit(planned: Plan, *, source: str = "") -> str:
   """The plan as a PyLabRobot script that runs on its own."""
   from . import __version__
 
-  definitions = sorted(set(planned.labware.values()) | ({PLATE_ADAPTER} if any(map(needs_adapter, planned.labware.values())) else set()))
+  definitions = sorted(
+    set(planned.labware.values())
+    | ({PLATE_ADAPTER} if any(map(needs_adapter, planned.labware.values())) else set())
+    | ({MAGNET_ADAPTER} if planned.magnet else set())
+  )
   carriers = sorted({p.carrier_type for p in planned.placements})
   lines = [
     f'"""{planned.protocol.name}',
@@ -1119,6 +1215,23 @@ def emit(planned: Plan, *, source: str = "") -> str:
     f"from pylabrobot.resources.hamilton import {', '.join(carriers + ['STARLetDeck'])}",
     "",
     f"HEIGHT = {planned.pipetting_height!r}  # mm above the well floor for every aspirate and dispense",
+    "",
+    "",
+    "def on_magnet(plate):",
+    "  # The place a plate stands while the magnet has it: an adapter with magnets, on the carrier.",
+    f'  adapter = {MAGNET_ADAPTER}(name=plate.name + "_adapter")',
+    "  adapter.assign_child_resource(plate)",
+    "  return adapter",
+    "",
+    "",
+    "def carry(lh, deck, before, after, text):",
+    "  # A person moves the plate. It is one plate with two places; what it holds is counted where it stands.",
+    "  if not isinstance(lh.backend, LiquidHandlerChatterboxBackend):",
+    '    input(f"{text} Then press Enter. ")',
+    "  for well, twin in zip(deck.get_resource(before).get_all_items(), deck.get_resource(after).get_all_items()):",
+    "    volume = well.tracker.get_used_volume()",
+    "    twin.tracker.set_liquids([(None, volume)] if volume > 0 else [])",
+    "    well.tracker.set_liquids([])",
     "",
     "",
     "def in_adapter(plate):",
@@ -1145,7 +1258,9 @@ def emit(planned: Plan, *, source: str = "") -> str:
         made = f'{planned.labware[name]}(name="{name}")'
         if comes_with_lid(planned.labware[name]):
           made = f"lid_off({made})"
-        if needs_adapter(planned.labware[name]):
+        if name.startswith(ON_MAGNET):
+          made = f"on_magnet({made})"
+        elif needs_adapter(planned.labware[name]):
           made = f"in_adapter({made})"
         lines.append(f"  {placement.carrier}[{site}] = {made}")
     lines.append(f"  deck.assign_child_resource({placement.carrier}, rails={placement.rails})")
@@ -1193,6 +1308,14 @@ def emit(planned: Plan, *, source: str = "") -> str:
       continue
     if command.kind == "pause":
       lines.append(f"  pause(lh, {json.dumps(command.text)})")
+      continue
+    if command.kind == "magnet":
+      twin = ON_MAGNET + command.resource
+      before, after = (command.resource, twin) if command.volumes[0] else (twin, command.resource)
+      text = (
+        f"Carry {command.resource} onto the magnet." if command.volumes[0] else f"Carry {command.resource} off the magnet, back to its place."
+      )
+      lines.append(f"  carry(lh, deck, {json.dumps(before)}, {json.dumps(after)}, {json.dumps(text)})")
       continue
     if command.kind == "discard":
       lines.append(f"  await lh.discard_tips(use_channels={channels})")
