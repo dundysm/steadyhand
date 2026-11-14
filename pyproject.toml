@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadyhand"
-version = "0.26.0"
+version = "0.26.1"
 description = "Turn a written lab protocol into a robot program and rehearse it before it touches a real bench."
 dynamic = ["readme"]
 requires-python = ">=3.10"
@@ -30,7 +30,7 @@ dependencies = [
 [project.urls]
 Repository = "https://github.com/dundysm/steadyhand"
 Issues = "https://github.com/dundysm/steadyhand/issues"
-"What it stops, measured" = "https://github.com/dundysm/steadyhand/blob/main/docs/faults.md"
+"What it stops" = "https://github.com/dundysm/steadyhand/blob/main/docs/faults.md"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pypdf>=4", "opentrons>=9.1"]
