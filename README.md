@@ -439,7 +439,8 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   plate while the liquid is taken off. A `magnet` step does that. On the Opentrons OT-2 the
   plate stands on a Magnetic Module GEN2 and the step raises and lowers its magnets. On the Flex
   the run stops and a person carries the plate onto a Magnetic Block and back; on the Hamilton,
-  onto a magnet adapter on the plate carrier and back. No gripper is driven yet. The rehearsal
+  onto a magnet adapter on the plate carrier and back. On the Flex, `--gripper` has the Flex Gripper carry it instead (its own path is not
+  rehearsed; Opentrons' simulator checks the moves are allowed). The rehearsal
   has the plate at the right height in each place and carries its contents with it, and on the
   Opentrons robots their simulator checks the module and the moves. On the Hamilton no deep-well
   plate fits: on the adapter it stands higher than the channels travel, and the plan says so. Five bead-kit manuals drafted for each robot: all five reach a rehearsed program on the

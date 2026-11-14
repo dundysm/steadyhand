@@ -122,7 +122,7 @@ def _check(args: argparse.Namespace) -> int:
   return 0 if result.ok else 1
 
 
-def _planned(path: str, choices_path: Optional[str] = None, robot_name: Optional[str] = None):
+def _planned(path: str, choices_path: Optional[str] = None, robot_name: Optional[str] = None, gripper: bool = False):
   """Check and plan a protocol file for a robot. Prints both reports.
 
   Returns the robot and its plan, or None when the check or the plan fails. The robot is the one
@@ -155,7 +155,10 @@ def _planned(path: str, choices_path: Optional[str] = None, robot_name: Optional
       for problem in error.problems:
         print(f"    - {problem}")
       return None
-  planned = robot.plan(checked, choices)
+  if gripper and robot.name != "opentrons-flex":
+    print(f"steadyhand: --gripper is for the Opentrons Flex; steadyhand drives no gripper on the {robot.title}")
+    return None
+  planned = robot.plan(checked, choices, gripper=True) if gripper else robot.plan(checked, choices)
   print(planned.report())
   if choices_path:
     print(f"  using choices from {choices_path}")
@@ -165,7 +168,7 @@ def _planned(path: str, choices_path: Optional[str] = None, robot_name: Optional
 def _plan(args: argparse.Namespace) -> int:
   from .planner import dump_choices
 
-  found = _planned(args.file, args.plan, args.robot)
+  found = _planned(args.file, args.plan, args.robot, getattr(args, "gripper", False))
   if found is None:
     return 1
   robot, planned = found
@@ -227,7 +230,7 @@ def _rehearse_opentrons(planned, args: argparse.Namespace) -> int:
 def _rehearse(args: argparse.Namespace) -> int:
   from .planner import RunRefused, emit, rehearse_plan
 
-  found = _planned(args.file, args.plan, args.robot)
+  found = _planned(args.file, args.plan, args.robot, getattr(args, "gripper", False))
   if found is None:
     return 1
   robot, planned = found
@@ -263,7 +266,7 @@ def _robots(args: argparse.Namespace) -> int:
 
 
 def _emit(args: argparse.Namespace) -> int:
-  found = _planned(args.file, args.plan, args.robot)
+  found = _planned(args.file, args.plan, args.robot, getattr(args, "gripper", False))
   if found is None:
     return 1
   robot, planned = found
@@ -406,6 +409,9 @@ def main(argv: Optional[List[str]] = None) -> int:
   for command in (plan, rehearse_, emit):
     command.add_argument(
       "--robot", choices=sorted(ROBOTS), help="the robot to plan for; default: what the file says, else hamilton-starlet"
+    )
+    command.add_argument(
+      "--gripper", action="store_true", help="on an Opentrons Flex, the Flex Gripper carries a plate to the magnet, not a person"
     )
   faults.add_argument("--robot", choices=sorted(ROBOTS), help="the robot to plant the mistakes on; default: hamilton-starlet")
 

@@ -20,7 +20,8 @@ class Robot:
   through: str  # the software the emitted program talks to
   program: str  # what `emit` writes
   rehearsal: Tuple[str, ...]  # what `rehearse` checks on this robot
-  plan: Callable[..., Any]  # (checked, choices) -> a plan with .ok, .problems and .report()
+  plan: Callable[..., Any]  # (checked, choices) -> a plan with .ok, .problems and .report(); on an Opentrons
+  # robot also gripper=True, for a plate carried by the Flex Gripper and not by a person
   emit: Callable[..., str]  # (plan, source=) -> the program
   takes_plan_file: bool = False  # whether `--plan` can override the planner's choices
 
@@ -38,10 +39,10 @@ def _hamilton_emit(planned, *, source: str = "") -> str:
 
 
 def _opentrons(profile_name: str) -> Tuple[Callable[..., Any], Callable[..., str]]:
-  def plan(checked: Check, choices=None):
+  def plan(checked: Check, choices=None, gripper: bool = False):
     from . import opentrons_robots
 
-    return opentrons_robots.plan(checked, opentrons_robots.PROFILES[profile_name])
+    return opentrons_robots.plan(checked, opentrons_robots.PROFILES[profile_name], gripper=gripper)
 
   def emit(planned, *, source: str = "") -> str:
     from . import opentrons_robots

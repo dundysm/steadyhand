@@ -260,6 +260,7 @@ class OpentronsPlan:
   magnet: str = ""  # the labware that has a magnet under it at times, if any
   magnet_height: float = 0.0  # OT-2: mm the magnets rise above the base of that plate when they are on
   magnet_slot: str = ""  # Flex: the slot of the Magnetic Block the plate is carried onto and off again
+  gripper: bool = False  # Flex: the Flex Gripper carries the plate there, not a person
 
   @property
   def ok(self) -> bool:
@@ -285,8 +286,10 @@ class OpentronsPlan:
       lines.append(f"  pauses: {kinds.count('pause')} (the run pauses for a person to do a step by hand)")
     if self.magnet and self.magnet_slot:
       lines.append(
-        f"  magnet: a person carries {self.magnet} from slot {self.slots[self.magnet]} onto a {BLOCK_NAME} in slot "
-        f"{self.magnet_slot} and back, {sum(1 for a in self.actions if a.kind == 'magnet')} moves in all"
+        f"  magnet: {'the Flex Gripper' if self.gripper else 'a person'} carries {self.magnet} from slot "
+        f"{self.slots[self.magnet]} onto a {BLOCK_NAME} in slot {self.magnet_slot} and back, "
+        f"{sum(1 for a in self.actions if a.kind == 'magnet')} moves in all"
+        + ("; the gripper's own path is not rehearsed" if self.gripper else "")
       )
     elif self.magnet:
       lines.append(
@@ -449,7 +452,12 @@ def _tip_by_tip(units: list, waits: Dict[int, Any], sinks: Sequence[str]) -> lis
 
 
 def plan(
-  checked: Check, profile: Profile, *, pipetting_height: float = 1.0, waste_reservoirs: Optional[int] = None
+  checked: Check,
+  profile: Profile,
+  *,
+  pipetting_height: float = 1.0,
+  waste_reservoirs: Optional[int] = None,
+  gripper: bool = False,
 ) -> OpentronsPlan:
   """Plan a protocol that has passed `check` for the robot `profile` describes.
 
@@ -765,7 +773,7 @@ def plan(
     # waste reservoirs first: keep as many as still leave room for every rack, and at least one.
     plates = len(labware) - len(reservoirs)
     keep = max(1, min(len(reservoirs) - 1, len(profile.slots) - plates - sum(racks.values())))
-    return plan(checked, profile, pipetting_height=pipetting_height, waste_reservoirs=keep)
+    return plan(checked, profile, pipetting_height=pipetting_height, waste_reservoirs=keep, gripper=gripper)
   if free < len(racks):
     problems.append(
       Problem(
@@ -894,6 +902,7 @@ def plan(
     magnet=magnet,
     magnet_height=magnet_height,
     magnet_slot=magnet_slot,
+    gripper=gripper and bool(magnet_slot),
   )
 
 
@@ -1009,7 +1018,7 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
       lines.append(f"  protocol.pause({json.dumps(action.text)})")
     elif action.kind == "magnet" and planned.magnet_slot:  # the app stops and asks for the plate to be moved
       plate, home = f"deck[{json.dumps(planned.magnet)}]", json.dumps(planned.slots[planned.magnet])
-      lines.append(f"  protocol.move_labware({plate}, {'block' if action.amount else home}, use_gripper=False)")
+      lines.append(f"  protocol.move_labware({plate}, {'block' if action.amount else home}, use_gripper={planned.gripper})")
     elif action.kind == "magnet":
       lines.append(f"  magnet.engage(height_from_base={planned.magnet_height:g})" if action.amount else "  magnet.disengage()")
     elif action.kind == "reload":

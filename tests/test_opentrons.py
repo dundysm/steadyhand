@@ -839,3 +839,22 @@ def test_the_magnet_goes_on_before_it_goes_off_and_stays_under_one_plate():
   assert [p.where for p in twice.problems] == ["steps[3].magnet"] and "already on" in twice.problems[0].message
   other = check(loads(text.replace("- magnet: {plate: beads, state: off}", "- magnet: {plate: trough, state: off}")))
   assert any("one magnet" in p.message for p in other.problems)
+
+
+def test_on_the_flex_the_gripper_can_carry_the_plate_and_nowhere_else(capsys, tmp_path):
+  from steadyhand.cli import main
+  from steadyhand.opentrons_robots import FLEX, emit, plan
+  from steadyhand.protocol import check, loads
+
+  planned = plan(check(loads(BEADS % ("opentrons-flex", "nest_96_wellplate_2ml_deep"))), FLEX, gripper=True)
+  assert planned.ok and planned.gripper
+  assert "the Flex Gripper carries beads" in planned.report() and "not rehearsed" in planned.report()
+  script = emit(planned)
+  assert script.count("use_gripper=True") == 2 and "use_gripper=False" not in script
+  no_magnet = (BEADS % ("opentrons-flex", "nest_96_wellplate_2ml_deep")).replace("- magnet", "# - magnet")
+  plain = plan(check(loads(no_magnet)), FLEX, gripper=True)
+  assert plain.ok and not plain.gripper  # nothing to carry, so no gripper in the plan
+  path = tmp_path / "beads.yaml"
+  path.write_text(BEADS % ("opentrons-ot2", "nest_96_wellplate_2ml_deep"), encoding="utf-8")
+  assert main(["plan", str(path), "--gripper"]) != 0
+  assert "--gripper is for the Opentrons Flex" in capsys.readouterr().out

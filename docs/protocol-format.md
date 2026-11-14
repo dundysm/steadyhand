@@ -54,8 +54,10 @@ have a magnet. What that means on the deck is the robot's business:
 - **Opentrons OT-2.** The plate stands on a Magnetic Module GEN2 for the whole run and the step
   raises or lowers its magnets. The plate has to be one Opentrons gives a magnet height for.
 - **Opentrons Flex.** A Magnetic Block takes a slot of its own. At each step the run stops and the
-  Opentrons app asks a person to carry the plate onto the block or back to its slot. The plate has
-  to be one Opentrons says how to stand on the block.
+  Opentrons app asks a person to carry the plate onto the block or back to its slot. With
+  `--gripper` on `plan`, `rehearse` and `emit`, the Flex Gripper carries it instead; Opentrons'
+  simulator checks those moves are allowed, and the gripper's own path is not rehearsed. The
+  plate has to be one Opentrons says how to stand on the block.
 - **Hamilton STARlet.** A magnet adapter (`alpaqua_96_plateadapter_magnum_flx`) takes a site on the
   plate carrier. At each step the script stops and asks a person to carry the plate over or back.
   A plate that would stand higher there than the channels travel, as every deep-well plate does, is
