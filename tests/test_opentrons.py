@@ -112,12 +112,12 @@ def test_a_file_written_with_twins_plans_for_all_three_robots():
 
 
 @needs_opentrons
-def test_the_start_volume_is_held_to_what_opentrons_says_a_well_holds():
-  # PyLabRobot gives this trough 15.7 mL a well, Opentrons 15 mL.
-  text = DILUTION.replace("12 mL", "15.5 mL")
-  assert hamilton_plan(checked_from(text)).ok
-  flex = planned_from(text)
-  assert not flex.ok and "15500 uL is more than a well of nest_12_reservoir_15ml holds (15000 uL)" in str(flex.problems[0])
+def test_the_start_volume_is_held_to_the_volume_in_the_troughs_name():
+  # PyLabRobot states 15.7 mL a well for this trough, its name and Opentrons say 15 mL. The name wins, at check.
+  checked = check(loads(DILUTION.replace("12 mL", "15.5 mL")))
+  assert not checked.ok and "starts with 15500 uL but holds only 15000 uL" in checked.report()
+  assert hamilton_plan(checked_from(DILUTION.replace("12 mL", "15 mL"))).ok
+  assert planned_from(DILUTION.replace("12 mL", "15 mL")).ok
 
 
 # ---------------------------------------------------------------- pipettes, tips and order

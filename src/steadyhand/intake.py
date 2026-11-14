@@ -105,8 +105,9 @@ RULES
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume
-  the text does not give is about two thirds of what the well holds at that point, and never
-  more than 1000 uL, the most one tip holds; a mix with
+  the text does not give is about two thirds of what the well holds at that point, never more
+  than 1000 uL, the most one tip holds, and never so much that less than the well's
+  out-of-reach amount is left in it while the tip draws; a mix with
   no count ("mix", "mix briefly", "mix a few times") is a pipette mix of 3 times.
 - When the text asks for something the format cannot say exactly (such as new tips per
   column), use the nearest stricter option and say so in `notes`.
@@ -270,11 +271,13 @@ def labware_catalogue(robot: str = "") -> str:
       continue  # not a plate, a second spelling of one, or one the deck's carrier cannot hold
     seen.add(name.lower())  # some definitions exist under two spellings; one is enough
     wells = plate.get_all_items()
-    from .scene import capacity
+    from .scene import capacity, named_volume
 
     holds = capacity(wells[0])
     if holds < 1.0:
       continue  # under 1 uL a well is a mistake in the definition, not a plate to offer
+    if named_volume(name) is None:
+      continue  # no volume in the name to hold PyLabRobot's figure against, and its figure is often an outline's
     from .planner import _magnet_problem, _real_shape
 
     _real_shape(plate, name)  # where Opentrons ships the same plate, its inside shape is the one rehearsed
@@ -373,13 +376,15 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
     hit[collision.resource] = hit.get(collision.resource, 0) + 1
   for resource, count in hit.items():
     problems.append(Problem("rehearsal", f"a tip or channel hits {resource} ({count} times)"))
-  groups: Dict[Tuple[str, str], list] = {}
+  groups: Dict[Tuple[str, str, bool], list] = {}
   for issue in result.liquid_failures:
     labware = issue.resource.rpartition("_well_")[0] or issue.resource
-    groups.setdefault((issue.kind, labware), []).append(issue)
-  for (kind, labware), issues in groups.items():
+    groups.setdefault((issue.kind, labware, issue.mixing), []).append(issue)
+  for (kind, labware, mixing), issues in groups.items():
     wells = sorted({issue.resource.rpartition("_well_")[2] for issue in issues})
-    where = f"{labware}/{wells[0]}" + (f" and {len(wells) - 1} more wells" if len(wells) > 1 else "")
+    stood = " (while it stands on the magnet)" if labware.startswith("onmagnet_") else ""
+    labware = labware[len("onmagnet_"):] if stood else labware
+    where = f"{labware}/{wells[0]}" + (f" and {len(wells) - 1} more wells" if len(wells) > 1 else "") + stood
     gap = max(issue.gap for issue in issues)
     stops = max(issue.height for issue in issues) or planned.pipetting_height  # where the tip was for these draws
     if kind == "air":
@@ -391,6 +396,17 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
           "rehearsal",
           f"in {where} the tip {reach} and draws air. A tip stops "
           f"{stops:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}",
+        )
+      )
+    elif kind == "short" and mixing:
+      cover = _volume_to_cover(deck.get_resource(issues[0].resource), stops)
+      short = max(issue.short for issue in issues)
+      problems.append(
+        Problem(
+          "rehearsal",
+          f"in {where} a mix draws the liquid below the tip, so up to {short:g} uL of each stroke is air. "
+          f"A tip stops {stops:g} mm above the floor of a well. Mix a smaller volume there"
+          + (f": leave about {cover:g} uL in the well while the tip is drawing" if cover else ""),
         )
       )
     elif kind == "short":

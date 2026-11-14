@@ -21,6 +21,7 @@ the MuJoCo XML is written.
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from typing import Iterable, Iterator, List, Optional, Sequence, Tuple
 from xml.etree import ElementTree as ET
@@ -223,13 +224,28 @@ class _Collector:
       )
 
 
-def capacity(container: Container) -> float:
-  """The most a well holds, in uL: its stated maximum, or less where its own height function stops sooner.
+_NAMED = re.compile(r"_(\d+(?:\.\d+)?)(ul|ml)(?:_|$)", re.IGNORECASE)
 
-  Eight of PyLabRobot's plates state a maximum that is the volume of their outline (585 uL for a
-  plate sold as 250 uL), while their height function refuses anything past the real fill.
+
+def named_volume(definition: str) -> Optional[float]:
+  """The well volume a PyLabRobot definition carries in its name, in uL: 500 for `..._500ul_Vb`."""
+  found = _NAMED.search(definition)
+  if found is None:
+    return None
+  return float(found.group(1)) * (1000.0 if found.group(2).lower() == "ml" else 1.0)
+
+
+def capacity(container: Container) -> float:
+  """The most a well holds, in uL: the least of its stated maximum, the volume in the definition's
+  name, and what its own height function accepts.
+
+  Many PyLabRobot plates state a maximum that is the volume of their outline: 924 uL for a plate
+  sold as 500 uL, 585 uL for one sold as 250 uL.
   """
   stated = float(container.max_volume)
+  named = named_volume(str(getattr(container.parent, "model", "") or ""))
+  if named is not None and stated > named:
+    stated = named  # a plate sold as 500 uL is filled to 500 uL, whatever its outline would hold
   if not container.supports_compute_height_volume_functions():
     return stated
   try:

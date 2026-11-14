@@ -109,6 +109,7 @@ class LiquidIssue:
   sure: bool = True
   short: float = 0.0
   height: float = 0.0  # mm the tip's end was above the floor of the well
+  mixing: bool = False  # the draw goes straight back into the well it came from
 
   @property
   def fails(self) -> bool:
@@ -603,6 +604,7 @@ def liquid_issues(
 
   # where each aspirate's liquid goes: the next dispense of the same channel
   thrown_away: Dict[int, bool] = {}
+  put_back: Dict[int, bool] = {}
   next_dispense: Dict[int, str] = {}
   for s in reversed(acting):
     if s.carried is not None:
@@ -611,6 +613,7 @@ def liquid_issues(
       next_dispense[s.channel] = s.resource
     else:
       thrown_away[s.index] = is_waste(next_dispense.get(s.channel, ""))
+      put_back[s.index] = next_dispense.get(s.channel, "") == s.resource
 
   issues: List[LiquidIssue] = []
   for s in acting:
@@ -627,7 +630,8 @@ def liquid_issues(
     def issue(kind: str, gap: float, certain: bool = True, short: float = 0.0) -> None:
       issues.append(
         LiquidIssue(
-          s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain, round(short, 2), round(end - floor, 2)
+          s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain, round(short, 2), round(end - floor, 2),
+          put_back.get(s.index, False),
         )
       )
 

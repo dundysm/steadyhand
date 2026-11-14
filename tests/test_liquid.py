@@ -202,3 +202,22 @@ def test_a_draw_that_empties_a_well_with_a_trace_of_air_is_said_not_failed():
   assert SHORT_ALLOWED == 0.01
   assert not LiquidIssue(1, "nearly_all", "aspirate", 0, "plate_well_A1", 0.1, True, 0.09, 0.2).fails
   assert LiquidIssue(1, "short", "aspirate", 0, "plate_well_A1", 0.1, True, 5.0, 1.0).fails
+
+
+def test_a_plate_holds_no_more_than_the_volume_in_its_name_and_unnamed_plates_are_not_offered():
+  import warnings
+
+  import pylabrobot.resources as resources
+
+  from steadyhand.intake import labware_catalogue
+  from steadyhand.scene import capacity, named_volume
+
+  assert named_volume("eppendorf_96_wellplate_500ul_Vb") == 500 and named_volume("Cor_96_wellplate_2mL_Vb") == 2000
+  assert named_volume("PCR_Plate_96_Well") is None
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    well = resources.eppendorf_96_wellplate_500ul_Vb(name="p").get_well("A1")
+  assert well.max_volume > 900 and capacity(well) == 500  # PyLabRobot states the outline's volume
+  listed = labware_catalogue("hamilton-starlet")
+  assert "eppendorf_96_wellplate_500ul_Vb: 96 wells (8 rows x 12 columns), 500 uL each" in listed
+  assert "PCR_Plate_96_Well" not in listed and "Microplate_96_Well" not in listed
