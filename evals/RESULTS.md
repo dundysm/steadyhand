@@ -42,7 +42,15 @@ guide had one sentence changed since they were first drafted.
   tenth less, where the surface cannot be followed) was applied to supernatant on the magnet. The
   KAPA draft leaves 40 uL of supernatant and 20 uL of each ethanol wash behind, about 80 uL in the
   well before a 50 uL elution. It rehearses clean. The guide now says that on the magnet the liquid
-  is taken from the bottom, all of it (0.30.2); that is not measured.
+  is taken from the bottom, all of it (0.30.2).
+- **Drafted a third time for the Hamilton (0.31.0), to check that.** All five pass at the first
+  attempt again, the magnet is on and off where it should be, and every removal on the magnet now
+  takes the whole volume: on paper nothing is left in a bead well after any of them, where the KAPA
+  draft had left 80 uL. Three draftings of the same five kits is a fit to these kits, not a test.
+- **The Flex Gripper (0.31.0).** With `--gripper` the written protocol moves the plate with
+  `use_gripper=True`. The five accepted Flex drafts were planned again that way, not drafted again:
+  all pass the replay and Opentrons' simulator, 3 gripper moves in the KAPA cleanup and 11 in each
+  Zymo kit. The gripper's own path is not rehearsed.
 
 **The earlier Hamilton numbers, corrected.** Under the capped capacities, 5 of the 37 Hamilton drafts
 counted as passing in the first four sets overfill a plate and fail `check`: `elisa_il6`,
