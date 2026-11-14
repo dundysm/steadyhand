@@ -296,20 +296,22 @@ class _Unit:
   height: float = 0.0  # the transfer is drawn this many mm above the well floor; 0 for the usual height
 
 
-def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, List[Tuple[float, int, str]]]]:
+def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, List[Tuple[float, int, str, str]]]]:
   """The work, one tip's worth at a time, and the stops: unit index they come before -> waits and pauses in order.
 
-  A stop is (seconds, step, text): a timed wait has no text, a pause for a person has no seconds.
+  A stop is (seconds, step, text, magnet): a timed wait has only seconds, a pause for a person only
+  text, a magnet step only "on" or "off".
   """
   units: List[_Unit] = []
-  waits: Dict[int, List[Tuple[float, int, str]]] = {}
+  waits: Dict[int, List[Tuple[float, int, str, str]]] = {}
   for move in moves:
     if move.kind == "wait":
       here = waits.setdefault(len(units), [])
-      if here and not move.text and not here[-1][2]:  # two timed waits in a row are one
-        here[-1] = (here[-1][0] + move.seconds, here[-1][1], "")
+      timed = not move.text and not move.magnet
+      if here and timed and not here[-1][2] and not here[-1][3]:  # two timed waits in a row are one
+        here[-1] = (here[-1][0] + move.seconds, here[-1][1], "", "")
       else:
-        here.append((move.seconds, move.step, move.text))
+        here.append((move.seconds, move.step, move.text, move.magnet))
       continue
     if move.kind == "transfer":
       assert move.source is not None and move.destination is not None
@@ -385,6 +387,16 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
   problems: List[Problem] = []
   geometry = _Geometry()
   units, waits = _units(checked.moves)
+  for move in checked.moves:
+    if move.magnet:
+      problems.append(
+        Problem(
+          f"steps[{move.step}].magnet",
+          "steadyhand has no magnet for the Hamilton STARlet yet: its plate would have to be carried onto one. "
+          "A magnet step is planned on the Opentrons OT-2, where the plate stands on a Magnetic Module",
+        )
+      )
+      break
 
   labware = {name: item.type for name, item in protocol.labware.items()}
   for name, item in protocol.labware.items():
@@ -863,10 +875,10 @@ def _share(volume: float, parts: int, part: int) -> float:
   return each if part < parts - 1 else round(volume - each * (parts - 1), 4)
 
 
-def _stops(stops: Sequence[Tuple[float, int, str]]) -> List[Command]:
+def _stops(stops: Sequence[Tuple[float, int, str, str]]) -> List[Command]:
   return [
     Command("pause", (), text=text, step=step) if text else Command("wait", (), volumes=(seconds,), step=step)
-    for seconds, step, text in stops
+    for seconds, step, text, _ in stops
   ]
 
 

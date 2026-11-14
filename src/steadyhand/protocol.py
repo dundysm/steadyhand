@@ -130,7 +130,15 @@ class Pause:
   text: str
 
 
-Step = Union[Transfer, Mix, SerialDilution, Normalize, Wait, Pause]
+@dataclass(frozen=True)
+class Magnet:
+  """The magnet under one plate goes on or off. Which plates can stand on one is the robot's business."""
+
+  labware: str
+  on: bool
+
+
+Step = Union[Transfer, Mix, SerialDilution, Normalize, Wait, Pause, Magnet]
 
 
 @dataclass
@@ -165,6 +173,8 @@ class Move:
   tip: int = -1
   seconds: float = 0.0
   text: str = ""  # on a "wait": what a person does while the run is stopped for them; empty for a timed wait
+  magnet: str = ""  # on a "wait": "on" or "off" for a magnet step; `plate` then names the labware
+  plate: str = ""
   surface: bool = False  # a transfer drawn from just under the surface, not from the bottom of the well
   height: float = 0.0  # a transfer drawn this many mm above the floor of the well; 0 for the usual height
 
@@ -411,7 +421,7 @@ class _Reader:
 
   def read_step(self, raw: Any, index: int) -> Optional[Step]:
     where = f"steps[{index}]"
-    kinds = ("transfer", "mix", "serial_dilution", "normalize", "wait", "pause")
+    kinds = ("transfer", "mix", "serial_dilution", "normalize", "wait", "pause", "magnet")
     if not isinstance(raw, dict) or len(raw) != 1 or next(iter(raw)) not in kinds:
       self.fail(where, f"expected exactly one of: {', '.join(kinds)}")
       return None
@@ -424,6 +434,16 @@ class _Reader:
         self.fail(f"{where}.pause", f"keep it under {PAUSE_LENGTH} characters: it is shown to the person at the robot")
         return None
       return Pause(" ".join(body.split()))
+    if kind == "magnet":
+      before = len(self.problems)
+      body = self.keys(body, where, ("plate", "state"))
+      if "plate" in body and str(body["plate"]) not in self.labware:
+        self.fail(f"{where}.plate", f"no labware called {body['plate']!r}; declared: {', '.join(self.labware)}")
+      if "state" in body and body["state"] not in ("on", "off", True, False):
+        self.fail(f"{where}.state", f"expected on or off, got {body['state']!r}")
+      if len(self.problems) != before:
+        return None
+      return Magnet(str(body["plate"]), body["state"] in ("on", True))
     where = f"{where}.{kind}"
     before = len(self.problems)
 
@@ -693,6 +713,9 @@ def expand(protocol: Protocol) -> Tuple[List[Move], List[Problem]]:
     elif isinstance(step, Pause):
       moves.append(Move(index, "wait", text=step.text))
 
+    elif isinstance(step, Magnet):
+      moves.append(Move(index, "wait", magnet="on" if step.on else "off", plate=step.labware))
+
   return moves, problems
 
 
@@ -724,6 +747,9 @@ class Check:
     ]
     if self.wait_seconds:
       lines.append(f"  waiting: {self.wait_seconds / 60:g} min")
+    magnets = sum(1 for m in self.moves if m.magnet)
+    if magnets:
+      lines.append(f"  magnet steps: {magnets}, under {next(m.plate for m in self.moves if m.magnet)}")
     pauses = sum(1 for m in self.moves if m.text)
     if pauses:
       lines.append(f"  pauses for a person: {pauses}")
@@ -742,6 +768,24 @@ class Check:
     lines.append(f"  problems: {len(self.problems)}")
     lines += [f"    - {p}" for p in self.problems]
     return "\n".join(lines)
+
+
+def _magnet_order(moves: List[Move]) -> List[Problem]:
+  """One plate stands on the magnet, and the magnet goes on before it goes off."""
+  problems: List[Problem] = []
+  plate, state = "", "off"
+  for move in moves:
+    if not move.magnet:
+      continue
+    where = f"steps[{move.step}].magnet"
+    if plate and move.plate != plate:
+      problems.append(Problem(where, f"the magnet is under {plate}; a run has one magnet, so {move.plate} cannot have one too"))
+      continue
+    plate = move.plate
+    if move.magnet == state:
+      problems.append(Problem(where, f"the magnet is already {state}"))
+    state = move.magnet
+  return problems
 
 
 def _capacity(well: Any) -> float:
@@ -832,6 +876,7 @@ def _carried_back(protocol: Protocol, moves: List[Move]) -> List[Problem]:
 def check(protocol: Protocol) -> Check:
   """Follow the liquid through every move and report what does not add up."""
   moves, problems = expand(protocol)
+  problems += _magnet_order(moves)
   problems += [
     Problem(
       "needs",

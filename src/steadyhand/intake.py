@@ -23,7 +23,7 @@ import urllib.request
 import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
 from .planner import carrier_refusal
 from .protocol import Check, Problem, ProtocolError, check, loads
@@ -91,11 +91,16 @@ RULES
   not a pause.
 - Some texts cannot work on a pipetting robot at all, and a file that pretends otherwise is
   worse than none. List under `needs` what the text cannot do without and the robot cannot
-  give: a magnet under the plate while liquid is taken off beads; a filter or spin plate that
-  a centrifuge or vacuum drains; glass or solvent-proof labware when the text demands it and
-  LABWARE has none. Write the rest of the file as usual. A file with `needs` is refused with
-  those reasons, which is the right outcome; do not write a wait where the magnet would be,
-  and do not cut the protocol down to the part that could run.
+  give: a filter or spin plate that a centrifuge or vacuum drains; glass or solvent-proof
+  labware when the text demands it and LABWARE has none. Write the rest of the file as usual.
+  A file with `needs` is refused with those reasons, which is the right outcome; do not cut
+  the protocol down to the part that could run.
+- When the text stands the plate on a magnet (bead cleanups), write `magnet` steps: `on` before
+  the wait for the beads to gather, `off` before they are resuspended, and take the liquid off
+  while it is on. Never write a wait in place of the magnet. For the bead plate choose one that
+  LABWARE says can stand on the magnet, if it marks any. A robot that has no magnet refuses
+  the step, and that is the right outcome there: send nothing else in its place. "Until the
+  beads have gathered" or "until clear" with no time is a wait of 2 min, noted.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume
@@ -157,6 +162,8 @@ STEPS
     liquid. mix is optional.
 - wait: {duration: <time>}
 - pause: <one sentence: what a person does by hand while the run is stopped>
+- magnet: {plate: <labware>, state: on|off}
+    The magnet under that plate goes on or off. One plate in a run can have a magnet.
 
 EXAMPLE 1 (for a text that states every plate, volume and mix)
 steadyhand: 0.1
@@ -239,7 +246,7 @@ def labware_catalogue(robot: str = "") -> str:
   if robot and robot != "hamilton-starlet":
     from .opentrons_robots import catalogue
 
-    return catalogue()
+    return catalogue(magnets=robot == "opentrons-ot2")
 
   import pylabrobot.resources as resources
   from pylabrobot.resources import Plate
@@ -532,13 +539,18 @@ def draft(
     history.append(list(problems))
     if not problems:
       return Draft(text, checked, [], round_number, messages, history, rehearsed=rehearsed)
-    if text.strip() == previous.strip() or any(problem.where == "needs" for problem in problems):
+    if text.strip() == previous.strip() or any(for_a_person(problem) for problem in problems):
       # The same file again is the model's way of saying the problem is in the text, not the file.
       # A file stopped only by what it says it needs is that from the first round.
       return Draft(text, checked, problems, round_number, messages, history, left_for_a_person=True)
     previous = text
     messages.append({"role": "user", "content": feedback(problems)})
   return Draft(text, checked, problems, max_rounds, messages, history)
+
+
+def for_a_person(problem: Any) -> bool:
+  """A problem no rewrite of the file can settle: what the protocol needs is not here."""
+  return getattr(problem, "where", "") == "needs" or "steadyhand has no magnet for" in str(problem)
 
 
 _REHEARSAL_HINT = (

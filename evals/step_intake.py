@@ -16,7 +16,7 @@ import os
 import sys
 from pathlib import Path
 
-from steadyhand.intake import _problems_of, extract_yaml, feedback, messages_for, rehearsal_problems
+from steadyhand.intake import _problems_of, extract_yaml, feedback, for_a_person, messages_for, rehearsal_problems
 
 HERE = Path(__file__).parent
 ROUNDS = 3
@@ -87,7 +87,7 @@ def main() -> int:
   else:
     listed = "\n".join(f"- {problem}" for problem in problems)
     same = number > 1 and text.strip() == (folder / f"round_{number - 1}.yaml").read_text(encoding="utf-8").strip()
-    needs = any(getattr(problem, "where", "") == "needs" for problem in problems)
+    needs = any(for_a_person(problem) for problem in problems)
     state["messages"].append({"role": "user", "content": feedback(problems)})
     if same or needs:  # as in draft(): the same file again, or a file that says what it needs, goes to a person
       state["done"], state["draft"] = True, "left for a person"

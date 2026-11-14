@@ -277,7 +277,7 @@ def _emit(args: argparse.Namespace) -> int:
 
 
 def _draft(args: argparse.Namespace) -> int:
-  from .intake import ModelError, SourceError, anthropic_model, command_model, draft, openai_model, read_source
+  from .intake import ModelError, SourceError, anthropic_model, command_model, draft, for_a_person, openai_model, read_source
 
   try:
     source = sys.stdin.read() if args.source == "-" else read_source(Path(args.source), args.pages)
@@ -327,7 +327,7 @@ def _draft(args: argparse.Namespace) -> int:
   print(f"wrote {args.output}")
   if result.ok:
     print("A model wrote this file. Read it against your source before you rehearse or run it.")
-  elif result.left_for_a_person and any(problem.where == "needs" for problem in result.problems):
+  elif result.left_for_a_person and any(for_a_person(problem) for problem in result.problems):
     print("The text needs something a pipetting robot does not have, listed above. The file is kept so you")
     print("can see the rest; it is not a protocol to run.")
   elif result.left_for_a_person:

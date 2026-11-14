@@ -46,6 +46,14 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 | `normalize` | `from`, `to`, `diluent`, `target`, `final_volume`; optional `mix` | Diluent first, then each sample, with volumes worked out from the samples table |
 | `wait` | `duration` | A timed wait; the plate stays where it is |
 | `pause` | one sentence | The run stops for a person to do that by hand, and goes on when they say |
+| `magnet` | `plate`, `state` | The magnet under that plate goes on or off |
+
+A `magnet` step is written `- magnet: {plate: beads, state: on}` (or `off`). One plate in a run can
+have a magnet. What that means on the deck is the robot's business: on the Opentrons OT-2 the plate
+stands on a Magnetic Module GEN2 for the whole run and the step raises or lowers its magnets, and
+the plate has to be one Opentrons gives a magnet height for. The Hamilton STARlet and the Opentrons
+Flex refuse the step at plan for now, because there the plate would have to be carried onto the
+magnet and steadyhand does not move plates yet.
 
 A file can also carry `needs`, a list of sentences naming what the protocol cannot work without
 and steadyhand cannot provide or check: a magnet under the plate, a filter plate drained by a

@@ -202,7 +202,9 @@ def labware_resource(load_name: str, name: str):
 
 def build_deck(planned: OpentronsPlan):
   """The deck the plan describes, as PyLabRobot resources, with the protocol's starting liquids in place."""
-  from pylabrobot.resources import Coordinate, Deck, Trash
+  from pylabrobot.resources import Coordinate, Deck, Resource, Trash
+
+  from .opentrons_robots import MAGNET_OFFSET
 
   profile = planned.profile
   (trash_x, trash_y), trash_size = _TRASH[profile.robot_type]
@@ -217,6 +219,14 @@ def build_deck(planned: OpentronsPlan):
     deck.assign_child_resource(Trash("trash", *trash_size), location=Coordinate(trash_x, trash_y, DECK_THICKNESS))
     for name, slot in planned.slots.items():
       x, y = slot_origin(profile, slot)
+      if name == planned.magnet:  # the plate stands on the module, and the module on the deck
+        dx, dy, dz = MAGNET_OFFSET
+        module = Resource("magnetic_module", size_x=SLOT[0], size_y=SLOT[1], size_z=dz, category="module")
+        deck.assign_child_resource(module, location=Coordinate(x, y, DECK_THICKNESS))
+        deck.assign_child_resource(
+          labware_resource(planned.labware[name], name), location=Coordinate(x + dx, y + dy, DECK_THICKNESS + dz)
+        )
+        continue
       deck.assign_child_resource(labware_resource(planned.labware[name], name), location=Coordinate(x, y, DECK_THICKNESS))
   for wells, volume in planned.protocol.liquids.values():
     for well in wells:
@@ -237,6 +247,10 @@ def tallest(planned: OpentronsPlan) -> float:
   """The height of the tallest thing on the deck, in mm."""
   heights = [_TRASH[planned.profile.robot_type][1][2]]
   heights += [_body(load_name)["dimensions"]["zDimension"] for load_name in set(planned.labware.values())]
+  if planned.magnet:
+    from .opentrons_robots import MAGNET_OFFSET
+
+    heights.append(MAGNET_OFFSET[2] + _body(planned.labware[planned.magnet])["dimensions"]["zDimension"])
   return max(heights)
 
 
@@ -267,7 +281,7 @@ async def record_plan(planned: OpentronsPlan, *, prepare=None) -> Tuple[Any, Lis
     handler = LiquidHandler(backend=backend, deck=deck)
     await handler.setup()
     for number, action in enumerate(planned.actions, start=1):
-      if action.kind in ("wait", "pause"):
+      if action.kind in ("wait", "pause", "magnet"):
         continue
       if action.kind == "reload":
         for name in action.racks:

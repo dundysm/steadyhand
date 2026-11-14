@@ -1,6 +1,6 @@
 # What steadyhand stops, and what it does not: Opentrons Flex
 
-Written by `steadyhand faults`, version 0.28.2. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.29.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **18 of 21 planted mistakes stopped.** The unchanged protocol ran clean.

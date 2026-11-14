@@ -726,3 +726,69 @@ def test_a_pause_becomes_a_pause_in_the_opentrons_protocol():
   assert [a.kind for a in planned.actions if a.kind in ("wait", "pause")] == ["wait", "pause", "wait"]
   assert "pauses: 1" in planned.report()
   assert 'protocol.pause("Spin the plate 1 min at 1000 g and put it back.")' in emit(planned)
+
+
+BEADS = """
+steadyhand: 0.1
+robot: %s
+name: one bead wash
+labware:
+  beads: {type: %s}
+  trough: {type: nest_12_reservoir_15ml}
+liquids:
+  wash: {in: trough/A1, volume: 10 mL}
+  sample: {in: beads/A1:H1, volume: 100 uL}
+steps:
+  - magnet: {plate: beads, state: on}
+  - wait: {duration: 2 min}
+  - transfer: {from: beads/A1:H1, to: waste, volume: 90 uL}
+  - magnet: {plate: beads, state: off}
+  - transfer: {from: trough/A1, to: beads/A1:H1, volume: 200 uL, mix_after: {times: 5, volume: 150 uL}}
+"""
+
+
+def test_on_the_ot2_a_magnet_step_puts_the_plate_on_a_magnetic_module():
+  from steadyhand.opentrons_robots import OT2, emit, plan
+  from steadyhand.opentrons_scene import build_deck, tallest
+  from steadyhand.protocol import check, loads
+
+  planned = plan(check(loads(BEADS % ("opentrons-ot2", "nest_96_wellplate_2ml_deep"))), OT2)
+  assert planned.ok, [p.message for p in planned.problems]
+  assert planned.magnet == "beads" and planned.magnet_height == 6.8
+  assert [a.amount for a in planned.actions if a.kind == "magnet"] == [1.0, 0.0]
+  script = emit(planned)
+  slot = planned.slots["beads"]
+  assert f'magnet = protocol.load_module("magnetic module gen2", "{slot}")' in script
+  assert 'deck["beads"] = magnet.load_labware("nest_96_wellplate_2ml_deep", label="beads")' in script
+  assert script.index("magnet.engage(height_from_base=6.8)") < script.index("magnet.disengage()")
+  compile(script, "emitted", "exec")
+  deck = build_deck(planned)
+  assert round(deck.get_resource("beads").get_absolute_location().z - deck.get_resource("trough").get_absolute_location().z, 2) == 82.25
+  assert tallest(planned) > 82.25 + 40
+  assert "Magnetic Module GEN2" in planned.report()
+
+
+def test_a_magnet_step_is_refused_where_there_is_no_magnet_and_for_a_plate_with_no_magnet_height():
+  from steadyhand.intake import for_a_person
+  from steadyhand.opentrons_robots import FLEX, OT2, plan
+  from steadyhand.planner import plan as hamilton_plan
+  from steadyhand.protocol import check, loads
+
+  flex = plan(check(loads(BEADS % ("opentrons-flex", "nest_96_wellplate_2ml_deep"))), FLEX)
+  assert not flex.ok and "no magnet for the Opentrons Flex" in flex.problems[0].message and for_a_person(flex.problems[0])
+  hamilton = hamilton_plan(check(loads(BEADS % ("hamilton-starlet", "nest_96_wellplate_2ml_deep"))))
+  assert not hamilton.ok and any("no magnet for the Hamilton STARlet" in p.message for p in hamilton.problems)
+  flat = plan(check(loads(BEADS % ("opentrons-ot2", "corning_96_wellplate_360ul_flat"))), OT2)
+  assert not flat.ok and "gives no magnet height" in flat.problems[0].message
+  assert not for_a_person(flat.problems[0])  # another plate settles this one
+
+
+def test_the_magnet_goes_on_before_it_goes_off_and_stays_under_one_plate():
+  from steadyhand.protocol import check, loads
+
+  text = BEADS % ("opentrons-ot2", "nest_96_wellplate_2ml_deep")
+  assert check(loads(text)).ok
+  twice = check(loads(text.replace("state: off", "state: on")))
+  assert [p.where for p in twice.problems] == ["steps[3].magnet"] and "already on" in twice.problems[0].message
+  other = check(loads(text.replace("- magnet: {plate: beads, state: off}", "- magnet: {plate: trough, state: off}")))
+  assert any("one magnet" in p.message for p in other.problems)

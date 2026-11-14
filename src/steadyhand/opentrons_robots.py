@@ -183,7 +183,7 @@ def shipped_names() -> List[str]:
   return [p.name for p in sorted(root.iterdir()) if p.is_dir() and shipped_labware(p.name) is not None]
 
 
-def catalogue() -> str:
+def catalogue(magnets: bool = False) -> str:
   """Every plate and reservoir a draft may name for an Opentrons robot, one per line."""
   lines = []
   for name in shipped_names():
@@ -192,6 +192,7 @@ def catalogue() -> str:
     lines.append(
       f"{name}: {len(found['order'])} wells ({found['rows']} rows x {found['columns']} columns), "
       f"{found['capacity']:g} uL each{bottom}{out_of_reach(name)}"
+      + (", can stand on the magnet" if magnets and engage_height(name) is not None else "")
     )
   return "\n".join(lines)
 
@@ -229,7 +230,8 @@ def load_name(labware: Labware) -> Optional[Tuple[str, float]]:
 
 @dataclass(frozen=True)
 class Action:
-  kind: str  # "pick_up", "aspirate", "dispense", "drop", "wait", "pause", "reload" or "empty"
+  kind: str  # "pick_up", "aspirate", "dispense", "drop", "wait", "pause", "magnet", "reload" or "empty"; a
+  # "magnet" has amount 1 for on and 0 for off
   mount: str = ""  # "left" or "right"; empty for "wait" and "reload"
   labware: str = ""
   well: str = ""
@@ -255,6 +257,8 @@ class OpentronsPlan:
   problems: List[Problem] = field(default_factory=list)
   pipetting_height: float = 1.0  # mm above the well floor for every aspirate and dispense
   notes: List[str] = field(default_factory=list)
+  magnet: str = ""  # the labware that stands on the Magnetic Module, if any
+  magnet_height: float = 0.0  # mm the magnets rise above the base of that plate when they are on
 
   @property
   def ok(self) -> bool:
@@ -278,6 +282,11 @@ class OpentronsPlan:
       lines.append(f"  waits: {kinds.count('wait')} ({waited / 60:g} min in all)")
     if "pause" in kinds:
       lines.append(f"  pauses: {kinds.count('pause')} (the run pauses for a person to do a step by hand)")
+    if self.magnet:
+      lines.append(
+        f"  magnet: {self.magnet} stands on a {MAGNET_NAME} in slot {self.slots[self.magnet]}, "
+        f"which goes on {sum(1 for a in self.actions if a.kind == 'magnet' and a.amount)} times"
+      )
     followed = [a.height for a in self.actions if a.height]
     if followed:
       lines.append(
@@ -340,6 +349,27 @@ def _reach(wells: Sequence[Any], rows: Dict[str, int]) -> Optional[str]:
     column = first.well[1:]
     return first.well if [well.well for well in wells] == [f"{row}{column}" for row in ROWS] else None
   return None
+
+
+MAGNET_MODULE = "magnetic module gen2"  # what the OT-2 protocol loads
+MAGNET_NAME = "Magnetic Module GEN2"
+MAGNET_OFFSET = (-1.175, -0.125, 82.25)  # mm from the slot's corner to the plate's, from Opentrons' module definition
+
+
+def engage_height(load_name: str) -> Optional[float]:
+  """How far the magnets rise above the base of this plate, in mm, where Opentrons says; None where it does not."""
+  root = _definitions()
+  if root is None or not (root / load_name).is_dir():
+    return None
+  versions = sorted((p for p in (root / load_name).glob("*.json") if p.stem.isdigit()), key=lambda p: int(p.stem))
+  height = json.loads(versions[-1].read_text()).get("parameters", {}).get("magneticModuleEngageHeight") if versions else None
+  return float(height) if height else None
+
+
+def magnet_plates() -> List[str]:
+  """Every plate Opentrons gives a magnet height for."""
+  root = _definitions()
+  return sorted(p.name for p in root.iterdir() if engage_height(p.name) is not None) if root is not None else []
 
 
 def _share(volume: float, parts: int, part: int) -> float:
@@ -427,6 +457,28 @@ def plan(
         problems.append(
           Problem(f"labware.{name}", f"{well} ends with {volume:g} uL; a well of {found[0]} holds {found[1]:g} uL")
         )
+  magnet, magnet_height = "", 0.0
+  moved = next((move for move in checked.moves if move.magnet), None)
+  if moved is not None and profile.robot_type != "OT-2":
+    problems.append(
+      Problem(
+        f"steps[{moved.step}].magnet",
+        f"steadyhand has no magnet for the {profile.title} yet: its plate would have to be carried onto a "
+        "Magnetic Block. A magnet step is planned on the Opentrons OT-2, where the plate stands on a Magnetic Module",
+      )
+    )
+  elif moved is not None and moved.plate in labware:
+    height = engage_height(labware[moved.plate])
+    if height is None:
+      problems.append(
+        Problem(
+          f"labware.{moved.plate}.type",
+          f"Opentrons gives no magnet height for {labware[moved.plate]}. Plates it gives one for: "
+          + ", ".join(magnet_plates()),
+        )
+      )
+    else:
+      magnet, magnet_height = moved.plate, height
   if problems:
     return failed()
 
@@ -722,8 +774,13 @@ def plan(
   actions: List[Action] = []
   taken: Dict[Tuple[str, str], int] = {}
   for kind, body in drafts:
-    if kind == "wait":  # a timed wait, or with a text a pause for a person
-      actions.append(Action("pause", text=body[2], step=body[1]) if body[2] else Action("wait", amount=body[0], step=body[1]))
+    if kind == "wait":  # a timed wait, with a text a pause for a person, or the magnet going on or off
+      if body[3]:
+        actions.append(Action("magnet", labware=magnet, amount=1.0 if body[3] == "on" else 0.0, step=body[1]))
+      elif body[2]:
+        actions.append(Action("pause", text=body[2], step=body[1]))
+      else:
+        actions.append(Action("wait", amount=body[0], step=body[1]))
       continue
     if kind == "empty":
       actions.append(Action("empty", racks=body[0], step=body[1]))
@@ -794,6 +851,8 @@ def plan(
     problems=problems,
     pipetting_height=pipetting_height,
     notes=notes,
+    magnet=magnet,
+    magnet_height=magnet_height,
   )
 
 
@@ -872,6 +931,10 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
     lines.append(f'  protocol.load_trash_bin("{profile.trash_slot}")')
   lines.append("  deck = {}")
   for name, slot in planned.slots.items():
+    if name == planned.magnet:
+      lines.append(f'  magnet = protocol.load_module("{MAGNET_MODULE}", "{slot}")')
+      lines.append(f'  deck[{json.dumps(name)}] = magnet.load_labware("{planned.labware[name]}", label={json.dumps(name)})')
+      continue
     lines.append(
       f'  deck[{json.dumps(name)}] = protocol.load_labware("{planned.labware[name]}", "{slot}", label={json.dumps(name)})'
     )
@@ -901,6 +964,8 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
       lines.append(f"  protocol.delay(seconds={action.amount:g})  # {action.amount / 60:g} min")
     elif action.kind == "pause":
       lines.append(f"  protocol.pause({json.dumps(action.text)})")
+    elif action.kind == "magnet":
+      lines.append(f"  magnet.engage(height_from_base={planned.magnet_height:g})" if action.amount else "  magnet.disengage()")
     elif action.kind == "reload":
       where = ", ".join(f"{name} in slot {planned.slots[name]}" for name in action.racks)
       lines.append(f"  protocol.pause({json.dumps('Swap in full tip racks: ' + where)})")

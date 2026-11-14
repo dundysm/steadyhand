@@ -1,6 +1,6 @@
 """steadyhand: turn a written lab protocol into a robot program and rehearse it before it touches a real bench."""
 
-__version__ = "0.28.2"
+__version__ = "0.29.0"
 
 from . import _gl  # noqa: F401  (must come before anything imports mujoco)
 from .record import RecordingBackend, Step

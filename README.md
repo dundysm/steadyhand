@@ -433,12 +433,16 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   a pause for a person, washes are done tip by tip, and a plate that ships with a
   lid is planned with the lid assumed off. When a run needs more tips than fit on the deck, the
   plan stops for a person to swap in full racks; nothing loads them automatically.
-- **Beads, filters and solvents.** A bead cleanup needs a magnet under the plate while the
-  liquid is taken off; a spin or filter plate needs a centrifuge or vacuum to drain it; some
-  chemistry needs glass. None of that is here. A protocol file can say so under `needs`, and
+- **A magnet on two of the three robots.** A bead cleanup needs a magnet under the plate while
+  the liquid is taken off. A `magnet` step does that on the Opentrons OT-2, where the plate
+  stands on a Magnetic Module GEN2 and the rehearsal has it at that height; Opentrons' simulator
+  checks the module calls. On the Hamilton and the Flex the plate would have to be carried onto
+  the magnet, steadyhand does not move plates yet, and the step is refused at plan with that
+  reason. No bead protocol has run on a real magnet.
+- **Filters and solvents.** A spin or filter plate needs a centrifuge or vacuum to drain it;
+  some chemistry needs glass. Neither is here. A protocol file can say so under `needs`, and
   `check` then refuses it with that reason. `draft` is told to use it, so such a text comes
-  back as "this cannot run here, because", not as a file that rehearses clean and loses the
-  beads.
+  back as "this cannot run here, because", not as a file cut down to what could run.
 - **Adapters beyond one.** A PCR plate with no skirt is planned standing in PyLabRobot's
   MicroAmp 96-well base, and the plan says so. That is the only adapter the planner knows; four
   of PyLabRobot's plate definitions need it. Whether your plate really fits that base is yours
