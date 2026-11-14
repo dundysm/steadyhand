@@ -3,9 +3,64 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 and 14 Nov 2026 with Claude models. The first eight sections are the only tests on text the guide
+All runs are on 13 and 14 Nov 2026 with Claude models. The first nine sections are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## Six rules made plainer, and an eighth set (0.34.0)
+
+The seventh set left four things open: two drafts of one manual disagreed on whether "glass test
+tubes" must be glass; a 10 mL stock was mixed with three strokes of 1 mL; two drafts made a
+misprinted step fit by choosing a bigger plate than the manual's; and the robot seeded cells a day
+before the assay. The rules, committed before the eighth set was read by a model: glass is needed
+only where the text says plastic will not do or the liquid attacks plastic, and glass tubes named
+for a dilution in buffer become a plate with a note; a liquid more than three times the mix volume
+is mixed once per mix volume it holds, at most 10 times; wells the text recommends beside the
+samples are included, with a sample's replicate count when none is given; a larger plate than the
+kind the text describes is not chosen to make its volumes fit; cells seeded before the assay day
+start on the plate; a timed mix on a shaker is a pipette mix and a wait.
+
+**The set.** `MANUALS_8` in [evals/heldout/fetch.py](heldout/fetch.py): five Cayman manuals not
+used before (uric acid, alanine transaminase, LDH cytotoxicity, xanthine oxidase, hemoglobin). Two
+new Claude Opus 5.5 agents: Flex with nothing decided, Hamilton with `24 samples. Every sample in
+triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol, first attempt | 5 of 5 | 5 of 5 |
+
+All ten pass `steadyhand rehearse`; the Flex drafts also pass Opentrons' simulator on the Flex and
+on the OT-2. Read in full against the pages, every volume and well in all ten matches. What the
+rules did on text they were not written from:
+
+- **Glass.** The xanthine oxidase manual makes its standards in "six clean glass test tubes". Both
+  drafts use a plate and say so in `notes`; neither is refused.
+- **A reagent made just before use.** The same manual's Assay Cocktail is to be used within 10
+  minutes. Both drafts pause before its first use with the recipe in the pause.
+- **Cells seeded beforehand.** Both LDH drafts start from a plate that already holds the cells and
+  say so; the incubation whose length the manual leaves to the experiment is a pause that says so.
+- **Heat between two pipetting steps.** Both ALT drafts pause for the 15 min at 37 C before the
+  initiator.
+- **Replicates of standards.** With "as many wells as a sample" one Hamilton draft would have
+  needed 600 uL from a 500 uL standard; it kept the manual's duplicates and said why.
+
+**The rules on the manuals they came from** (not an outside test), drafted again by the new agents:
+both calcein (`mdr`) drafts now choose the manual's kind of plate, overflow it at the last step
+(434 and 438 uL in 360 and 340 uL wells), send the same file again and are handed to a person, which
+is the outcome the rule is for. Both `catalase_nohp` drafts pass: the Hamilton one no longer asks
+for glass, and both mix the 10 mL stock ten times.
+
+**What the agents still found unclear:** whether "31 samples can be assayed in triplicate" is a
+number of samples (both took it as a capacity); whether a count shown only in a plate figure is a
+count the text gives; whether medium-only background wells belong to seeding or to the run; an
+assay "performed at 37 C" on a deck that is not heated; how much a draw from the surface should
+take off a layer of cells; a dilution the text recommends only if a sample is out of range.
+
+**Caveats.** Five manuals from one maker, one run each, one agent per robot, every case of a run in
+one conversation. In the calcein case both agents read the end of a long prompt from their tool's
+saved copy of its output; that is the same text. Counts for earlier sets stand as measured: the
+seventh set's two calcein drafts are still counted as standing there, though 0.34.0 hands them
+back. I read the drafts; nobody who runs these kits has. Nothing has run on a robot.
 
 ## The sixth set read against its pages, five rules from it, and a seventh set (0.33.0)
 

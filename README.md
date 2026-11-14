@@ -414,9 +414,9 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 ## What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. Seven sets from outside, on the protocol pages of 56 manufacturers'
+  model one turn at a time. Eight sets from outside, on the protocol pages of 61 manufacturers'
   manuals read straight from the PDFs, each with the guide frozen beforehand and changed only
-  after the write-up. Of 116 drafts for the three robots, 94 stand as rehearsed programs with
+  after the write-up. Of 126 drafts for the three robots, 104 stand as rehearsed programs with
   no hand edits; 11 are refused for a reason that is true (spin-plate kits, and bead kits
   before there was a magnet); 5 were handed back to a person; 5 passed by overfilling a plate
   the Hamilton's labware list overstated, fixed in 0.30.1; 1 crashed steadyhand, fixed.
