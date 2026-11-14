@@ -384,7 +384,10 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   refused for the right reason. Each agent drafted 15 or 16 notes in a row, so later notes may
   have gained from earlier ones. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
-  matches the note; two of this run's drafts were read against their notes and matched. Drafting from a PDF is
+  matches the note, so all 56 drafts of this run were also read against their notes: 53 carry
+  every stated step, volume, well and order, and 3 depart from the note in one place each
+  (two cannot draw near the surface as asked, one leaves out a wait). The reading was done by
+  the project itself, not by an outside reader. Drafting from a PDF is
   untested on real manuals.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types

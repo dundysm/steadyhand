@@ -6,6 +6,38 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## All 56 accepted drafts read against their notes (after 0.23.0)
+
+A pass says the file runs. To see whether it says what the note says, every draft accepted in the
+0.22.0 run (28 for the Hamilton, 28 for the Flex) was read line by line against its note: wells,
+volumes, order, times, mixes, tip changes. The reading was done by the same assistant that builds the
+tool, with the note and the draft side by side; it is not an independent review, and it does not check
+what the planner then does with the file.
+
+**53 of 56 carry every stated step, volume, well and order. 3 depart from the note, in one place each:**
+
+- `ldh_release`, both robots. The note says to take the supernatant from near the top of the liquid so
+  the cells are not disturbed. The format has no way to say where in the liquid a tip draws, so the
+  program draws 1 mm above the floor of the well, which is where the cells are. Both drafts say in
+  their notes that they could not express it; the Hamilton draft adds that it is "left to the robot's
+  liquid-class settings", which is not true of the script steadyhand writes.
+- `vague`, Hamilton. The note says "wait a bit" between adding and removing the wash. The draft leaves
+  the wait out and says so; the Flex draft chose 1 minute. The guide says both: "a step with no time at
+  all gets no wait", and a worked example that picks 1 minute for an unstated wash time.
+
+**Where the two robots' drafts differ and the note leaves it open** (none of these contradicts a note):
+
+- A drying time of "a few minutes": 5 minutes on one, 3 on the other.
+- "Trough" taken as one well of a 12-well reservoir or as a single-well reservoir, which changes the
+  amount supplied (240 uL or 1.6 mL out of reach) but not the steps.
+- "Vortex 30 s" kept as a 30 second wait in both, although a wait does not vortex.
+- A black or white plate asked for where the Opentrons list has only clear ones: a clear plate, noted.
+- "New tips for every column" written as a fresh tip for every well, the stricter choice.
+- A mix with no count is 3 times in every draft; a mix with no volume is two thirds of the well.
+
+What follows from it: the format needs a way to draw near the surface, and the guide needs one rule
+for a time given only in words.
+
 ## A delivered draw that takes air now fails (0.23.0)
 
 The gap named under 0.22.0 is closed. A draw that starts in the liquid and takes it below the tip
@@ -51,7 +83,7 @@ notes each).
 - `pcr_setup` passed at the first attempt on both robots with 420 uL of master mix (144 uL used,
   plus 20%, plus 240 uL out of reach). In 0.20.0 the same note ended with 2.2 mL on the Flex.
 - Two drafts were read line by line against their notes (`pcr_setup` on the Hamilton,
-  `griess_nitrite` on the Flex) and matched. The other 54 were not read.
+  `griess_nitrite` on the Flex) and matched. All 56 were read later; see the section above.
 - The ELISA draft for the Flex now pauses 18 times for tips and 3 times for waste (9 and 3 on the
   OT-2). The draft differs from the last one, so the pauses do too.
 
