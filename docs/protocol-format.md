@@ -48,11 +48,16 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 
 `tips` is `fresh` (the default: a new tip for every transfer) or `reuse` (one tip per source well).
 
-`draw_from` says where in the liquid a transfer's tip draws. `bottom` (the default) stops it 1 mm above
-the floor of the well. `surface` keeps it 1 mm under where the liquid stands when the draw is over, and
-never lower than `bottom` would: for taking liquid off cells, a pellet or anything settled. The planner
-works the height out from the volume in the well, so it needs a well whose inside shape is known (any
-flat-bottom well; on an Opentrons robot nearly every well) and refuses the plan where it is not.
+`draw_from` says where in the liquid a transfer's tip draws:
+
+- `bottom` (the default) stops it 1 mm above the floor of the well.
+- `surface` keeps it 1 mm under where the liquid stands when the draw is over, and never lower than
+  `bottom` would: for taking liquid off cells, a pellet or anything settled. The planner works the
+  height out from the volume in the well, so it needs a well whose inside shape is known (any
+  flat-bottom well; on an Opentrons robot nearly every well) and refuses the plan where it is not.
+- A height, such as `0.5 mm`, puts the tip that far above the floor: lower than usual to take nearly
+  all of a small volume, higher to stay off what has settled. Nothing under 0.2 mm is accepted;
+  closer than that a tip can seal against the floor of the well.
 
 Every liquid under `liquids` must be touched by at least one step (drawn from, added to or mixed);
 one that is not is reported as a problem.

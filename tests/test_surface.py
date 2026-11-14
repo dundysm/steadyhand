@@ -28,7 +28,10 @@ def test_the_format_takes_bottom_or_surface_and_nothing_else():
   assert check(loads(supernatant("draw_from: bottom"))).protocol.steps[0].draw_from == "bottom"
   with pytest.raises(ProtocolError) as refused:
     loads(supernatant("draw_from: top"))
-  assert "steps[0].transfer.draw_from: expected 'bottom' or 'surface', got 'top'" in str(refused.value)
+  assert (
+    "steps[0].transfer.draw_from: expected 'bottom', 'surface' or a height above the well floor such as '0.5 mm', got 'top'"
+    in str(refused.value)
+  )
 
 
 def test_on_the_hamilton_the_tip_stops_under_where_the_liquid_ends_up():
@@ -39,7 +42,7 @@ def test_on_the_hamilton_the_tip_stops_under_where_the_liquid_ends_up():
   assert draws and all(len(c.heights) == 8 for c in draws)
   heights = {h for c in draws for h in c.heights}
   assert len(heights) == 1 and 2.0 < heights.pop() < 2.2
-  assert "draws that follow the surface: 16" in planned.report()
+  assert "draws at a height of their own: 16" in planned.report()
   # the dispense, and a plan that does not ask for it, keep the usual height
   assert all(not c.heights for c in planned.commands if c.kind != "aspirate")
   assert all(not c.heights for c in plan(check(loads(supernatant("")))).commands)
@@ -84,7 +87,7 @@ def test_on_an_opentrons_robot_the_height_goes_into_the_protocol_and_the_replay(
   draws = [a for a in planned.actions if a.kind == "aspirate"]
   assert draws and all(2.0 < a.height < 2.2 for a in draws)
   assert all(a.height == 0 for a in planned.actions if a.kind != "aspirate")
-  assert "draws that follow the surface" in planned.report()
+  assert "draws at a height of their own" in planned.report()
   script = ot.emit(planned)
   assert re.search(r'aspirate\(100\.0, deck\["culture"\]\["A1"\]\.bottom\(2\.\d+\)\)  # just under the surface', script)
   assert 'deck["assay"]["A1"].bottom(HEIGHT))' in script
@@ -106,3 +109,70 @@ def test_on_an_opentrons_robot_a_v_bottom_well_can_be_followed_because_its_shape
 
 def test_submerged_is_a_millimetre():
   assert SUBMERGED == 1.0
+
+
+# ---------------------------------------------------------------- a height the protocol names
+
+
+def eluate(draw, robot="", plate=""):
+  plate = plate or ("opentrons_96_wellplate_200ul_pcr_full_skirt" if robot else "Cor_96_wellplate_360ul_Fb")
+  holds, takes = ("40 uL", "38 uL") if robot else ("110 uL", "100 uL")
+  option = f", draw_from: {draw}" if draw else ""
+  return (
+    "steadyhand: 0.1\nname: nearly all of a well\n" + (f"robot: {robot}\n" if robot else "")
+    + f"labware:\n  first: {{type: {plate}}}\n  second: {{type: {plate}}}\n"
+    + f"liquids:\n  eluate: {{in: first/A1:H2, volume: {holds}}}\n"
+    + f"steps:\n  - transfer: {{from: first/A1:H2, to: second/A1:H2, volume: {takes}{option}}}\n"
+  )
+
+
+def test_a_height_is_read_and_one_too_close_to_the_floor_is_refused():
+  step = check(loads(eluate("0.3 mm"))).protocol.steps[0]
+  assert (step.draw_from, step.draw_height) == ("height", 0.3)
+  for bad, why in (("0.1 mm", "0.1 mm is closer to the floor of the well than a tip should draw (0.2 mm)"), ("3", "expected 'bottom'")):
+    with pytest.raises(ProtocolError) as refused:
+      loads(eluate(bad))
+    assert why in str(refused.value)
+
+
+def test_on_the_hamilton_a_lower_tip_reaches_what_the_usual_height_leaves():
+  usual = asyncio.run(rehearse_plan(plan(check(loads(eluate(""))))))
+  assert not usual.ok and {i.kind for i in usual.liquid_failures} == {"short"}
+  planned = plan(check(loads(eluate("0.25 mm"))))
+  draws = [c for c in planned.commands if c.kind == "aspirate"]
+  assert planned.ok and all(c.heights == (0.25,) * 8 for c in draws)
+  assert "draws at a height of their own: 16, the tip 0.25 to 0.25 mm" in planned.report()
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok and result.liquid == []
+  assert "liquid_height=[0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])  # the height this step asks for" in emit(planned)
+
+
+def test_a_height_needs_no_knowledge_of_the_well_and_a_higher_one_can_miss_the_liquid():
+  # the shape of this V-bottom plate is not known, which stops a draw that follows the surface but not a height
+  text = eluate("3 mm").replace("Cor_96_wellplate_360ul_Fb", "Azenta4titudeFrameStar_96_wellplate_200ul_Vb")
+  assert plan(check(loads(text.replace("110 uL", "150 uL").replace("100 uL", "50 uL")))).ok
+  # in a flat well 110 uL stands about 3.4 mm deep: a tip 5 mm up starts in air
+  high = asyncio.run(rehearse_plan(plan(check(loads(eluate("5 mm"))))))
+  assert not high.ok and "air" in {i.kind for i in high.liquid_failures}
+
+
+@needs_opentrons
+@pytest.mark.parametrize("profile", [ot.FLEX, ot.OT2])
+def test_on_an_opentrons_robot_a_lower_tip_takes_38_of_40_microlitres(profile):
+  from steadyhand.intake import rehearsal_problems
+  from steadyhand.opentrons_scene import rehearse_plan as rehearse_opentrons
+
+  usual = rehearsal_problems(check(loads(eluate("", robot=profile.name))), profile.name)
+  assert len(usual) == 1 and "of what it moves on is air" in usual[0].message
+  assert "A tip stops 1 mm above the floor" in usual[0].message
+  assert "can draw lower: give it draw_from with a height, such as 0.5 mm, and no less than 0.2 mm" in usual[0].message
+
+  planned = ot.plan(check(loads(eluate("0.5 mm", robot=profile.name))), profile)
+  assert planned.ok and all(a.height == 0.5 for a in planned.actions if a.kind == "aspirate")
+  script = ot.emit(planned)
+  assert '.bottom(0.5))  # the height this step asks for' in script
+  result = asyncio.run(rehearse_opentrons(planned))
+  assert result.ok and result.liquid == []
+  simulated = ot.simulate(script, profile)
+  if simulated.ran:
+    assert simulated.ok, simulated.report()

@@ -24,6 +24,14 @@ See [What it does not do yet](#what-it-does-not-do-yet).
 ## Try it
 
 ```bash
+pip install steadyhand
+steadyhand demo
+```
+
+`demo` rehearses a small protocol that ships inside the package. To run the examples in this
+repository:
+
+```bash
 git clone https://github.com/dundysm/steadyhand && cd steadyhand
 pip install -e .
 steadyhand rehearse examples/serial_dilution.yaml
@@ -125,7 +133,8 @@ is used when no robot is named; the others are under [Robots](#robots).
   to take liquid off cells or a pellet. The planner works that height out from the volume in the
   well, on every robot, and refuses where the inside shape of the well is not known. In a
   shallow well it changes little: taking 50 uL from 120 uL in a 96-well plate lifts the tip
-  from 1 mm to 1.17 mm.
+  from 1 mm to 1.17 mm. A transfer can also name its own height (`draw_from: 0.5 mm`), to take
+  nearly all of a small volume or to stay off what has settled.
 
 ### Change what `plan` decided
 
@@ -263,16 +272,14 @@ so half a column is done one well at a time. No modules or gripper. No plan file
 makes room in this order: a pair of pipettes that needs fewer kinds of tip; one size of tip per
 pipette; fewer waste reservoirs, with a pause for a person to empty them; fewer tip racks, with
 pauses to reload. The plan report counts every pause. A full ELISA drafted from a kit note fits
-this way, at the price of 17 tip reloads and 3 waste stops on a Flex: it runs, but someone has to
+this way, at the price of 14 tip reloads and 3 waste stops on a Flex: it runs, but someone has to
 stand by it.
 
 **Drafting for them.** `steadyhand draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
 the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
-has it write the `robot:` line. On the 31 intake notes, 27 go from text to a protocol that
-passes the physics replay and Opentrons' simulator on both robots with no hand edits, 26 at the
-first attempt. Three cannot work as written and are refused at `check`. One, a bead cleanup, is
-handed back to a person: it moves 38 uL out of a 40 uL eluate in a PCR plate, and with the tip
-1 mm above the floor of the well about 1 uL of that would be air. Details and caveats are in [evals](evals/RESULTS.md).
+has it write the `robot:` line. On the 31 intake notes, 28 go from text to a protocol that
+passes the physics replay and Opentrons' simulator on both robots with no hand edits, all at
+the first attempt. The other three cannot work as written and are refused at `check`. Details and caveats are in [evals](evals/RESULTS.md).
 
 ## What it stops, measured
 
@@ -389,19 +396,17 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
 ## What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. On the latest run (0.24.0, every note drafted again for both
-  robots), of 31 notes (20 from public kit manuals): on the Hamilton 28 go from plain text to a
-  rehearsed script with no hand edits, all at the first attempt; on an Opentrons Flex 27 do, 26
-  at the first attempt, and the same files pass on the OT-2. Three notes cannot work as written
-  and are refused for the right reason; on the Flex a fourth is handed back to a person because
-  about 1 uL of a 38 uL transfer would be air. Each agent drafted 15 or 16 notes in a row, so
-  later notes may have gained from earlier ones, and the same 31 notes have now guided several
-  rounds of changes to the guide, so they no longer test it from outside. The runs, the notes
+  model one turn at a time. On the latest run (0.26.0, every note drafted again for both
+  robots), of 31 notes (20 from public kit manuals), 28 go from plain text to a rehearsed
+  program with no hand edits, all at the first attempt, on the Hamilton and on an Opentrons
+  Flex; the Flex files pass on the OT-2 too. The other three cannot work as written and are
+  refused for the right reason. Each agent drafted 15 or 16 notes in a row, so later notes may
+  have gained from earlier ones. More important: the same 31 notes have guided four rounds of
+  changes to the guide, so this is how well the guide fits the notes it was tuned on, not a
+  test from outside. The runs, the notes
   and their sources are in [evals](evals/RESULTS.md). A pass means the file runs, not that it
-  matches the note, so the drafts were also read against their notes: all 56 of the run before,
-  and every step that changed in this one. No draft of this run contradicts its note. One
-  reused a tip into wells that already held sample; `check` now refuses that, and the note was
-  drafted again. The
+  matches the note, so the drafts were also read against their notes: all 56 of an earlier run,
+  and every step that changed in each run since. No draft of this run contradicts its note. The
   reading was done by the project itself, not by an outside reader. Drafting from a PDF is
   untested on real manuals.
 - **A fully editable plan.** Tips, deck layout and pipetting height can be overridden for the

@@ -6,6 +6,49 @@ those runs only in that one word; no run has been repeated under the new name.
 All runs are on 13 Nov 2026 with Claude models. The latest is the one that counts: the guide and the
 checks changed between runs.
 
+## A draw can name its height, and every note drafted again (0.26.0)
+
+- A transfer can give `draw_from` a height above the floor of the well (`0.5 mm`; nothing under
+  0.2 mm): lower than the usual 1 mm to take nearly all of a small volume, higher to stay off what has
+  settled. It needs no knowledge of the well's shape. The rehearsal's message for a draw that takes air
+  now names it as a way out.
+- The guide: size comes before the kind of plate; a trough the list gives no amount for counts as
+  2 mL; a wait asked for in words includes "until clear"; a mix with no count includes "mix briefly";
+  `reuse` into wells that hold another liquid is refused.
+
+All 31 notes were drafted again for both robots by four Claude Opus 5.5 agents.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 28 of 31 | 28 of 31 |
+| at the first attempt | 28 | 28 |
+| Refused, as they should be | 3 | 3 |
+
+- The 28 Flex drafts pass the physics replay and Opentrons' simulator on the Flex and, with the robot
+  line changed, on the OT-2: 56 runs. The 28 Hamilton drafts pass `steadyhand rehearse`.
+- `ampure_cleanup`, handed back to a person in 0.24.0, passes on both robots: the model gave the
+  38 uL eluate transfer `draw_from: 0.5 mm` in its first reply. `kit_manual` on the Hamilton did the
+  same for its 20 uL of 22 uL. `ldh_release` uses `draw_from: surface` on both, as before.
+- `sandwich_elisa` passes at the first attempt on the Flex again, in a 450 uL plate.
+- The ELISA on the Flex pauses 14 times for tips and 3 for waste this time (7 and 3 on the OT-2).
+- Read against the notes: every step that differs from the 0.24.0 and 0.25.0 drafts was read. None
+  contradicts its note. The models now add a wait they choose where a note says "cool" or "bring to
+  room temperature" (10 and 30 minutes), and say so in their notes.
+
+**Caveats.**
+- **This is a fit, not a test.** The guide has been changed four times in answer to these same 31
+  notes. 28 of 28 at the first attempt says the guide now suits them. It says little about a note
+  the guide has not seen.
+- One run per note and robot; 15 or 16 notes per agent in one session. One agent printed the prompts
+  of its later cases early, to compare their instruction sections, and says it did not read the notes
+  in them then.
+- No message from the new tip check or the new height hint was ever shown to a model in this run:
+  nothing triggered them.
+- Still unclear to the agents: whether "cool" or "back on the magnet" is a wait; what to do with a
+  liquid too big for one reservoir (they split it, three or five ways); a "PCR plate" in the Hamilton
+  list that holds 1240 uL; that emptying a flat well to waste passes although some of it is out of
+  reach (it is noted, not failed); that a normalize note with no file gives no column names.
+
 ## A reused tip that carries liquid back is refused at check (0.25.0)
 
 The reading under 0.24.0 found one draft that adds reagent with one reused tip to wells already

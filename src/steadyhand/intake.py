@@ -54,13 +54,15 @@ RULES
   trough or reservoir. When it gives none for what is already in wells the steps add
   to or empty, treat those wells as empty and say so in `notes`.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
-  the labware, choose one of the kind it asks for (a PCR plate, a deep-well plate) whose wells
-  hold the largest volume any well reaches; a well may be filled to what the list says it holds.
+  the labware, choose one whose wells are big enough for the largest volume any well reaches;
+  a well may be filled to what the list says it holds, not beyond. Among those, prefer the
+  kind the text asks for (a PCR plate, an ELISA plate); when none of that kind is big enough,
+  size comes first.
   For wells a tip draws from or mixes in while they hold 50 uL or less, choose a V- or
   U-bottom plate: in a flat-bottom well that little liquid is too shallow for a tip to reach.
   For a trough or reservoir the text does not describe, choose the one with the least out of
-  reach whose well holds the liquid; liquids "in their own troughs" may each take one well of
-  the same multi-well trough. The list does not give a plate's colour: for a black or white
+  reach whose well holds the liquid, counting one the list gives no amount for as 2 mL;
+  liquids "in their own troughs" may each take one well of the same multi-well trough. The list does not give a plate's colour: for a black or white
   plate that no name in the list offers, choose by shape and volume and say so in `notes`.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
@@ -69,14 +71,14 @@ RULES
   and say so in `notes`, one sentence each. A timed step the plate sits through becomes a `wait`
   of that length, even on equipment the robot lacks (shake 30 s, incubate 2 h, 2 min on a
   magnet); a timed action on something else (vortex the reagent 30 s before use) is left out.
-  For "at least" a time, use that time; for "overnight", use 16 h. A time given only in words
-  ("a few minutes", "wait a bit", "briefly") gets a `wait` of a conventional length that you
-  choose and record in `notes`. A step that mentions no time gets no wait.
+  For "at least" a time, use that time; for "overnight", use 16 h. A wait asked for only in
+  words ("a few minutes", "wait a bit", "until clear") gets a `wait` of a conventional length
+  that you choose and record in `notes`. A step that mentions no waiting gets no wait.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume
   the text does not give is about two thirds of what the well holds at that point; a mix with
-  no count is 3 times.
+  no count ("mix", "mix briefly", "mix a few times") is a pipette mix of 3 times.
 - When the text asks for something the format cannot say exactly (such as new tips per
   column), use the nearest stricter option and say so in `notes`.
 - Use `normalize` only when the text asks to bring samples to a common concentration and a
@@ -103,14 +105,17 @@ limits: {min_volume: <volume>}   (optional; default 1 uL)
 steps:                   (required) a list; each item is exactly one of the steps below
 
 STEPS
-- transfer: {from: <wells>, to: <wells>|waste, volume: <volume>, tips: fresh|reuse, mix_after: {times: <n>, volume: <volume>}, draw_from: bottom|surface}
+- transfer: {from: <wells>, to: <wells>|waste, volume: <volume>, tips: fresh|reuse, mix_after: {times: <n>, volume: <volume>}, draw_from: bottom|surface|<height>}
     from/to pair up as: one source to many wells, many sources to one well, or equal counts.
     volume is the amount per destination. tips defaults to fresh (a new tip per transfer);
-    reuse keeps one tip per source well and suits clean liquid going into empty wells.
+    reuse keeps one tip per source well and suits clean liquid going into empty wells; into
+    wells that already hold another liquid it is refused, because the tip carries that back.
     draw_from defaults to bottom: the tip stops 1 mm above the floor of the well. surface keeps
     the tip just under the liquid as it falls; use it when the text says to take liquid from
     the top, or without disturbing cells, a pellet or what has settled. It works only in a well
-    the LABWARE list gives an out-of-reach amount for.
+    the LABWARE list gives an out-of-reach amount for. A height such as 0.5 mm (0.2 mm at the
+    least) puts the tip that far above the floor: lower than usual when a transfer has to take
+    nearly all of a small volume, higher to stay off what has settled.
     tips, mix_after and draw_from are optional; without mix_after nothing is mixed.
 - mix: {wells: <wells>, volume: <volume>, times: <n>}
 - serial_dilution: {start: <wells>, steps: <n>, direction: right|left|down|up, volume: <volume>, mix: {times: <n>, volume: <volume>}, discard: true|false, tips: fresh|reuse}
@@ -336,26 +341,35 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
     wells = sorted({issue.resource.rpartition("_well_")[2] for issue in issues})
     where = f"{labware}/{wells[0]}" + (f" and {len(wells) - 1} more wells" if len(wells) > 1 else "")
     gap = max(issue.gap for issue in issues)
+    stops = max(issue.height for issue in issues) or planned.pipetting_height  # where the tip was for these draws
     if kind == "air":
-      cover = _volume_to_cover(deck.get_resource(issues[0].resource), planned.pipetting_height)
+      cover = _volume_to_cover(deck.get_resource(issues[0].resource), stops)
       needs = f". That well needs about {cover:g} uL left in it for a tip to stay under the surface" if cover else ""
       reach = f"stops up to {gap:g} mm above the liquid" if gap > 0 else "only just touches the liquid"
       problems.append(
         Problem(
           "rehearsal",
           f"in {where} the tip {reach} and draws air. A tip stops "
-          f"{planned.pipetting_height:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}",
+          f"{stops:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}",
         )
       )
     elif kind == "short":
-      cover = _volume_to_cover(deck.get_resource(issues[0].resource), planned.pipetting_height)
+      from .protocol import LOWEST_DRAW
+
+      cover = _volume_to_cover(deck.get_resource(issues[0].resource), stops)
       short = max(issue.short for issue in issues)
       needs = f" That well needs about {cover:g} uL left in it after the draw." if cover else ""
+      lower = (
+        f" A transfer that has to take nearly all of a well can draw lower: give it draw_from with a height, "
+        f"such as {max(LOWEST_DRAW, round(stops / 2, 1)):g} mm, and no less than {LOWEST_DRAW:g} mm."
+        if stops > LOWEST_DRAW * 2
+        else ""
+      )
       problems.append(
         Problem(
           "rehearsal",
           f"in {where} a draw takes the liquid below the tip, so up to {short:g} uL of what it moves on is air. "
-          f"A tip stops {planned.pipetting_height:g} mm above the floor of a well and cannot reach what is under it.{needs}",
+          f"A tip stops {stops:g} mm above the floor of a well and cannot reach what is under it.{needs}{lower}",
         )
       )
     else:

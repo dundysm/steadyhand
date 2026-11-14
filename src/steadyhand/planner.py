@@ -67,7 +67,8 @@ class Command:
   volumes: Tuple[float, ...] = ()  # for "wait", the one number is seconds
   step: int = -1
   surface: bool = False  # an aspirate that stays just under the liquid as it falls
-  heights: Tuple[float, ...] = ()  # for such an aspirate, mm above the well floor for each channel
+  heights: Tuple[float, ...] = ()  # mm above the well floor for each channel, for an aspirate that follows the
+  # surface or that the protocol gives a height of its own; empty for the usual pipetting height
 
 
 SUBMERGED = 1.0  # mm a tip that follows the surface stays under it, measured when the draw is over
@@ -122,7 +123,7 @@ class Plan:
     followed = [h for c in self.commands for h in c.heights]
     if followed:
       lines.append(
-        f"  draws that follow the surface: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
+        f"  draws at a height of their own: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
       )
     widest = max((len(c.channels) for c in self.commands), default=0)
     lines.append(
@@ -273,6 +274,7 @@ class _Unit:
   volume: float  # 0 for a mix on its own
   mix: Optional[Tuple[int, float]]  # (times, volume), done in `destination`
   surface: bool = False  # the transfer is drawn from just under the surface
+  height: float = 0.0  # the transfer is drawn this many mm above the well floor; 0 for the usual height
 
 
 def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, Tuple[float, int]]]:
@@ -286,7 +288,9 @@ def _units(moves: Sequence[Move]) -> Tuple[List[_Unit], Dict[int, Tuple[float, i
       continue
     if move.kind == "transfer":
       assert move.source is not None and move.destination is not None
-      units.append(_Unit(move.step, move.tip, move.source, move.destination, move.volume, None, move.surface))
+      units.append(
+        _Unit(move.step, move.tip, move.source, move.destination, move.volume, None, move.surface, move.height)
+      )
     elif move.kind == "mix":
       assert move.source is not None
       last = units[-1] if units else None
@@ -507,6 +511,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
             Command(
               "aspirate", tuple(active), source, tuple(place(batch[c].source)[1] for c in active), volumes, step,
               surface=batch[0].surface,
+              heights=(batch[0].height,) * len(active) if batch[0].height else (),
             )
           )
           commands.append(
@@ -1070,7 +1075,8 @@ def emit(planned: Plan, *, source: str = "") -> str:
       lines.append(f"  await lh.pick_up_tips({picked}, use_channels={channels})")
     else:
       if command.heights:
-        height = f"liquid_height={list(command.heights)})  # just under the surface"
+        why = "just under the surface" if command.surface else "the height this step asks for"
+        height = f"liquid_height={list(command.heights)})  # {why}"
       else:
         height = f"liquid_height=[HEIGHT] * {len(channels)})"
       lines.append(

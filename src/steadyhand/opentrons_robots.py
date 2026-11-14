@@ -236,7 +236,8 @@ class Action:
   amount: float = 0.0  # uL per channel, or seconds for "wait"
   racks: Tuple[str, ...] = ()  # for "reload", the tip racks a person swaps; for "empty", the waste reservoirs
   surface: bool = False  # an aspirate that stays just under the liquid as it falls
-  height: float = 0.0  # for such an aspirate, mm above the well floor; 0 for the usual pipetting height
+  height: float = 0.0  # mm above the well floor for an aspirate that follows the surface or that the
+  # protocol gives a height of its own; 0 for the usual pipetting height
   step: int = -1
   wells: Tuple[str, ...] = ()  # every well or tip the action touches: one, or eight for an 8-channel pipette
 
@@ -277,7 +278,7 @@ class OpentronsPlan:
     followed = [a.height for a in self.actions if a.height]
     if followed:
       lines.append(
-        f"  draws that follow the surface: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
+        f"  draws at a height of their own: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
       )
     eight = any(len(a.wells) == 8 for a in self.actions)
     lines.append(
@@ -462,7 +463,9 @@ def plan(
         apart.append(unit)
         continue
       if unit.volume:
-        apart.append(_Unit(unit.step, fresh, unit.source, unit.destination, unit.volume, None))
+        apart.append(
+          _Unit(unit.step, fresh, unit.source, unit.destination, unit.volume, None, unit.surface, unit.height)
+        )
         fresh += 1
       if unit.mix:
         apart.append(_Unit(unit.step, fresh, unit.destination, unit.destination, 0.0, unit.mix))
@@ -749,6 +752,7 @@ def plan(
           Action(
             "aspirate", mount, source.labware, draws, amount, step=step, wells=reached(source, draws, channels),
             surface=first.surface,
+            height=first.height,
           )
         )
         actions.append(
@@ -899,7 +903,8 @@ def emit(planned: OpentronsPlan, *, source: str = "") -> str:
     elif action.kind == "pick_up":
       lines.append(f'  {action.mount}.pick_up_tip(deck[{json.dumps(action.labware)}]["{action.well}"])')
     else:
-      height = f"{action.height!r}))  # just under the surface" if action.height else "HEIGHT))"
+      why = "just under the surface" if action.surface else "the height this step asks for"
+      height = f"{action.height!r}))  # {why}" if action.height else "HEIGHT))"
       lines.append(
         f"  {action.mount}.{action.kind}({action.amount!r}, "
         f'deck[{json.dumps(action.labware)}]["{action.well}"].bottom({height}'

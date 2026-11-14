@@ -85,7 +85,8 @@ class Transfer:
   volume: float
   tips: str  # "fresh" or "reuse"
   mix_after: Optional[Tuple[int, float]]  # (times, volume)
-  draw_from: str = "bottom"  # "bottom", or "surface": the tip stays just under the liquid as it falls
+  draw_from: str = "bottom"  # "bottom", "surface" (the tip stays just under the liquid as it falls) or "height"
+  draw_height: float = 0.0  # for "height": mm above the floor of the well where the tip draws
 
 
 @dataclass(frozen=True)
@@ -156,7 +157,11 @@ class Move:
   tip: int = -1
   seconds: float = 0.0
   surface: bool = False  # a transfer drawn from just under the surface, not from the bottom of the well
+  height: float = 0.0  # a transfer drawn this many mm above the floor of the well; 0 for the usual height
 
+
+_HEIGHT = re.compile(r"^\s*([0-9]+(?:\.[0-9]+)?)\s*mm\s*$")
+LOWEST_DRAW = 0.2  # mm above the floor of a well: closer than this a tip can seal against it
 
 _ONE_WELL = re.compile(r"(?<![\w/])([A-Za-z_][\w-]*)/([A-Z]{1,2}[0-9]{1,2})(?![\w:])")
 
@@ -276,6 +281,20 @@ class _Reader:
     volume = self.volume(body.get("volume"), f"{where}.volume") if "volume" in body else None
     return (times, volume) if times is not None and volume is not None else None
 
+  def draw(self, value: Any, where: str) -> Tuple[str, float]:
+    """Where in the liquid a transfer's tip draws: 'bottom', 'surface', or a height above the well floor."""
+    if value in ("bottom", "surface"):
+      return value, 0.0
+    match = _HEIGHT.match(value) if isinstance(value, str) else None
+    if not match:
+      self.fail(where, f"expected 'bottom', 'surface' or a height above the well floor such as '0.5 mm', got {value!r}")
+      return "bottom", 0.0
+    height = float(match.group(1))
+    if height < LOWEST_DRAW - EPS:
+      self.fail(where, f"{height:g} mm is closer to the floor of the well than a tip should draw ({LOWEST_DRAW:g} mm)")
+      return "bottom", 0.0
+    return "height", height
+
   def tips(self, value: Any, where: str) -> str:
     if value not in ("fresh", "reuse"):
       self.fail(where, f"expected 'fresh' or 'reuse', got {value!r}")
@@ -390,8 +409,7 @@ class _Reader:
 
     if kind == "transfer":
       body = self.keys(body, where, ("from", "to", "volume"), ("tips", "mix_after", "draw_from"))
-      if body.get("draw_from", "bottom") not in ("bottom", "surface"):
-        self.fail(f"{where}.draw_from", f"expected 'bottom' or 'surface', got {body['draw_from']!r}")
+      draw_from, draw_height = self.draw(body.get("draw_from", "bottom"), f"{where}.draw_from")
       source = self.wells(body.get("from"), f"{where}.from") if "from" in body else []
       if body.get("to") == "waste":  # thrown away: no labware or well to name
         destination = [WASTE]
@@ -412,7 +430,8 @@ class _Reader:
         volume or 0.0,
         self.tips(body.get("tips", "fresh"), f"{where}.tips"),
         self.mixing(body.get("mix_after"), f"{where}.mix_after"),
-        "surface" if body.get("draw_from") == "surface" else "bottom",
+        draw_from,
+        draw_height,
       )
     elif kind == "mix":
       body = self.keys(body, where, ("wells", "volume", "times"))
@@ -565,7 +584,10 @@ def expand(protocol: Protocol) -> Tuple[List[Move], List[Problem]]:
         else:
           use = fresh()
         moves.append(
-          Move(index, "transfer", source, destination, step.volume, tip=use, surface=step.draw_from == "surface")
+          Move(
+            index, "transfer", source, destination, step.volume, tip=use,
+            surface=step.draw_from == "surface", height=step.draw_height,
+          )
         )
         mix(index, destination, step.mix_after, use)
 

@@ -107,6 +107,7 @@ class LiquidIssue:
   gap: float
   sure: bool = True
   short: float = 0.0
+  height: float = 0.0  # mm the tip's end was above the floor of the well
 
   @property
   def fails(self) -> bool:
@@ -597,7 +598,11 @@ def liquid_issues(
     sure = liquid_height_is_known(container) or before <= 0.0  # an empty well is empty whatever its shape
 
     def issue(kind: str, gap: float, certain: bool = True, short: float = 0.0) -> None:
-      issues.append(LiquidIssue(s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain, round(short, 1)))
+      issues.append(
+        LiquidIssue(
+          s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain, round(short, 1), round(end - floor, 2)
+        )
+      )
 
     if end > rim + RIM_ALLOWANCE:
       issue("outside", end - rim)

@@ -1,12 +1,12 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-fancy-pypi-readme"]
 build-backend = "hatchling.build"
 
 [project]
 name = "steadyhand"
-version = "0.25.0"
+version = "0.26.0"
 description = "Turn a written lab protocol into a robot program and rehearse it before it touches a real bench."
-readme = "README.md"
+dynamic = ["readme"]
 requires-python = ">=3.10"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -27,6 +27,11 @@ dependencies = [
   "pyyaml>=6",
 ]
 
+[project.urls]
+Repository = "https://github.com/dundysm/steadyhand"
+Issues = "https://github.com/dundysm/steadyhand/issues"
+"What it stops, measured" = "https://github.com/dundysm/steadyhand/blob/main/docs/faults.md"
+
 [project.optional-dependencies]
 dev = ["pytest>=8", "pypdf>=4", "opentrons>=9.1"]
 pdf = ["pypdf>=4"]
@@ -35,6 +40,22 @@ opentrons = ["opentrons>=9.1"]
 
 [project.scripts]
 steadyhand = "steadyhand.cli:main"
+
+# The README is the page on PyPI too. Its links and pictures point into this repository, so
+# they are made absolute when the package is built.
+[tool.hatch.metadata.hooks.fancy-pypi-readme]
+content-type = "text/markdown"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
+path = "README.md"
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|#)([^)]+\.(?:png|gif|jpg|svg))\)'
+replacement = '](https://raw.githubusercontent.com/dundysm/steadyhand/main/\1)'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '\]\((?!https?://|#)([^)]+)\)'
+replacement = '](https://github.com/dundysm/steadyhand/blob/main/\1)'
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/steadyhand"]

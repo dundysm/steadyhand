@@ -1,6 +1,6 @@
 # What steadyhand stops, and what it does not: Opentrons OT-2
 
-Written by `steadyhand faults`, version 0.25.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.26.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **18 of 21 planted mistakes stopped.** The unchanged protocol ran clean.
