@@ -87,7 +87,19 @@ MANUALS_5 = [
   ("viral_magbead", "Zymo Quick-DNA/RNA Viral MagBead", ZYMO + "_r2140_r2141_quick-dna-rna_viral_magbead.pdf", "8"),
   ("zymobiomics_magbead", "Zymo ZymoBIOMICS 96 MagBead DNA kit", ZYMO + "_d4302_d4306_d4308_zymobiomics-96_magbead_dna_kit.pdf", "10-11"),
 ]
-SETS = {"heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5}
+# A sixth set, for the defaults and the person's own decisions (0.32.0).
+MANUALS_6 = [
+  ("h2o2", "Cayman hydrogen peroxide assay kit", CAYMAN + "600050.pdf", "6-8"),
+  ("mpo_screen", "Cayman myeloperoxidase inhibitor screening assay kit", CAYMAN + "700170.pdf", "6-8"),
+  ("g6p", "Cayman glucose-6-phosphate fluorometric assay kit", CAYMAN + "700750.pdf", "6-8"),
+  ("lactate", "Cayman L-lactate assay kit", CAYMAN + "700510.pdf", "9-11"),
+  ("ascorbate", "Cayman ascorbate assay kit", CAYMAN + "700420.pdf", "7-9"),
+  ("betaglo", "Promega Beta-Glo assay", PROMEGA + "0/beta-glo-assay-system-protocol.pdf", "8-9"),
+]
+SETS = {
+  "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
+  "heldout6": MANUALS_6,
+}
 
 
 def main() -> int:
