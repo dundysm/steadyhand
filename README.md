@@ -409,6 +409,10 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   after the write-up (0.26.1, 0.27.0, 0.28.0). Of 72 drafts on the Hamilton and an Opentrons
   Flex, 68 reach a rehearsed program with no hand edits, 59 at the first attempt; 2 are refused
   for a reason that is true (a bead kit, which needs a magnet); 2 were handed back to a person.
+  A fourth, small set aimed at spin plates and heat in mid-run found both handled (refused, and
+  paused) and three faults in steadyhand itself, since fixed: a crash on a plate whose stated
+  capacity is wrong, a run failed for a tenth of a microlitre of air, a rounding error in split
+  transfers.
 - **A draft you can run without reading it.** A pass means the file runs, not that it does what
   the manual asks, so the drafts were read against their pages. In the second set every serious
   fault passed rehearsal: heat and cold written as waits on the deck, a bead cleanup with no

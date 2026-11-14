@@ -573,7 +573,7 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
         parts = [max(1, math.ceil((u.volume - EPS) / capacity)) for u in batch]
         for cycle in range(max(parts)):
           active = [c for c in channels if cycle < parts[c]]
-          volumes = tuple(round(batch[c].volume / parts[c], 4) for c in active)
+          volumes = tuple(_share(batch[c].volume, parts[c], cycle) for c in active)
           source, destination = place(batch[0].source)[0], place(batch[0].destination)[0]
           commands.append(
             Command(
@@ -855,6 +855,12 @@ def load_choices(path) -> Choices:
   from pathlib import Path
 
   return loads_choices(Path(path).read_text(encoding="utf-8"))
+
+
+def _share(volume: float, parts: int, part: int) -> float:
+  """One of `parts` equal shares of `volume`; the last takes up the rounding, so they add up to it exactly."""
+  each = round(volume / parts, 4)
+  return each if part < parts - 1 else round(volume - each * (parts - 1), 4)
 
 
 def _stops(stops: Sequence[Tuple[float, int, str]]) -> List[Command]:

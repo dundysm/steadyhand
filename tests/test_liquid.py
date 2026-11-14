@@ -167,3 +167,38 @@ steps:
   thin = asyncio.run(rehearse_plan(planned("180 uL")))
   assert not thin.ok and len(thin.liquid_failures) == 8 and "draws air" in thin.report()
   assert asyncio.run(rehearse_plan(planned("2 mL"))).ok
+
+
+def test_a_well_holds_no_more_than_its_own_height_function_accepts():
+  import warnings
+
+  import pylabrobot.resources as resources
+
+  from steadyhand.protocol import loads
+  from steadyhand.scene import capacity
+
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    sold_as_250 = resources.Eppendorf_96_wellplate_250ul_Vb(name="p").get_well("A1")
+    flat = resources.Cor_96_wellplate_360ul_Fb(name="q").get_well("A1")
+  assert sold_as_250.max_volume > 580 and 250 <= capacity(sold_as_250) <= 265  # PyLabRobot states the outline's volume
+  assert capacity(flat) == flat.max_volume
+  text = """
+steadyhand: 0.1
+name: capacity
+labware:
+  plate: {type: Eppendorf_96_wellplate_250ul_Vb}
+liquids:
+  water: {in: plate/A1, volume: 100 uL}
+steps:
+  - transfer: {from: plate/A1, to: plate/A2, volume: 50 uL}
+"""
+  assert 250 <= loads(text).labware["plate"].capacity <= 265
+
+
+def test_a_draw_that_empties_a_well_with_a_trace_of_air_is_said_not_failed():
+  from steadyhand.replay import SHORT_ALLOWED, LiquidIssue
+
+  assert SHORT_ALLOWED == 0.01
+  assert not LiquidIssue(1, "nearly_all", "aspirate", 0, "plate_well_A1", 0.1, True, 0.09, 0.2).fails
+  assert LiquidIssue(1, "short", "aspirate", 0, "plate_well_A1", 0.1, True, 5.0, 1.0).fails

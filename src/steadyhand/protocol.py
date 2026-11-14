@@ -358,7 +358,7 @@ class _Reader:
         type=str(body["type"]),
         rows=plate.num_items_y,
         columns=plate.num_items_x,
-        capacity=float(wells[0].max_volume),
+        capacity=_capacity(wells[0]),
         order=[w.get_identifier() for w in wells],
       )
 
@@ -742,6 +742,12 @@ class Check:
     lines.append(f"  problems: {len(self.problems)}")
     lines += [f"    - {p}" for p in self.problems]
     return "\n".join(lines)
+
+
+def _capacity(well: Any) -> float:
+  from .scene import capacity
+
+  return capacity(well)
 
 
 def _other_case(name: str) -> str:

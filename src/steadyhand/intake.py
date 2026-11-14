@@ -260,7 +260,10 @@ def labware_catalogue(robot: str = "") -> str:
       continue  # not a plate, a second spelling of one, or one the deck's carrier cannot hold
     seen.add(name.lower())  # some definitions exist under two spellings; one is enough
     wells = plate.get_all_items()
-    if wells[0].max_volume < 1.0:
+    from .scene import capacity
+
+    holds = capacity(wells[0])
+    if holds < 1.0:
       continue  # under 1 uL a well is a mistake in the definition, not a plate to offer
     from .planner import _real_shape
 
@@ -268,7 +271,7 @@ def labware_catalogue(robot: str = "") -> str:
     under_tip = _volume_to_cover(wells[0], 1.0)  # a tip stops 1 mm above the floor of a well, and has to dip in
     lines.append(
       f"{name}: {len(wells)} wells ({plate.num_items_y} rows x {plate.num_items_x} columns), "
-      f"{wells[0].max_volume:g} uL each" + (f", last {under_tip:g} uL out of reach" if under_tip else "")
+      f"{holds:g} uL each" + (f", last {under_tip:g} uL out of reach" if under_tip else "")
     )
   return "\n".join(lines)
 
@@ -529,7 +532,7 @@ def draft(
     history.append(list(problems))
     if not problems:
       return Draft(text, checked, [], round_number, messages, history, rehearsed=rehearsed)
-    if text.strip() == previous.strip() or all(problem.where == "needs" for problem in problems):
+    if text.strip() == previous.strip() or any(problem.where == "needs" for problem in problems):
       # The same file again is the model's way of saying the problem is in the text, not the file.
       # A file stopped only by what it says it needs is that from the first round.
       return Draft(text, checked, problems, round_number, messages, history, left_for_a_person=True)

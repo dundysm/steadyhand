@@ -223,14 +223,41 @@ class _Collector:
       )
 
 
+def capacity(container: Container) -> float:
+  """The most a well holds, in uL: its stated maximum, or less where its own height function stops sooner.
+
+  Eight of PyLabRobot's plates state a maximum that is the volume of their outline (585 uL for a
+  plate sold as 250 uL), while their height function refuses anything past the real fill.
+  """
+  stated = float(container.max_volume)
+  if not container.supports_compute_height_volume_functions():
+    return stated
+  try:
+    container.compute_height_from_volume(stated * 0.999)
+    return stated
+  except Exception:
+    lo, hi = 0.0, stated
+    for _ in range(40):
+      mid = (lo + hi) / 2
+      try:
+        container.compute_height_from_volume(mid)
+        lo = mid
+      except Exception:
+        hi = mid
+    return float(math.floor(lo))
+
+
 def liquid_height(container: Container, volume: float) -> float:
   """Height of `volume` microlitres in a container, in mm.
 
   Uses the labware's own volume-to-height function when it has one, and a straight-walled
-  estimate from the cavity's footprint when it does not.
+  estimate from the cavity's footprint when it does not or when that function refuses the volume.
   """
   if container.supports_compute_height_volume_functions():
-    return float(container.compute_height_from_volume(volume))
+    try:
+      return float(container.compute_height_from_volume(volume))
+    except Exception:
+      pass
   lo, hi = bounds(container)
   area = (hi[0] - lo[0]) * (hi[1] - lo[1])
   if str(getattr(getattr(container, "cross_section_type", None), "value", "")).lower() == "circle":

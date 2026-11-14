@@ -3,9 +3,63 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 Nov 2026 with Claude models. The first three sections are the only tests on text the guide
+All runs are on 13 Nov 2026 with Claude models. The first four sections are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## A fourth, small set: spin plates and heat in mid-run (0.28.1)
+
+The third set (next section) left two rules untested, because of the pages chosen and because its
+heated steps all came last. This set of six is aimed at them: two Zymo spin-plate kits with their
+purification pages (Quick-RNA 96, Quick-DNA Fungal/Bacterial 96), three Cayman assays with heat or
+cold between pipetting steps (glycogen, free fatty acid, an 8-isoprostane ELISA), and a COX activity
+assay. `MANUALS_4` in [evals/heldout/fetch.py](heldout/fetch.py). 0.28.1 added one sentence to the
+guide (off a pellet, a height where the surface cannot be followed) and was committed first. Two
+Claude Opus 5.5 agents, one per robot.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, first attempt | 3 | 2 |
+| Refused for what it needs (a centrifuge to drain a spin plate) | 2 | 2 |
+| Handed back to a person for a reason that is not good enough | 0 | 2 |
+| Crashed steadyhand | 1 | 0 |
+
+- **Spin-plate kits are refused, on both robots.** All four drafts name the centrifuge that drains
+  the filter plate under `needs`. Three stop in round 1. The fourth (`quickrna96_full` on the Flex)
+  also got two overflow problems, because the stand-in plate never drains in the ledger; it sent
+  the file again and went to a person in round 2.
+- **Heat and cold in mid-run are pauses, on both robots.** "Cover the plate, incubate it for 30 min
+  at 37 C, then return it uncovered to the deck" in `glycogen` and `ffa`; 18 h at 4 C in the ELISA.
+  In the second set the same kind of step was a wait on the deck.
+- **A crash.** `cox_activity` on the Hamilton put 300 uL in `Eppendorf_96_wellplate_250ul_Vb`. The
+  labware list said that plate holds 585 uL, which is what PyLabRobot states; its own height
+  function stops at 262. `check` and `plan` passed and the rehearsal raised an error. Eight
+  PyLabRobot plates state more than their height function accepts.
+- **Two refusals for a trace of air.** `glycogen` and `ffa` on the Flex have a manual that uses all
+  500 uL of a reagent. The last of a well is out of reach, and the rehearsal failed the run for
+  0.09 to 1.8 uL of air in a 500 uL draw. The model could do nothing about it and both went to a
+  person. On the Hamilton the same drafts pass, because the shape of that plate is not known there.
+- The five accepted drafts pass `steadyhand rehearse` on their robots; the two Flex drafts pass
+  Opentrons' simulator on the Flex and the OT-2.
+
+**Fixed after this set (0.28.2), and checked on the stored drafts, not by drafting again.**
+- A well's capacity is the lesser of what PyLabRobot states and what its height function accepts,
+  in `check` and in the labware list, and a height function that refuses a volume no longer stops
+  the rehearsal. The stored `cox_activity` draft is now refused at `check` for overfilling, which
+  the model would have been sent.
+- A draw that empties a well is noted, not failed, when the air is under 1% of the draw: less than
+  a pipette can be held to. The first-round `glycogen` and `ffa` Flex drafts now pass on the Flex,
+  with the trace of air listed.
+- Taking those two to the OT-2 turned up a third fault: a transfer split into equal parts was
+  rounded so that three parts of 16.6667 uL made 50.0001, and a well filled to exactly its capacity
+  refused the last ten-thousandth. The last part now takes up the rounding, on every robot. Both
+  drafts pass the replay and Opentrons' simulator on the OT-2.
+- Drafting stops at once when a file names a need, whatever else is wrong with it.
+
+**Caveats.** Six protocols, one run each per robot, one agent per robot. Chosen by the project to
+exercise two rules, so not a sample of anything. Read at the level of outcomes and pauses only: the
+steps of the five accepted drafts were not compared with their pages line by line. Nothing has run
+on a robot.
 
 ## A third set from outside: refusing what cannot work (0.28.0)
 

@@ -327,7 +327,7 @@ def _draft(args: argparse.Namespace) -> int:
   print(f"wrote {args.output}")
   if result.ok:
     print("A model wrote this file. Read it against your source before you rehearse or run it.")
-  elif result.left_for_a_person and all(problem.where == "needs" for problem in result.problems):
+  elif result.left_for_a_person and any(problem.where == "needs" for problem in result.problems):
     print("The text needs something a pipetting robot does not have, listed above. The file is kept so you")
     print("can see the rest; it is not a protocol to run.")
   elif result.left_for_a_person:

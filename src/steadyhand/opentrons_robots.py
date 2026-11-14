@@ -342,6 +342,12 @@ def _reach(wells: Sequence[Any], rows: Dict[str, int]) -> Optional[str]:
   return None
 
 
+def _share(volume: float, parts: int, part: int) -> float:
+  """One of `parts` equal shares of `volume`; the last takes up the rounding, so they add up to it exactly."""
+  each = round(volume / parts, 4)
+  return each if part < parts - 1 else round(volume - each * (parts - 1), 4)
+
+
 def _tip_by_tip(units: list, waits: Dict[int, Any], sinks: Sequence[str]) -> list:
   """Put each tip's work together where no well can tell the difference; otherwise keep the order.
 
@@ -748,8 +754,8 @@ def plan(
     source, destination = first.source, first.destination
     if first.volume:
       parts = max(1, math.ceil((first.volume - EPS) / fit.capacity))
-      for _ in range(parts):
-        amount = round(first.volume / parts, 4)
+      for part in range(parts):
+        amount = _share(first.volume, parts, part)
         actions.append(
           Action(
             "aspirate", mount, source.labware, draws, amount, step=step, wells=reached(source, draws, channels),

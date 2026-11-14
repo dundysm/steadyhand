@@ -87,7 +87,7 @@ def main() -> int:
   else:
     listed = "\n".join(f"- {problem}" for problem in problems)
     same = number > 1 and text.strip() == (folder / f"round_{number - 1}.yaml").read_text(encoding="utf-8").strip()
-    needs = all(getattr(problem, "where", "") == "needs" for problem in problems)
+    needs = any(getattr(problem, "where", "") == "needs" for problem in problems)
     state["messages"].append({"role": "user", "content": feedback(problems)})
     if same or needs:  # as in draft(): the same file again, or a file that says what it needs, goes to a person
       state["done"], state["draft"] = True, "left for a person"

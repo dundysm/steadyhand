@@ -44,6 +44,7 @@ RIM_ALLOWANCE = 2.0  # mm a tip may sit above the rim of a well and still count 
 SPACING_TOLERANCE = 0.1  # mm; PyLabRobot's own spread of channels in a wide well rounds to about 0.01
 LIQUID_TOLERANCE = 0.05  # mm; a tip closer to the surface than this counts as touching it
 
+SHORT_ALLOWED = 0.01  # the share of a draw that may be air when it empties a well, before the run fails
 BARREL_RADIUS = 4.0  # mm; STAR channels sit 9 mm apart
 BARREL_LENGTH = 80.0  # mm
 
@@ -127,6 +128,8 @@ class LiquidIssue:
         f"{where}: the liquid falls {self.gap:g} mm below the tip before the aspirate ends, "
         f"so about {self.short:g} uL of what it delivers is air"
       )
+    if self.kind == "nearly_all":
+      return f"{where}: the draw takes the well down to the tip, and about {self.short:g} uL of it is air"
     return f"{where}: the liquid falls {self.gap:g} mm below the tip before the aspirate ends"
 
 
@@ -184,6 +187,10 @@ class Rehearsal:
     if unsure:
       lines.append(f"  possibly out of the liquid, in wells whose shape is not known exactly ({len(unsure)}):")
       lines += [f"    - {text}" for text in _told_once(unsure)]
+    nearly = [i for i in self.liquid if i.kind == "nearly_all"]
+    if nearly:
+      lines.append(f"  draws that empty a well, with air under 1% of the draw ({len(nearly)}):")
+      lines += [f"    - {text}" for text in _told_once(nearly)]
     low = [i for i in self.liquid if i.kind == "ends_in_air"]
     if low:
       lines.append(f"  aspirates to waste that finish with the liquid below the tip, so a little is left behind ({len(low)}):")
@@ -600,7 +607,7 @@ def liquid_issues(
     def issue(kind: str, gap: float, certain: bool = True, short: float = 0.0) -> None:
       issues.append(
         LiquidIssue(
-          s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain, round(short, 1), round(end - floor, 2)
+          s.index, kind, s.kind, s.channel, s.resource, round(gap, 2), certain, round(short, 2), round(end - floor, 2)
         )
       )
 
@@ -616,6 +623,8 @@ def liquid_issues(
           issue("ends_in_air", end - after, sure)
         else:  # the tip takes only what stands above it; the rest of the draw is air, and it is delivered
           reached = max(0.0, before - liquid_volume(container, end - floor))
-          issue("short", end - after, sure, volume - reached)
+          air = volume - reached
+          # Under a hundredth of the draw is less than a pipette can be held to: said, not failed.
+          issue("short" if air > SHORT_ALLOWED * volume else "nearly_all", end - after, sure, air)
     held[s.resource] = before - volume if s.kind == "aspirate" else before + volume
   return issues

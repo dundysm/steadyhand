@@ -497,3 +497,11 @@ def test_a_pause_is_a_command_between_the_moves_it_separates_and_waits_around_it
   script = emit(planned)
   assert 'pause(lh, "Spin the plate 1 min at 1000 g and put it back.")' in script
   compile(script, "emitted", "exec")
+
+
+def test_the_parts_of_a_split_transfer_add_up_to_it_exactly():
+  from steadyhand.planner import _share
+
+  for volume, parts in ((50.0, 3), (100.0, 7), (1560.0, 2), (33.3, 3)):
+    shares = [_share(volume, parts, part) for part in range(parts)]
+    assert abs(sum(shares) - volume) < 1e-9, (volume, parts, shares)
