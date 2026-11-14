@@ -7,6 +7,50 @@ All runs are on 13 Nov 2026 with Claude models. The first five sections are the 
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
 
+## Six fresh manuals: what the draft decided, and what the person decided (0.32.0)
+
+Across every set the drafting agents reported the same thing: manuals leave choices open and the
+model makes them alone. 0.32.0 does three things about it. A draft lists what the text left open
+and it decided under `chose`, apart from `notes` (what it left out). The guide fixes a default for
+the choices that recur: 8 samples in column 1, the first complete protocol on the page, optional
+steps left out, the first of two offered methods, a timed mix as a pipette mix and a wait.
+`draft --decide "..."` takes the person's own decisions in their words; they are sent after the
+text and outrank the defaults. Committed before these manuals were read by a model.
+
+**The set.** `MANUALS_6` in [evals/heldout/fetch.py](heldout/fetch.py): five Cayman assays (hydrogen
+peroxide, a myeloperoxidase inhibitor screen, glucose-6-phosphate, L-lactate, ascorbate) and
+Promega Beta-Glo. None gives a number of samples. Two Claude Opus 5.5 agents: one drafting for the
+Flex with nothing decided, one for the Hamilton with `24 samples. Every sample in triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol, first attempt | 6 of 6 | 6 of 6 |
+| Plans for | 8 samples in column 1, in all six | 24 samples in triplicate, in all six |
+| Choices listed under `chose` | 8 to 11 a draft | 6 to 12 a draft |
+
+- **The default is followed and said.** Every Flex draft has the line "The number of samples is not
+  given; 8 samples in column 1 ... were chosen".
+- **The person's decision is followed.** Every Hamilton draft declares 24 samples and lays them out
+  in triplicate. Two of them need a second assay plate for it and take one; one (`h2o2`) fills its
+  plate with standards and samples and leaves out the kit's specificity wells, with a note.
+- **A draft has about ten open choices.** Replicates, where reagents stand, a dilution within an
+  offered range, which of two readouts, how much reagent to supply. That is what a person signs
+  off, and it is now one list.
+- The 6 Hamilton drafts pass `steadyhand rehearse`. The 6 Flex drafts pass the replay and
+  Opentrons' simulator on the Flex; 4 pass on the OT-2, and `g6p` and `lactate` are refused at plan
+  there (three pipettes).
+
+**Not read against the manuals.** For this set only the outcome, the sample counts and the `chose`
+lists were checked, not the steps and volumes against the pages.
+
+**What the agents still found unclear:** sample preparation before the assay (which of it the robot
+should do); a range of dilutions; replicate counts where a text and its figure differ; 25 C (a wait
+or a pause); a reagent to be made minutes before use; a timed mix that comes last; controls that no
+longer fit the plate once the person asks for more samples.
+
+**Caveats.** Six manuals, five from one maker, one run each, one agent per robot, so the two
+conditions are also two robots and two agents. Plate assays only. Nothing has run on a robot.
+
 ## The magnet on the other two robots, and a fault in the Hamilton's labware list (0.30.0, 0.30.1)
 
 0.30.0 gives the Flex and the Hamilton a magnet a person carries the plate onto: a Magnetic Block in
