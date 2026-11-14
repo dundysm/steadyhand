@@ -146,6 +146,7 @@ class Protocol:
   path: Optional[Path] = None
   notes: List[str] = field(default_factory=list)
   robot: str = ""  # the robot the file asks for; empty leaves it to whoever plans it
+  needs: List[str] = field(default_factory=list)  # what the protocol cannot work without and no robot here gives
 
 
 # ---------------------------------------------------------------- moves
@@ -519,7 +520,7 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     raise ProtocolError([Problem("file", f"not valid YAML: {error}")]) from error
 
   top = reader.keys(
-    raw, "file", ("steadyhand", "name", "labware", "steps"), ("description", "notes", "robot", "liquids", "samples", "limits")
+    raw, "file", ("steadyhand", "name", "labware", "steps"), ("description", "notes", "needs", "robot", "liquids", "samples", "limits")
   )
   robot = str(top.get("robot", ""))
   if robot:
@@ -527,6 +528,11 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
 
     if robot not in ROBOTS:
       reader.fail("robot", f"no robot called {robot!r}; known: {', '.join(ROBOTS)}")
+  needs = top.get("needs", [])
+  if not isinstance(needs, list) or not all(isinstance(need, str) and need.strip() for need in needs):
+    reader.fail("needs", "expected a list of sentences")
+    needs = []
+  needs = [" ".join(need.split()) for need in needs]
   notes = top.get("notes", [])
   if not isinstance(notes, list) or not all(isinstance(note, str) for note in notes):
     reader.fail("notes", "expected a list of sentences")
@@ -568,6 +574,7 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     path=path,
     notes=list(notes),
     robot=robot,
+    needs=needs,
   )
 
 
@@ -819,6 +826,14 @@ def _carried_back(protocol: Protocol, moves: List[Move]) -> List[Problem]:
 def check(protocol: Protocol) -> Check:
   """Follow the liquid through every move and report what does not add up."""
   moves, problems = expand(protocol)
+  problems += [
+    Problem(
+      "needs",
+      f"this protocol needs {need[0].lower() + need[1:].rstrip('.')}, which steadyhand cannot provide or check; "
+      "a rehearsal without it would pass a run that does not work",
+    )
+    for need in protocol.needs
+  ]
   volumes: Dict[Well, float] = {}
   liquid_of: Dict[Well, str] = {}
   for name, (wells, volume) in protocol.liquids.items():

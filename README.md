@@ -425,9 +425,16 @@ fitting depth, and liquid is moved with the tip's end at the cavity floor plus t
   whole run. Per-step heights, speeds and liquid classes cannot, and only the two carrier types
   the planner uses are accepted.
 - **Washers, shakers, magnets and lids.** There is no plate washer, shaker, magnet or gripper:
-  timed steps on them become waits, a step a person must do by hand becomes a pause, washes are done tip by tip, and a plate that ships with a
+  a timed step at room temperature becomes a wait, a step off the deck (heat, cold, a spin, a read) becomes
+  a pause for a person, washes are done tip by tip, and a plate that ships with a
   lid is planned with the lid assumed off. When a run needs more tips than fit on the deck, the
   plan stops for a person to swap in full racks; nothing loads them automatically.
+- **Beads, filters and solvents.** A bead cleanup needs a magnet under the plate while the
+  liquid is taken off; a spin or filter plate needs a centrifuge or vacuum to drain it; some
+  chemistry needs glass. None of that is here. A protocol file can say so under `needs`, and
+  `check` then refuses it with that reason. `draft` is told to use it, so such a text comes
+  back as "this cannot run here, because", not as a file that rehearses clean and loses the
+  beads.
 - **Adapters beyond one.** A PCR plate with no skirt is planned standing in PyLabRobot's
   MicroAmp 96-well base, and the plan says so. That is the only adapter the planner knows; four
   of PyLabRobot's plate definitions need it. Whether your plate really fits that base is yours

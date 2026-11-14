@@ -47,6 +47,12 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 | `wait` | `duration` | A timed wait; the plate stays where it is |
 | `pause` | one sentence | The run stops for a person to do that by hand, and goes on when they say |
 
+A file can also carry `needs`, a list of sentences naming what the protocol cannot work without
+and steadyhand cannot provide or check: a magnet under the plate, a filter plate drained by a
+centrifuge, glass labware. `check` refuses a file that has any, and says which. It is there so that
+a draft of a bead cleanup is refused for its real reason rather than rehearsed as if the beads
+would stay put.
+
 A `pause` is written `- pause: Spin the plate 1 min at 1000 g and put it back.` The sentence is
 shown to the person at the robot (200 characters at most). steadyhand takes the wells to hold
 afterwards what they held before, and the plate to be back in its place: a hand step that fills or

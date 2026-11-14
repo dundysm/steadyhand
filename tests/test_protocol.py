@@ -349,3 +349,16 @@ def test_a_pause_needs_a_sentence_short_enough_to_show():
       assert "steps[2].pause" in str(error)
     else:
       raise AssertionError(f"accepted pause: {bad}")
+
+
+def test_a_file_that_names_what_it_cannot_do_without_is_refused_with_that_reason():
+  from steadyhand.protocol import check, loads
+
+  text = (PAUSED % "Spin the plate and put it back.").replace(
+    "labware:", 'needs: ["A magnet under the plate while the supernatant is removed."]\nlabware:', 1
+  )
+  checked = check(loads(text))
+  assert not checked.ok
+  assert [p.where for p in checked.problems] == ["needs"]
+  assert "needs a magnet under the plate while the supernatant is removed, which steadyhand cannot provide" in checked.problems[0].message
+  assert check(loads(PAUSED % "Spin the plate and put it back.")).ok

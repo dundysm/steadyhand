@@ -87,10 +87,12 @@ def main() -> int:
   else:
     listed = "\n".join(f"- {problem}" for problem in problems)
     same = number > 1 and text.strip() == (folder / f"round_{number - 1}.yaml").read_text(encoding="utf-8").strip()
+    needs = all(getattr(problem, "where", "") == "needs" for problem in problems)
     state["messages"].append({"role": "user", "content": feedback(problems)})
-    if same:  # as in draft(): the same file again hands the problem to a person
+    if same or needs:  # as in draft(): the same file again, or a file that says what it needs, goes to a person
       state["done"], state["draft"] = True, "left for a person"
-      print(f"FINISHED: the same file was sent again in round {number}; left for a person to decide:\n{listed}")
+      why = "the file names what it cannot do without" if needs else "the same file was sent again"
+      print(f"FINISHED: {why} in round {number}; left for a person to decide:\n{listed}")
     elif number >= ROUNDS:
       state["done"], state["draft"] = True, "fail"
       print(f"FINISHED: draft still has problems after {ROUNDS} rounds:\n{listed}")

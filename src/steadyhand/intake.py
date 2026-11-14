@@ -61,7 +61,9 @@ RULES
   For wells a tip draws from or mixes in while they hold 50 uL or less, choose a V- or
   U-bottom plate: in a flat-bottom well that little liquid is too shallow for a tip to reach.
   For a trough or reservoir the text does not describe, choose the one with the least out of
-  reach whose well holds the liquid, counting one the list gives no amount for as 2 mL;
+  reach whose well holds the liquid, counting one the list gives no amount for as 2 mL; when the text fixes that liquid's
+  volume, what is left after use has to cover the amount out of reach, so choose a trough
+  where it does;
   liquids "in their own troughs" may each take one well of the same multi-well trough. The list does not give a plate's colour: for a black or white
   plate that no name in the list offers, choose by shape and volume and say so in `notes`.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
@@ -69,19 +71,31 @@ RULES
 - Do not invent steps the text does not describe. The one exception: a liquid the robot makes
   by adding one liquid to another and then draws from (a diluted stock, each standard of a
   series, a master mix) has to be uniform first. When the text says only to dilute, prepare or
-  combine it, mix it after the last addition, 3 times, and say so in `notes`.
-- Leave out what a pipetting robot cannot do (vortexing, a magnet, heating, sealing, storage)
-  and say so in `notes`, one sentence each. A timed step the plate sits through becomes a `wait`
-  of that length, even on equipment the robot lacks (shake 30 s, incubate 2 h, 2 min on a
-  magnet); a timed action on something else (vortex the reagent 30 s before use) is left out.
-  For "at least" a time, use that time; for "overnight", use 16 h. A wait asked for only in
-  words ("a few minutes", "wait a bit", "until clear") gets a `wait` of a conventional length
-  that you choose and record in `notes`. A step that mentions no waiting gets no wait.
-- A step between two robot steps that a person has to do with the plate off the deck, and that
-  is more than a time to sit through (spin the plate down, freeze it and thaw it, read it before
-  the next addition), becomes a `pause` saying what the person does. The wells must hold the
-  same afterwards: a hand step that fills or empties wells is not a pause. Do not run straight
-  through a step the text calls necessary.
+  combine it, or mixes it in a way the robot cannot (vortex, swirl, invert), mix it by pipette
+  after the last addition, 3 times, and say so in `notes`.
+- Leave out what a pipetting robot cannot do and the run can go on without (vortexing a
+  reagent, sealing, covering, storage) and say so in `notes`, one sentence each. What comes
+  after the last pipetting step (a final incubation, reading the plate) is left out the same way.
+- A timed step the plate only has to sit through at room temperature becomes a `wait` of that
+  length, also where the text shakes it meanwhile (shake 30 s, incubate 2 h at room
+  temperature); a timed action on something else (vortex the reagent 30 s before use) is left
+  out. For "at least" a time, use that time; for a range (10-15 min), the shorter; for
+  "overnight", 16 h. A wait asked for only in words ("a few minutes", "wait a bit") gets a
+  `wait` of a conventional length that you choose and record in `notes`. A step that mentions
+  no waiting gets no wait.
+- A step between two pipetting steps that does not happen on the deck becomes a `pause` that
+  says what the person does, with the temperature and the time when the text gives them: heat
+  or cold (1 h at 95 C, 30 min at 37 C, overnight at 4 C), a spin, a freeze and thaw, a read
+  before the next addition. A wait in its place would be a run that does not do what the text
+  asks. The wells must hold the same afterwards: a hand step that fills or empties wells is
+  not a pause.
+- Some texts cannot work on a pipetting robot at all, and a file that pretends otherwise is
+  worse than none. List under `needs` what the text cannot do without and the robot cannot
+  give: a magnet under the plate while liquid is taken off beads; a filter or spin plate that
+  a centrifuge or vacuum drains; glass or solvent-proof labware when the text demands it and
+  LABWARE has none. Write the rest of the file as usual. A file with `needs` is refused with
+  those reasons, which is the right outcome; do not write a wait where the magnet would be,
+  and do not cut the protocol down to the part that could run.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `notes`. Every choice you made that the text did not state must appear there. A mix volume
@@ -103,7 +117,8 @@ SECTIONS
 steadyhand: 0.1            (required, exactly this)
 name: <title>            (required)
 description: <text>      (optional)
-notes: [<sentence>, ...] (optional; see above)
+notes: ["<sentence>", ...] (optional; see above) Put each note in double quotes, with no double quote inside it.
+needs: ["<thing>", ...]   (optional; see above) What the text cannot work without and the robot cannot give.
 labware:                 (required) one entry per plate or reservoir
   <name>: {type: <definition from LABWARE>}
 liquids:                 (optional)
@@ -274,7 +289,7 @@ class Draft:
   rounds: int  # how many times the model was asked
   messages: List[Message] = field(default_factory=list, repr=False)
   history: List[List[Problem]] = field(default_factory=list, repr=False)  # the problems found after each round
-  left_for_a_person: bool = False  # the model sent the same file back: it will not change what the text says
+  left_for_a_person: bool = False  # the model sent the same file back, or the file names what it cannot do without
   rehearsed: bool = False  # the last file was also planned and rehearsed for the robot, not only checked
 
   @property
@@ -513,8 +528,9 @@ def draft(
     history.append(list(problems))
     if not problems:
       return Draft(text, checked, [], round_number, messages, history, rehearsed=rehearsed)
-    if text.strip() == previous.strip():
+    if text.strip() == previous.strip() or all(problem.where == "needs" for problem in problems):
       # The same file again is the model's way of saying the problem is in the text, not the file.
+      # A file stopped only by what it says it needs is that from the first round.
       return Draft(text, checked, problems, round_number, messages, history, left_for_a_person=True)
     previous = text
     messages.append({"role": "user", "content": feedback(problems)})

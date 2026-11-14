@@ -1,6 +1,6 @@
 # What steadyhand stops, and what it does not: Hamilton STARlet
 
-Written by `steadyhand faults`, version 0.27.0. Each row is one mistake planted in a short
+Written by `steadyhand faults`, version 0.28.0. Each row is one mistake planted in a short
 dilution that otherwise runs clean. "Stopped at" is the first stage that refused it.
 
 **24 of 26 planted mistakes stopped.** The unchanged protocol ran clean.
