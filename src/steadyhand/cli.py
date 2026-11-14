@@ -309,7 +309,13 @@ def _draft(args: argparse.Namespace) -> int:
       print(f"  for example: -o {samples.parent / Path(args.output).name}")
       return 1
     result = draft(
-      source, model, samples=samples, max_rounds=args.rounds, robot=args.robot or "", rehearse=not args.no_rehearse
+      source,
+      model,
+      samples=samples,
+      max_rounds=args.rounds,
+      robot=args.robot or "",
+      rehearse=not args.no_rehearse,
+      decided=args.decide or "",
     )
   except ModelError as error:
     print(f"steadyhand draft: {error}")
@@ -327,6 +333,10 @@ def _draft(args: argparse.Namespace) -> int:
       print(f"    - {problem}")
   if result.ok and result.rehearsed:
     print("  planned and rehearsed: nothing stopped it")
+  if result.checked is not None and result.checked.protocol.chose:
+    count = len(result.checked.protocol.chose)
+    print(f"  {count} thing{'s' if count > 1 else ''} the text left open {'were' if count > 1 else 'was'} decided for you (the")
+    print('  "chose" lines above). To settle any yourself, draft again with --decide "24 samples; skip the DNase step".')
   print(f"wrote {args.output}")
   if result.ok:
     print("A model wrote this file. Read it against your source before you rehearse or run it.")
@@ -359,6 +369,9 @@ def main(argv: Optional[List[str]] = None) -> int:
   draft.add_argument("--model-command", help="a shell command that reads a prompt on stdin and prints a reply")
   draft.add_argument("--samples", help="a CSV of per-sample concentrations, for normalizing; kept next to the output")
   draft.add_argument("--rounds", type=int, default=3, help="how many times the model may be asked (default 3)")
+  draft.add_argument(
+    "--decide", help='what you settle yourself, in your own words: "24 samples in columns 1 to 3; no DNase step"'
+  )
   draft.add_argument(
     "--no-rehearse", action="store_true", help="only check each file; do not plan and rehearse it before accepting it"
   )

@@ -334,7 +334,17 @@ steadyhand draft notes.txt -o protocol.yaml --provider openai --model MODEL_NAME
 
 `--provider openai` works with any OpenAI-compatible server; point `OPENAI_BASE_URL` at it.
 When the text leaves something out, the model is told to choose the conventional option and
-record the choice under `notes` in the file. Read the file against your source before you use it.
+record the choice under `chose` in the file; what it left out goes under `notes`. `draft` prints
+both. Manuals leave the same things open every time, so the guide fixes a default for each: 8
+samples in column 1, the first complete protocol on the page, optional steps left out, the first
+of two offered methods. Settle any of them yourself in your own words:
+
+```bash
+steadyhand draft manual.pdf --pages 4-5 -o protocol.yaml --model-command "my-local-model" \
+  --decide "24 samples in columns 1 to 3; include the DNase step"
+```
+
+Read the file against your source before you use it.
 
 To normalize samples to a common concentration, give it the readings as a CSV. The model is shown
 the column names and the first few rows, so it can tell which column is which; the protocol it

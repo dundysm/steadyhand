@@ -37,7 +37,7 @@ def state_of(case: str):
   return folder, {
     "case": case,
     "samples": str(table) if table.exists() else "",
-    "messages": messages_for(source, table if table.exists() else None, ROBOT),
+    "messages": messages_for(source, table if table.exists() else None, ROBOT, os.environ.get("STEADYHAND_EVAL_DECIDE", "")),
     "history": [],
     "done": False,
     "draft": "-",

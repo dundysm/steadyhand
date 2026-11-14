@@ -153,6 +153,7 @@ class Protocol:
   steps: List[Step]
   path: Optional[Path] = None
   notes: List[str] = field(default_factory=list)
+  chose: List[str] = field(default_factory=list)  # what the source left open and whoever wrote the file decided
   robot: str = ""  # the robot the file asks for; empty leaves it to whoever plans it
   needs: List[str] = field(default_factory=list)  # what the protocol cannot work without and no robot here gives
 
@@ -540,7 +541,7 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     raise ProtocolError([Problem("file", f"not valid YAML: {error}")]) from error
 
   top = reader.keys(
-    raw, "file", ("steadyhand", "name", "labware", "steps"), ("description", "notes", "needs", "robot", "liquids", "samples", "limits")
+    raw, "file", ("steadyhand", "name", "labware", "steps"), ("description", "notes", "chose", "needs", "robot", "liquids", "samples", "limits")
   )
   robot = str(top.get("robot", ""))
   if robot:
@@ -557,6 +558,10 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
   if not isinstance(notes, list) or not all(isinstance(note, str) for note in notes):
     reader.fail("notes", "expected a list of sentences")
     notes = []
+  chose = top.get("chose", [])
+  if not isinstance(chose, list) or not all(isinstance(choice, str) for choice in chose):
+    reader.fail("chose", "expected a list of sentences")
+    chose = []
   if str(top.get("steadyhand")) != FORMAT_VERSION and "steadyhand" in top:
     reader.fail("steadyhand", f"this reader understands format {FORMAT_VERSION}, the file says {top['steadyhand']!r}")
 
@@ -593,6 +598,7 @@ def loads(text: str, *, base: Optional[Path] = None, path: Optional[Path] = None
     steps=steps,
     path=path,
     notes=list(notes),
+    chose=list(chose),
     robot=robot,
     needs=needs,
   )
@@ -765,6 +771,8 @@ class Check:
       lines.append(f"  discarded: {self.wasted:g} uL")
     for note in self.protocol.notes:
       lines.append(f"  note: {note}")
+    for choice in self.protocol.chose:
+      lines.append(f"  chose: {choice}")
     lines.append(f"  problems: {len(self.problems)}")
     lines += [f"    - {p}" for p in self.problems]
     return "\n".join(lines)

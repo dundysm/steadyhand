@@ -65,7 +65,7 @@ RULES
   volume, what is left after use has to cover the amount out of reach, so choose a trough
   where it does;
   liquids "in their own troughs" may each take one well of the same multi-well trough. The list does not give a plate's colour: for a black or white
-  plate that no name in the list offers, choose by shape and volume and say so in `notes`.
+  plate that no name in the list offers, choose by shape and volume and say so in `chose`.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
 - Do not invent steps the text does not describe. The one exception: a liquid the robot makes
@@ -81,7 +81,7 @@ RULES
   temperature); a timed action on something else (vortex the reagent 30 s before use) is left
   out. For "at least" a time, use that time; for a range (10-15 min), the shorter; for
   "overnight", 16 h. A wait asked for only in words ("a few minutes", "wait a bit") gets a
-  `wait` of a conventional length that you choose and record in `notes`. A step that mentions
+  `wait` of a conventional length that you choose and record in `chose`. A step that mentions
   no waiting gets no wait.
 - A step between two pipetting steps that does not happen on the deck becomes a `pause` that
   says what the person does, with the temperature and the time when the text gives them: heat
@@ -106,7 +106,17 @@ RULES
   beads have gathered" or "until clear" with no time is a wait of 2 min, noted.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
-  `notes`. Every choice you made that the text did not state must appear there. A mix volume
+  `chose`. Every choice you made that the text did not state must appear there, so that a
+  person can see what was decided for them; `notes` is for what you left out or could not
+  write the way the text has it.
+- Kit manuals leave the same things open. Decide them this way, each listed under `chose`:
+  the number of samples, when the text gives none: 8, in column 1; a text that holds several
+  protocols: the first complete one; a step the text marks as optional: leave it out; a step
+  the text offers two ways of doing: the way it gives first; a mix the text gives a time for
+  ("mix for 1 min"): a pipette mix, then a wait of that time.
+- Text under THE PERSON ADDS, after the text to work from, is the person's own decisions.
+  They settle what the text leaves open and replace the defaults above. Where they go against
+  the text, follow the person and say so in `notes`. A mix volume
   the text does not give is about two thirds of what the well holds at that point, never more
   than 1000 uL, the most one tip holds, and never so much that less than the well's
   out-of-reach amount is left in it while the tip draws; a mix with
@@ -127,6 +137,7 @@ steadyhand: 0.1            (required, exactly this)
 name: <title>            (required)
 description: <text>      (optional)
 notes: ["<sentence>", ...] (optional; see above) Put each note in double quotes, with no double quote inside it.
+chose: ["<sentence>", ...] (optional; see above) What the text left open and you decided. Quoted like notes.
 needs: ["<thing>", ...]   (optional; see above) What the text cannot work without and the robot cannot give.
 labware:                 (required) one entry per plate or reservoir
   <name>: {type: <definition from LABWARE>}
@@ -190,7 +201,7 @@ steps:
 EXAMPLE 2 (for the text: "wash the 8 samples in column 1 once with buffer, leave it on briefly, 1 mL plate")
 steadyhand: 0.1
 name: One wash of column 1
-notes:
+chose:
   - The text does not name the plate, so a 2 mL deep-well plate was chosen to hold 1 mL wells.
   - The wash volume is not stated; 500 uL was chosen.
   - The text says only to leave the buffer on briefly; 1 min was chosen.
@@ -510,9 +521,14 @@ def describe_samples(path: Path, rows: int = 4) -> str:
   return "\n".join(lines)
 
 
-def messages_for(source: str, samples: Optional[Path] = None, robot: str = "") -> List[Message]:
-  """The conversation a model is sent first: the guide and the text, with any samples file described."""
+def messages_for(source: str, samples: Optional[Path] = None, robot: str = "", decided: str = "") -> List[Message]:
+  """The conversation a model is sent first: the guide and the text, with any samples file described.
+
+  `decided` is what the person settled themselves (how many samples, which protocol, what to skip).
+  """
   offered = "\n" + describe_samples(samples) + "\n" if samples is not None else ""
+  if decided.strip():
+    offered += "\nTHE PERSON ADDS\n" + decided.strip() + "\n"
   return [
     {"role": "system", "content": guide_for(robot) + "\nLABWARE\n" + labware_catalogue(robot) + "\n"},
     {"role": "user", "content": "Write the steadyhand protocol file for this:\n\n" + source.strip() + "\n" + offered},
@@ -528,6 +544,7 @@ def draft(
   max_rounds: int = 3,
   robot: str = "",
   rehearse: bool = False,
+  decided: str = "",
 ) -> Draft:
   """Ask `model` to write a protocol for `source`, sending problems back until it checks out.
 
@@ -542,10 +559,12 @@ def draft(
       the Hamilton STARlet's.
     rehearse: also plan and rehearse each file that passes the check, and send what stops it back
       to the model like any other problem. The first message to the model is the same either way.
+    decided: what the person settled themselves, in their words; the model is told it outranks
+      the guide's defaults for what a text leaves open.
   """
   if base is None and samples is not None:
     base = Path(samples).parent
-  messages = messages_for(source, samples, robot)
+  messages = messages_for(source, samples, robot, decided)
   text, checked, problems = "", None, [Problem("draft", "the model was never asked")]
   history: List[List[Problem]] = []
   previous = ""

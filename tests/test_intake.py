@@ -407,3 +407,44 @@ def test_what_the_labware_list_calls_out_of_reach_is_what_the_rehearsal_enforces
     short = stopped(reach * 1.5, reach)  # starts covered, ends below the tip, and the liquid is kept
     assert len(short) == 1 and "of what it moves on is air" in short[0].message
     assert f"about {reach:g} uL left in it after the draw" in short[0].message
+
+
+def test_what_the_text_left_open_is_listed_apart_from_the_notes():
+  from steadyhand.protocol import check, loads
+
+  text = """
+steadyhand: 0.1
+name: choices
+notes: ["The vortex step was left out."]
+chose: ["The text gives no number of samples; 8 in column 1 were chosen.", "Protocol 1 of three was written."]
+labware:
+  plate: {type: Cor_96_wellplate_360ul_Fb}
+liquids:
+  water: {in: plate/A1, volume: 100 uL}
+steps:
+  - transfer: {from: plate/A1, to: plate/A2, volume: 50 uL}
+"""
+  checked = check(loads(text))
+  assert checked.ok and checked.protocol.chose[1] == "Protocol 1 of three was written."
+  report = checked.report()
+  assert "  note: The vortex step was left out." in report
+  assert "  chose: The text gives no number of samples; 8 in column 1 were chosen." in report
+
+
+def test_what_the_person_decides_is_sent_after_the_text_and_the_guide_says_it_outranks_the_defaults():
+  from steadyhand.intake import GUIDE, draft, messages_for
+
+  plain = messages_for("Add 50 uL of water to each sample.")
+  decided = messages_for("Add 50 uL of water to each sample.", decided="  24 samples in columns 1 to 3; no DNase step ")
+  assert plain[0] == decided[0]  # the guide is the same either way
+  assert "THE PERSON ADDS" not in plain[1]["content"]
+  assert decided[1]["content"].endswith("\nTHE PERSON ADDS\n24 samples in columns 1 to 3; no DNase step\n")
+  assert "THE PERSON ADDS" in GUIDE and "the number of samples, when the text gives none: 8, in column 1" in GUIDE
+  seen = []
+
+  def model(messages):
+    seen.append(messages[1]["content"])
+    return "not yaml: ["
+
+  draft("Add 50 uL of water.", model, max_rounds=1, decided="16 samples")
+  assert seen[0].endswith("THE PERSON ADDS\n16 samples\n")
