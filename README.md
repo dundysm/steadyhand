@@ -118,7 +118,7 @@ A dry run that passes says little unless you know what it would have failed on.
 | --- | --- |
 | Known mistakes planted in a working protocol, and stopped | 24 of 26 on the Hamilton, 18 of 21 on the Flex and on the OT-2 |
 | Drafts from manufacturers' kit manuals that stand as rehearsed programs with no hand edits | 121 of 146, from 71 manuals in ten sets |
-| Automated tests | 201 |
+| Automated tests | 202 |
 | Runs compared with a real robot | none yet |
 
 `steadyhand faults` runs the first row yourself; the tables are in [docs/faults.md](docs/faults.md)
