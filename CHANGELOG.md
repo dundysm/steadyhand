@@ -3,6 +3,12 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.38.0 (2026-11-15)
+
+**drafting for the OT-2's two pipettes, and cells put in a new medium**
+
+the OT-2 guide now says the robot holds two pipettes, with ranges taken from the planner's own table, so a draft keeps its mixes within what two can do; a file that still needs three is told which step ties it to each; cells put "in" a new medium have the old one taken off first, also where the text does not say so; measured on seven fresh manuals: on the first five, nine of ten drafts rehearse (Hamilton 5 of 5, OT-2 4 of 5); the tenth was refused three times because the first version of the pipette note gave a wrong range; with that corrected, two more fresh manuals and both redone ones pass at the first attempt; details in evals/RESULTS.md
+
 ## 0.37.1 (2026-11-15)
 
 **a removal split into small draws is judged like one draw**
