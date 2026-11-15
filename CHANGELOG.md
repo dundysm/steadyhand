@@ -3,6 +3,18 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.41.0 (2026-11-15)
+
+**defaults for small plates, measured on five staining kits**
+
+the guide's defaults were written for 96 wells; three of them now cover plates with fewer than eight rows, and a fifteenth set tests them on kits from five makers
+
+- guide: 8 samples go from A1 down each column in turn, or as many as the plate holds; a choice the text leaves between two ("in duplicate or triplicate") takes the first; liquid already in a well is what the text gives per well, else 500 uL, 1 mL or 2 mL by plate size; a volume worked out from a ratio is listed under `chose`
+- measured on a fifteenth set (senescence and Oil Red O staining kits from Cayman, BioVision, Cell Biolabs, Abcam and Cosmo Bio, on 6-, 12- and 24-well plates): 7 of 10 drafts reach a rehearsed protocol on the Flex and the Hamilton, 5 at the first attempt; 3 were handed back to a person
+- one of those three and both second rounds were the guide's, and are fixed: how much a text says to make or have ready ("prepare 3 ml per well") is not the amount on the deck, and a pause is under 200 characters; the two Flex drafts pass at the first attempt when done again
+- totals: 150 of 179 drafts from 88 manuals stand as rehearsed programs with no hand edits; 209 tests
+- caveats: staining kits are one kind of protocol; 8 wells on a 12-well plate are two ranges, so every step is written twice (next); details in evals/RESULTS.md
+
 ## 0.40.0 (2026-11-15)
 
 **small plates on an Opentrons deck**
