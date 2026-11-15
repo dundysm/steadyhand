@@ -362,3 +362,36 @@ def test_a_file_that_names_what_it_cannot_do_without_is_refused_with_that_reason
   assert [p.where for p in checked.problems] == ["needs"]
   assert "needs a magnet under the plate while the supernatant is removed, which steadyhand cannot provide" in checked.problems[0].message
   assert check(loads(PAUSED % "Spin the plate and put it back.")).ok
+
+
+EMPTIED = """
+steadyhand: 0.1
+name: take the medium off
+labware:
+  cells: {type: Cor_96_wellplate_360ul_Fb}
+liquids:
+  medium: {in: cells/A1:H1, volume: 100 uL}
+  control: {in: cells/A2, volume: 110 uL}
+steps:
+  - transfer: {from: cells/A1:H1, to: waste, volume: all, draw_from: surface}
+  - transfer: {from: cells/A2, to: waste, volume: all}
+"""
+
+
+def test_volume_all_takes_whatever_each_well_holds_when_the_step_comes():
+  checked = check(loads(EMPTIED))
+  assert checked.ok, [p.message for p in checked.problems]
+  assert [m.volume for m in checked.moves] == [100.0] * 8 + [110.0]
+  assert not checked.volumes  # every well ends empty
+
+
+def test_volume_all_is_only_for_liquid_sent_to_waste():
+  with pytest.raises(ProtocolError) as refused:
+    loads(EMPTIED.replace("from: cells/A2, to: waste", "from: cells/A2, to: cells/A3"))
+  assert "`volume: all` is for liquid sent to waste" in str(refused.value)
+
+
+def test_volume_all_of_an_empty_well_is_a_problem():
+  twice = EMPTIED + "  - transfer: {from: cells/A2, to: waste, volume: all}\n"
+  checked = check(loads(twice))
+  assert [p.message for p in checked.problems] == ["takes all of cells/A2, which holds nothing at that point"]

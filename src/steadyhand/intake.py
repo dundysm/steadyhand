@@ -58,6 +58,10 @@ RULES
   empty: the old liquid comes off first, also where the text does not say so; declare
   it there at a conventional volume (100 uL in a 96-well plate), list that under `chose`, and
   write the removal.
+- Taking everything off a well (old medium, a supernatant, a wash) is `to: waste` with
+  `volume: all`. Do not work the amount out and do not take off what is out of reach: the tip
+  takes what it can and the rehearsal says how much stays behind. Draw from the `surface`
+  where cells, a pellet or what has settled must stay, else from `0.5 mm`.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
   the labware, choose one whose wells are big enough for the largest volume any well reaches;
   a well may be filled to what the list says it holds, not beyond. Among those, prefer the
@@ -201,7 +205,8 @@ steps:                   (required) a list; each item is exactly one of the step
 STEPS
 - transfer: {from: <wells>, to: <wells>|waste, volume: <volume>, tips: fresh|reuse, mix_after: {times: <n>, volume: <volume>}, draw_from: bottom|surface|<height>}
     from/to pair up as: one source to many wells, many sources to one well, or equal counts.
-    volume is the amount per destination. tips defaults to fresh (a new tip per transfer);
+    volume is the amount per destination; for liquid sent to waste it may be `all`, which is
+    everything the well holds when the step comes. tips defaults to fresh (a new tip per transfer);
     reuse keeps one tip per source well and suits clean liquid going into empty wells; into
     wells that already hold another liquid it is refused, because the tip carries that back;
     a well an earlier step emptied still counts as holding what it held.
@@ -209,7 +214,8 @@ STEPS
     the tip just under the liquid as it falls; use it when the text says to take liquid from
     the top, or without disturbing cells, a pellet or what has settled. It works only in a well
     the LABWARE list gives an out-of-reach amount for; in any other well, stay off a pellet
-    with a height of 2 mm, take about a tenth less than is there, and say so in `notes`. A height such as 0.5 mm (0.2 mm at the
+    with a height of 2 mm (to waste, with `volume: all`; moved on, about a tenth less than is
+    there), and say so in `notes`. A height such as 0.5 mm (0.2 mm at the
     least) puts the tip that far above the floor: lower than usual when a transfer has to take
     nearly all of a small volume, higher to stay off what has settled.
     tips, mix_after and draw_from are optional; without mix_after nothing is mixed.

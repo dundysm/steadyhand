@@ -505,3 +505,25 @@ def test_the_parts_of_a_split_transfer_add_up_to_it_exactly():
   for volume, parts in ((50.0, 3), (100.0, 7), (1560.0, 2), (33.3, 3)):
     shares = [_share(volume, parts, part) for part in range(parts)]
     assert abs(sum(shares) - volume) < 1e-9, (volume, parts, shares)
+
+
+def test_a_removal_of_everything_is_planned_and_rehearsed_with_what_each_well_holds():
+  text = """
+steadyhand: 0.1
+name: take the medium off
+labware:
+  cells: {type: Cor_96_wellplate_360ul_Fb}
+liquids:
+  medium: {in: cells/A1:H1, volume: 100 uL}
+  control: {in: cells/A2, volume: 110 uL}
+steps:
+  - transfer: {from: cells/A1:H1, to: waste, volume: all, draw_from: surface}
+  - transfer: {from: cells/A2, to: waste, volume: all, draw_from: surface}
+"""
+  planned = plan(check(loads(text)))
+  assert planned.ok, [p.message for p in planned.problems]
+  drawn = sorted({v for c in planned.commands if c.kind == "aspirate" for v in c.volumes})
+  assert drawn == [100.0, 110.0]
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok, result.report()
+  assert {issue.kind for issue in result.liquid} == {"ends_in_air"}  # noted: the tip cannot reach the last of it

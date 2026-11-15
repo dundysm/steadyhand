@@ -13,7 +13,7 @@ from __future__ import annotations
 import csv
 import re
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -56,6 +56,8 @@ class Well:
 
 
 WASTE = Well("waste", "-")
+# A transfer to waste written with `volume: all`: whatever the well holds when the step comes.
+ALL = -1.0
 
 
 @dataclass
@@ -458,7 +460,12 @@ class _Reader:
           self.fail(f"{where}.mix_after", "liquid sent to waste cannot be mixed afterwards")
       else:
         destination = self.wells(body.get("to"), f"{where}.to") if "to" in body else []
-      volume = self.volume(body.get("volume"), f"{where}.volume") if "volume" in body else None
+      if body.get("volume") == "all":
+        volume: Optional[float] = ALL
+        if destination != [WASTE]:
+          self.fail(f"{where}.volume", "`volume: all` is for liquid sent to waste; give an amount for liquid that is moved on")
+      else:
+        volume = self.volume(body.get("volume"), f"{where}.volume") if "volume" in body else None
       if source and destination and len(source) != 1 and len(destination) != 1 and len(source) != len(destination):
         self.fail(
           where,
@@ -910,12 +917,18 @@ def check(protocol: Protocol) -> Check:
   drawn: Dict[Well, float] = {}
   wasted = 0.0
   waiting = 0.0
-  for move in moves:
+  for at, move in enumerate(moves):
     where = f"steps[{move.step}]"
     if move.kind == "wait":
       waiting += move.seconds
       continue
     assert move.source is not None
+    if move.volume == ALL:  # everything the well holds by now
+      there = round(volumes.get(move.source, 0.0), 4)
+      if there <= EPS:
+        problems.append(Problem(where, f"takes all of {move.source}, which holds nothing at that point"))
+        continue
+      move = moves[at] = replace(move, volume=there)
     if move.volume < protocol.min_volume - EPS:
       what = f"{move.source} to {move.destination}" if move.kind == "transfer" else f"mixing {move.source}"
       problems.append(

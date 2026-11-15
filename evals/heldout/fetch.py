@@ -143,10 +143,19 @@ MANUALS_12 = [
   ("ep2", "Cayman EP2 receptor (rat) reporter assay kit", CAYMAN + "600340.pdf", "4-5"),
   ("ox1r", "Cayman orexin 1 receptor reporter assay kit", CAYMAN + "600240.pdf", "4-5"),
 ]
+# A thirteenth set, for `volume: all`: three manuals that take everything off a well again and again,
+# and one that never does (0.39.0).
+MANUALS_13 = [
+  ("annexin", "Cayman annexin V FITC assay kit, flow cytometry and microscopy in a plate", CAYMAN + "600300.pdf", "10-11"),
+  ("apoptosis", "Cayman multi-parameter apoptosis assay kit, adherent cells", CAYMAN + "601280.pdf", "5"),
+  ("cell_staining", "Cayman cell-based immunofluorescence staining kit", CAYMAN + "600060.pdf", "4"),
+  ("wst1", "Cayman WST-1 cell proliferation assay kit", CAYMAN + "10008883.pdf", "3"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
   "heldout10": MANUALS_10, "heldout11": MANUALS_11, "heldout12": MANUALS_12,
+  "heldout13": MANUALS_13,
 }
 
 

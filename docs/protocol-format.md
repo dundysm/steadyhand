@@ -44,7 +44,7 @@ bottom-right well, read down each column and then across, as PyLabRobot does.
 
 | Step | Fields | Expands to |
 | --- | --- | --- |
-| `transfer` | `from`, `to`, `volume`; optional `tips`, `mix_after`, `draw_from` | One source to many wells, many to one, or pairs of equal count |
+| `transfer` | `from`, `to`, `volume`; optional `tips`, `mix_after`, `draw_from` | One source to many wells, many to one, or pairs of equal count. With `to: waste`, `volume: all` takes whatever each well holds when the step comes |
 | `mix` | `wells`, `volume`, `times` | One mix per well |
 | `serial_dilution` | `start`, `steps`, `direction`, `volume`; optional `mix`, `discard`, `tips` | For each start well, a chain of transfers in that direction, then a discard |
 | `normalize` | `from`, `to`, `diluent`, `target`, `final_volume`; optional `mix` | Diluent first, then each sample, with volumes worked out from the samples table |
