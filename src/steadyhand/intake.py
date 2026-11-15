@@ -53,7 +53,9 @@ RULES
   shallow liquid. Where the list does not say, add at least 10 uL in a plate well or 2 mL in a
   trough or reservoir. When it gives none for what is already in wells the steps only add
   to, treat those wells as empty and say so in `notes`. When the text takes off or replaces
-  what is already in the wells (old medium, a supernatant), do not treat them as empty: declare
+  what is already in the wells (old medium, a supernatant), or puts the cells "in" a new
+  medium or buffer (treat in glucose-free medium, in serum-free medium), do not treat them as
+  empty: the old liquid comes off first, also where the text does not say so; declare
   it there at a conventional volume (100 uL in a 96-well plate), list that under `chose`, and
   write the removal.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name

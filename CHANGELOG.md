@@ -3,6 +3,18 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.37.1 (2026-11-15)
+
+**a removal split into small draws is judged like one draw**
+
+on the OT-2 a single well is emptied by the 20 uL pipette in parts; the last part found the liquid already below the tip and failed as drawing air, where one draw of the same amount is only noted as leaving a little behind; both are noted now; found by carrying a Flex draft from the tenth set over to the OT-2
+
+## 0.37.0 (2026-11-15)
+
+**five assays on cells, read against their manuals**
+
+the rule behind the two wrong passes of the last set (wells the text empties are not treated as empty) is in this release, and was tried on a tenth set: five fresh manuals, all assays on cells in a plate; ten of ten drafts rehearse, eight at the first attempt; nine do what the manual asks; one adds a glucose-free treatment on top of the old medium, where the text only implies taking it off, and says so; also found: on the OT-2 a removal split into 20 uL draws fails where the same removal in one draw is only noted; details in evals/RESULTS.md
+
 ## 0.36.0 (2026-11-15)
 
 **the rules the drafting kept tripping on, said once each**
