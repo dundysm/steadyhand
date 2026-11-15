@@ -3,9 +3,64 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 and 14 Nov 2026 with Claude models. The first section and sections three to eleven are the only tests on text the guide
+All runs are on 13 and 14 Nov 2026 with Claude models. The first two sections and sections four to twelve are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## Wells the text empties, tried on five cell assays (0.37.0)
+
+In the ninth set two drafts added a reagent on top of medium the manual said to replace, because
+the guide told the model to treat wells of unknown volume as empty. The rule was changed after
+that write-up: when the text takes off or replaces what is in the wells, declare it at a
+conventional volume, list that under `chose`, and write the removal. It was committed before this
+set was read by a model.
+
+**The set.** `MANUALS_10` in [evals/heldout/fetch.py](heldout/fetch.py): five Cayman manuals not
+used before, all assays on cells in a plate, which is where medium is taken off and replaced (MTT
+proliferation, glucose uptake, JC-1, ROS detection with DHE, a melanocortin-4 receptor reporter).
+Two new Claude Opus 5.5 agents: Flex with nothing decided, Hamilton with
+`24 samples. Every sample in triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol | 5 of 5 | 5 of 5 |
+| at the first attempt | 4 | 4 |
+| of the five, do what the manual asks | 5 | 4 |
+
+The two second rounds were slips of the model's own, caught by the check: two ranges in one `to:`,
+and a liquid declared over rows A to F where it meant A to H. All ten pass `steadyhand rehearse`
+and the Flex drafts pass Opentrons' simulator. Read in full against the pages:
+
+- **The rule held where the text says to remove.** The ROS manual says "aspirate off the culture
+  media" and gives no volume; both drafts declare 100 uL, list it under `chose` and take it off.
+  The reporter manual seeds in 200 uL and both drafts take 200 uL off. Nine drafts match their
+  pages in every volume and well.
+- **It did not reach a text that only implies it.** The glucose uptake manual says to "treat the
+  cells in 100 uL of glucose-free medium" and never says to take the old medium off. The Flex
+  draft replaces it. The Hamilton draft adds the treatment on top, which leaves glucose in a
+  glucose uptake assay, and says so under `chose`. That is the same fault as in the ninth set,
+  in a text one step less plain.
+- The new rules from 0.36.0 again: "mix gently for one minute on an orbital shaker" became a
+  pipette mix and a 1 min wait in both MTT drafts; "shake briefly" before the read became a
+  closing pipette mix in both reporter drafts; the crystal dissolving solution, to be made
+  "immediately before use", has its pause.
+- **On the OT-2**, with the robot line changed, three of the five Flex drafts pass. One needs
+  three pipettes. The other is a fault in steadyhand, not in the draft: the OT-2 has only a 20 uL
+  single-channel pipette for one control well, so emptying that well is split into 20 uL draws, and
+  the last of them starts above what is left and fails as "draws air". Taken in one draw, as on the
+  Flex, the same removal is only noted as leaving a little behind. The two should be judged alike.
+
+**The rule on the manual it came from** (not an outside test): `ldl_uptake` drafted again on both
+robots. Both drafts now take 100 uL of medium off before the LDL solution goes on.
+
+**What the agents found unclear:** a compound treatment on the assay day (inside the run, or
+before it like seeding); "treat in" a new medium without a word about the old one; whether a
+draw from the surface may take the whole well; ranges of concentration; controls for which the
+text gives a minimum; that one step cannot address two separate ranges of wells.
+
+**Caveats.** Five manuals from one maker, one run each, one agent per robot, every case of a run
+in one conversation. Both agents piped one prompt before running it plainly. I read the drafts;
+nobody who runs these kits has. Nothing has run on a robot.
 
 ## The rules the agents kept tripping on, and a ninth set (0.36.0)
 
