@@ -3,9 +3,70 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 to 15 Nov 2026 with Claude models. The first five sections and sections seven to fifteen are the only tests on text the guide
+All runs are on 13 to 15 Nov 2026 with Claude models. The first six sections and sections eight to sixteen are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## A fifteenth set: five staining kits on 6-, 12- and 24-well plates (0.41.0)
+
+The fourteenth set was one manual. This one is five, from five makers, all staining kits written
+for a plate with fewer than eight rows. Three defaults in the guide were written for 96 wells
+and the agents had said so; they were changed and committed before this set was read by a model:
+8 samples go from A1 down each column in turn where a plate has fewer than eight rows, or as
+many as it holds; a choice the text leaves between two ("in duplicate or triplicate", "a 24-well
+plate or a chamber slide") takes the first; the liquid already in a well is what the text gives
+per well, else 500 uL in a 24-well plate, 1 mL in a 12-well, 2 mL in a 6-well.
+
+**The set.** `MANUALS_15` in [evals/heldout/fetch.py](heldout/fetch.py): senescence staining
+kits from Cayman and BioVision (12-well plate), Cell Biolabs (35 mm dishes) and Abcam (24-well
+plate, read by flow cytometry), and an Oil Red O kit from Cosmo Bio (24-well plate). Two new
+Claude Opus 5.5 agents: the Flex with nothing decided, the Hamilton with
+`24 samples. Every sample in triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol | 3 of 5 | 4 of 5 |
+| at the first attempt | 2 | 3 |
+| Handed back to a person | 2 | 1 |
+
+- **The three handed back.** The Abcam kit on the Flex: its first protocol moves the cells out of
+  a flat 24-well plate, all 500 uL, and a tip 0.2 mm off the floor still leaves 48 uL; that is
+  true of the plate, and the Hamilton draft got round it with a V-bottom 24-well plate. The
+  BioVision kit on the Flex: the manual says "prepare 3 ml per well" of PBS, the draft took that
+  as the amount on the deck, and nothing was left for what the reservoir cannot give up; the
+  Hamilton agent read the same line as a preparation note and passed. That one is the guide's
+  fault. The Cell Biolabs kit on the Hamilton: 72 wells of 35 mm are twelve 6-well plates, more
+  than a STARlet deck holds; that follows from the sentence I gave it.
+- **The second rounds.** Both Oil Red O drafts were sent back once for a pause longer than 200
+  characters, a limit the guide never states. Also the guide's fault.
+- **The new defaults were used as written.** On the Flex: 8 samples in A1:D2 of the 24-well
+  plate, 8 sample wells and a control well on the 12-well plate, 6 on the 6-well plate "because
+  8 do not fit"; medium declared at 500 uL, 1 mL and 2 mL and taken off first. The 35 mm dishes
+  became a 6-well plate, and the draft says so.
+- Read against the pages, the seven drafts that pass do what the manuals ask: every wash, its
+  volume and count, the fixing times (the shorter of a range), the staining solution made by
+  hand at a pause where the manual says to make it fresh, incubation at 37 C as a pause or left
+  for after the run. All 136 removals are `volume: all`. Things a reader should know: the Oil
+  Red O drafts fix overnight as a 16 h wait with formalin standing open on the deck, and write
+  "repeat until the water is clean" as three washes; the Hamilton Abcam draft follows the
+  suspension protocol with a deep-well plate for the tubes, a spin written as a pause before
+  every change of liquid (the manual names one), and the cells treated in a deep 24-well block.
+- The three Flex drafts with only the robot line changed pass on the OT-2 too. Every passing
+  draft passes `steadyhand rehearse`, and the Flex and OT-2 ones Opentrons' simulator.
+- The Hamilton agent reported three breaks of the brief's rules: one `prompt` piped through
+  `tail`, and reading back its own reply twice. It read no file of the repository.
+
+**What this does not show.** Staining kits are one kind of protocol: wash, fix, wash, stain. Two
+of the five are near twins. On the Hamilton, 24 samples in triplicate on plates of 6 to 24 wells
+means three to seven plates and hundreds of tips; those runs pass, one with a tip reload, but nobody
+would set one up that way.
+
+**What the agents found unclear:** whether "prepare 3 ml per well", a recipe for a litre of
+fixative, or a kit size is the amount on the deck; the pause length limit; "freshly prepared",
+"while the cells are fixing" and "stable for 2 hours" as reasons for a pause; moving a whole
+well on, where `volume: all` is for waste only; spins a text implies but does not write;
+"for long-term storage" and "in addition" as optional steps; where controls go when the samples
+alone take several plates; "repeat until clean".
 
 ## Plates with fewer than eight rows on an Opentrons deck, and a set of one (0.40.0)
 
