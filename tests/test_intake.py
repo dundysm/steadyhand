@@ -448,3 +448,11 @@ def test_what_the_person_decides_is_sent_after_the_text_and_the_guide_says_it_ou
 
   draft("Add 50 uL of water.", model, max_rounds=1, decided="16 samples")
   assert seen[0].endswith("THE PERSON ADDS\n16 samples\n")
+
+
+def test_only_the_ot2_guide_says_it_holds_two_pipettes():
+  from steadyhand.intake import guide_for
+
+  assert "holds two pipettes" in guide_for("opentrons-ot2")
+  assert "holds two pipettes" not in guide_for("opentrons-flex")
+  assert "holds two pipettes" not in guide_for()

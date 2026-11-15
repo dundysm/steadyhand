@@ -278,6 +278,16 @@ _OPENTRONS_EXAMPLES = (
 )
 
 
+_MIX_COUNT = """  mix once for each mix volume the liquid holds, at most 10 times, and say so in `notes`."""
+# The OT-2 holds two of its three sizes of pipette. A transfer is split over as many draws as it
+# takes, so any two sizes move any volume; a mix is one stroke, so its volume picks the pipette.
+_OT2_PIPETTES = """
+- This robot holds two pipettes, out of three sizes: 1 to 20 uL, 20 to 300 uL and 100 to
+  1000 uL. A transfer of any volume is split over several draws, but a mix is one stroke of
+  one pipette. So when anything in the file is under 20 uL, no mix is over 300 uL: mix
+  300 uL, more times, and say so in `notes`."""
+
+
 def guide_for(robot: str = "") -> str:
   """The guide a model is given: the Hamilton's as it stands, or one that names an Opentrons robot.
 
@@ -294,6 +304,8 @@ def guide_for(robot: str = "") -> str:
     ),
     ("name: One wash of column 1\n", f"name: One wash of column 1\nrobot: {robot}\n"),
   ]
+  if robot == "opentrons-ot2":
+    swaps.append((_MIX_COUNT, _MIX_COUNT + _OT2_PIPETTES))
   for old, new in swaps:
     if old not in text:
       raise ValueError(f"the guide no longer contains {old!r}")

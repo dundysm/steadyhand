@@ -128,10 +128,19 @@ MANUALS_10 = [
   ("ros_dhe", "Cayman ROS detection cell-based assay kit (DHE), adherent cells", CAYMAN + "601290.pdf", "5"),
   ("mc4r", "Cayman melanocortin-4 receptor reporter assay kit", CAYMAN + "600190.pdf", "5-6"),
 ]
+# An eleventh set, cell assays again, after "cells put in a new medium" joined the rule on emptied wells
+# and the OT-2 guide learned that the robot holds two pipettes (after 0.37.1).
+MANUALS_11 = [
+  ("cholesterol_uptake", "Cayman cholesterol uptake cell-based assay kit", CAYMAN + "600440.pdf", "4"),
+  ("nadh_cell", "Cayman NAD/NADH cell-based assay kit", CAYMAN + "600480.pdf", "6-7"),
+  ("seap", "Cayman secreted alkaline phosphatase reporter gene assay kit", CAYMAN + "600260.pdf", "9-10"),
+  ("cyp3a4", "Cayman CYP3A4 induction reporter assay kit", CAYMAN + "600270.pdf", "5-6"),
+  ("glutathione_cell", "Cayman glutathione cell-based detection kit", CAYMAN + "600360.pdf", "6"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
-  "heldout10": MANUALS_10,
+  "heldout10": MANUALS_10, "heldout11": MANUALS_11,
 }
 
 
