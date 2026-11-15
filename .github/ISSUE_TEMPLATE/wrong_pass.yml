@@ -1,0 +1,25 @@
+name: A rehearsal passed that should not have
+description: The most useful report there is. A run that fails on a real robot, or would, and passes here
+labels: [missed-fault]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What goes wrong on the bench
+      description: What the robot does, or would do, that the rehearsal did not stop.
+    validations:
+      required: true
+  - type: textarea
+    id: protocol
+    attributes:
+      label: The protocol file
+      render: yaml
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version and robot
+      description: The output of `steadyhand --version`, the `--robot`, and the real robot if there is one.
+    validations:
+      required: true

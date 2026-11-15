@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "steadyhand"
-version = "0.34.0"
+version = "0.35.0"
 description = "Turn a written lab protocol into a robot program and rehearse it before it touches a real bench."
 dynamic = ["readme"]
 requires-python = ">=3.10"
@@ -16,6 +16,11 @@ classifiers = [
   "Development Status :: 2 - Pre-Alpha",
   "Intended Audience :: Science/Research",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: Scientific/Engineering :: Chemistry",
   "Topic :: Scientific/Engineering",
 ]
 dependencies = [
@@ -31,6 +36,9 @@ dependencies = [
 Repository = "https://github.com/dundysm/steadyhand"
 Issues = "https://github.com/dundysm/steadyhand/issues"
 "What it stops" = "https://github.com/dundysm/steadyhand/blob/main/docs/faults.md"
+Documentation = "https://github.com/dundysm/steadyhand/tree/main/docs"
+Measurements = "https://github.com/dundysm/steadyhand/blob/main/evals/RESULTS.md"
+Changelog = "https://github.com/dundysm/steadyhand/releases"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pypdf>=4", "opentrons>=9.1"]
@@ -48,6 +56,23 @@ content-type = "text/markdown"
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.fragments]]
 path = "README.md"
+
+# PyPI shows no GitHub alerts and has a white page: drop the alert marker and the dark pictures.
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = '> \[!WARNING\]\n'
+replacement = ''
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = ' *<source media="[^"]*" srcset="[^"]*">\n'
+replacement = ''
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'src="(?!https?://)([^"]+)"'
+replacement = 'src="https://raw.githubusercontent.com/dundysm/steadyhand/main/\1"'
+
+[[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
+pattern = 'href="(?!https?://|#)([^"]+)"'
+replacement = 'href="https://github.com/dundysm/steadyhand/blob/main/\1"'
 
 [[tool.hatch.metadata.hooks.fancy-pypi-readme.substitutions]]
 pattern = '\]\((?!https?://|#)([^)]+\.(?:png|gif|jpg|svg))\)'

@@ -3,9 +3,49 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 and 14 Nov 2026 with Claude models. The first nine sections are the only tests on text the guide
+All runs are on 13 and 14 Nov 2026 with Claude models. Sections two to ten are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## The 31 notes the guide grew up on, drafted again after eight sets of changes (0.35.0)
+
+The guide was last tried on its own 31 notes at 0.26.0. Since then it has been changed after each
+of eight outside sets, and gained the magnet, pauses, `needs` and `chose`. This run asks whether
+any of that broke what used to work. Four new Claude Opus 5.5 agents, 15 or 16 notes each, as at
+0.26.0; nothing decided for them.
+
+| | Hamilton | Flex |
+|---|---|---|
+| Reach a rehearsed protocol, no hand edits | 28 of 31 | 28 of 31 |
+| at the first attempt | 28 | 27 |
+| Refused, as they should be | 3 | 3 |
+
+- The same three are refused as before (`normalize_no_file`, `normalize_too_dilute`, `too_much`),
+  each by sending the same file again once the check has said why.
+- The 28 Hamilton drafts pass `steadyhand rehearse`. The 28 Flex drafts pass the physics replay and
+  Opentrons' simulator on the Flex.
+- **One step back.** `ampure_cleanup` on the Flex needed a second round: its first draft took 38 uL
+  of a 40 uL eluate from the usual height, the rehearsal said the tip would draw air, and the second
+  draft lowered the draw. At 0.26.0 the first draft already did that.
+- **Two Flex drafts no longer carry over to the OT-2.** With the robot line changed, 26 of the 28
+  pass there. The two bead cleanups now use the magnet and name a plate Opentrons gives no magnet
+  height for on the OT-2's module, so the plan refuses them and says which plates it could be. At
+  0.26.0 there was no magnet and all 28 passed on the OT-2.
+- Not read against the notes this time. The drafts differ from the 0.26.0 ones wherever a newer
+  rule applies (a `chose` list, magnet steps, a last wait dropped), and only the outcomes were
+  compared.
+
+**What the agents found unclear**, most of it more than once: a timed shake that is the last thing
+before a read fits three rules (a wait, a pipette mix and a wait, or left out), and the agents
+were not consistent, even within one run; a text that says "back on the magnet" and then moves
+"the clear eluate" gives no wait; "take all of it" on the magnet against the few uL a tip cannot
+reach; a liquid too big for any one trough (690 mL of wash buffer was split three ways by one
+agent and five by the other); whether a premix the note says "I combine first" is made by the
+robot; a room-temperature wait before the first step; column names for a samples file the note
+never shows.
+
+**Caveats.** This is a fit, not a test: these are the notes the guide was first written against.
+One run per note and robot, many notes per agent in one conversation.
 
 ## Six rules made plainer, and an eighth set (0.34.0)
 

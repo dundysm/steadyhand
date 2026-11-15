@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use steadyhand, please cite it as below."
+title: "steadyhand: turn a written lab protocol into a robot program and rehearse it"
+type: software
+authors:
+  - family-names: Pasupuleti
+    given-names: Dundy
+repository-code: "https://github.com/dundysm/steadyhand"
+license: Apache-2.0

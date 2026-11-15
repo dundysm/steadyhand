@@ -429,7 +429,13 @@ def main(argv: Optional[List[str]] = None) -> int:
   faults.add_argument("--robot", choices=sorted(ROBOTS), help="the robot to plant the mistakes on; default: hamilton-starlet")
 
   args = parser.parse_args(argv)
-  return args.run(args)
+  from ._colour import install
+
+  install()
+  try:
+    return args.run(args)
+  finally:
+    sys.stdout.flush()
 
 
 if __name__ == "__main__":

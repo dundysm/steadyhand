@@ -1,0 +1,24 @@
+name: Something is wrong
+description: A crash, a wrong verdict, or a program that does not do what the protocol file says
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you ran, what you expected and what you got. Paste the output.
+    validations:
+      required: true
+  - type: textarea
+    id: protocol
+    attributes:
+      label: The protocol file
+      description: The YAML, or the smallest part of it that still shows the problem.
+      render: yaml
+  - type: input
+    id: version
+    attributes:
+      label: Version and robot
+      description: The output of `steadyhand --version`, and the `--robot` you used.
+    validations:
+      required: true

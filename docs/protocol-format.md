@@ -1,8 +1,11 @@
+[steadyhand](../README.md) · [Commands](commands.md) · [Protocol file](protocol-format.md) · [Robots](robots.md) · [Drafting](drafting.md) · [PyLabRobot](pylabrobot.md) · [Limits](limits.md) · [Measurements](../evals/RESULTS.md)
+
 # The steadyhand protocol file (draft 0.1)
 
 A protocol file says **what** to do: which labware, where the liquids start, and the steps.
 It says nothing about **how** a robot does it. Deck positions, tip types and channels are chosen
-by the planner (`steadyhand plan FILE`). An editable plan file for overriding those choices is not built yet.
+by the planner (`steadyhand plan FILE`), and a plan file can override the tips, the deck layout and the pipetting
+height: see [Change what `plan` decided](commands.md#change-what-plan-decided).
 
 The file is YAML so that a person can read it, a language model can write it, and everything
 after it can be exact. `steadyhand check FILE` reads it and follows the liquid through every move.
