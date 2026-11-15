@@ -64,7 +64,11 @@ RULES
   reach whose well holds the liquid, counting one the list gives no amount for as 2 mL; when the text fixes that liquid's
   volume, what is left after use has to cover the amount out of reach, so choose a trough
   where it does;
-  liquids "in their own troughs" may each take one well of the same multi-well trough. The list does not give a plate's colour: for a black or white
+  liquids "in their own troughs" may each take one well of the same multi-well trough. A liquid
+  that fits no trough well in the list is split: take as few troughs of the largest kind as
+  hold it with the out-of-reach amount in each, declare each part as its own liquid (`wash_1`,
+  `wash_2`), use one part up before drawing from the next, and say so in `chose`; only the
+  liquid that does not fit moves, the others stay where they fit. The list does not give a plate's colour: for a black or white
   plate that no name in the list offers, choose by shape and volume and say so in `chose`.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
@@ -72,7 +76,9 @@ RULES
   by adding one liquid to another and then draws from (a diluted stock, each standard of a
   series, a master mix) has to be uniform first. When the text says only to dilute, prepare or
   combine it, or mixes it in a way the robot cannot (vortex, swirl, invert), mix it by pipette
-  after the last addition, 3 times, and say so in `notes`.
+  after the last addition, 3 times, and say so in `notes`. A mix the text says its writer
+  makes beforehand ("I combine", "made up", "premixed") starts on the deck as one liquid: the
+  robot neither makes nor mixes it.
 - Leave out what a pipetting robot cannot do and the run can go on without (vortexing a
   reagent, sealing, covering, storage) and say so in `notes`, one sentence each. What comes
   after the last pipetting step (a final incubation, reading the plate) is left out the same way,
@@ -80,18 +86,26 @@ RULES
   mix alone.
 - A timed step the plate only has to sit through at room temperature (also where the text
   gives it as a temperature from 20 to 25 C) becomes a `wait` of that
-  length, also where the text shakes it meanwhile (shake 30 s, incubate 2 h at room
-  temperature); a timed action on something else (vortex the reagent 30 s before use) is left
+  length; a timed action on something else (vortex the reagent 30 s before use) is left
   out. For "at least" a time, use that time; for a range (10-15 min), the shorter; for
   "overnight", 16 h. A wait asked for only in words ("a few minutes", "wait a bit") gets a
   `wait` of a conventional length that you choose and record in `chose`. A step that mentions
   no waiting gets no wait.
+- Shaking and mixing, by what the text is doing with it. It mixes what was just added, with no
+  time or for 2 min or less ("mix", "tap to mix", "mix on a shaker", "shake 30 s"): a pipette
+  mix of 3 times in those wells and then, when a time is given and something is pipetted
+  afterwards, a `wait` of that time; this mix is written also when it is the last thing before
+  an incubation or a read, it is not left out. It incubates for longer than 2 min and shakes
+  meanwhile ("incubate 30 min with shaking"): no mix, a `wait` of that length at room
+  temperature or a `pause` when heated, left out like any incubation when nothing is pipetted
+  afterwards.
 - A step between two pipetting steps that does not happen on the deck becomes a `pause` that
   says what the person does, with the temperature and the time when the text gives them: heat
   or cold (1 h at 95 C, 30 min at 37 C, overnight at 4 C), a spin, a freeze and thaw, a read
   before the next addition. A wait in its place would be a run that does not do what the text
   asks. The wells must hold the same afterwards: a hand step that fills or empties wells is
-  not a pause.
+  not a pause. An assay the text says is performed at a temperature the deck does not hold
+  (37 C) is pipetted as written; say in `notes` that the deck is not heated.
 - A reagent the text says to prepare shortly before it is used ("within 5 minutes of use",
   "immediately before use", "just before adding") is declared as a liquid in its well like any
   other, and a `pause` before the step that first draws from it tells the person to prepare it
@@ -117,19 +131,21 @@ RULES
   the plate onto the magnet and off it at each of these steps: that is the plan's business,
   not yours, so write the same steps. While the magnet is on the beads are held to the wall
   of the well: take the liquid off from the bottom and take all of it, as the text says; the
-  rule about staying off a pellet is not for beads on a magnet. "Until the
-  beads have gathered" or "until clear" with no time is a wait of 2 min, noted.
+  rule about staying off a pellet is not for beads on a magnet. Each time the plate goes on the
+  magnet the beads need time before liquid is taken off: the time the text gives, else a wait
+  of 2 min listed in `chose`, also where the text names no wait ("back on the magnet", "until
+  clear"). A draw on the magnet that takes all, or all but a few uL, of what a well holds gets
+  `draw_from: 0.5 mm`, so the tip reaches it.
 - When the text leaves out something you need (a volume, a plate type, where a reagent
   starts), choose the most conventional option and record that choice as one sentence under
   `chose`. Every choice you made that the text did not state must appear there, so that a
   person can see what was decided for them; `notes` is for what you left out or could not
   write the way the text has it.
 - Kit manuals leave the same things open. Decide them this way, each listed under `chose`:
-  the number of samples, when the text gives none: 8, in column 1; a text that holds several
+  the number of samples, when the text gives none: 8, in column 1 (how many samples fit a
+  plate, or a layout shown in a figure, is not a number of samples); a text that holds several
   protocols: the first complete one; a step the text marks as optional: leave it out; a step
-  the text offers two ways of doing: the way it gives first; a mix the text gives a time for
-  ("mix for 1 min"): a pipette mix, then a wait of that time, also when the text does it on a
-  shaker.
+  the text offers two ways of doing: the way it gives first.
 - Wells the text asks for or recommends beside the samples (blanks, background wells,
   controls) are included and never dropped to make room; when the text gives no count for
   them, give them as many wells as a sample gets and say so in `chose`. When they do not fit one plate with the samples and replicates asked
@@ -147,13 +163,16 @@ RULES
   column), use the nearest stricter option and say so in `notes`.
 - Use `normalize` only when the text asks to bring samples to a common concentration and a
   samples file is offered with the text. If the text asks for it and no file is offered, write
-  the step with `samples.file: samples.csv` and say in `notes` that the file is needed.
+  the step with `samples.file: samples.csv`, columns `well` and `concentration`, and say in
+  `notes` that the file is needed.
 - Never change an amount the text states. If what the text describes cannot work (a well
   would overflow, a source would run dry), write it as stated and say so in `notes`. Do not
   choose a larger plate than the kind the text describes to make its volumes fit: a text whose
   own plate cannot hold what it puts in it cannot work as written, and that is for a person.
-- Seeding cells and growing them before the day of the assay happens before the run: start
-  from the plate as it stands when the assay day begins, and say so in `notes`.
+- Seeding cells and growing them before the day of the assay, and bringing reagents or plates
+  to room temperature before the first pipetting step, happen before the run, also when the
+  text gives a time: start from the plate as it stands when the assay begins, and say so in
+  `notes`.
 - When you are told about a problem that only a person can settle (the text itself cannot work,
   a samples file is missing), send the same file again. That ends the drafting and hands the
   problem to them.
@@ -179,7 +198,8 @@ STEPS
     from/to pair up as: one source to many wells, many sources to one well, or equal counts.
     volume is the amount per destination. tips defaults to fresh (a new tip per transfer);
     reuse keeps one tip per source well and suits clean liquid going into empty wells; into
-    wells that already hold another liquid it is refused, because the tip carries that back.
+    wells that already hold another liquid it is refused, because the tip carries that back;
+    a well an earlier step emptied still counts as holding what it held.
     draw_from defaults to bottom: the tip stops 1 mm above the floor of the well. surface keeps
     the tip just under the liquid as it falls; use it when the text says to take liquid from
     the top, or without disturbing cells, a pellet or what has settled. It works only in a well

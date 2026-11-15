@@ -112,9 +112,17 @@ MANUALS_8 = [
   ("xo", "Cayman xanthine oxidase fluorometric assay kit", CAYMAN + "10010895.pdf", "7-8"),
   ("hemoglobin", "Cayman hemoglobin colorimetric assay kit", CAYMAN + "700540.pdf", "6-7"),
 ]
+# A ninth set, after the shaking, split-liquid, magnet-wait and before-the-run rules of 0.36.0.
+MANUALS_9 = [
+  ("nadglo", "Promega NAD/NADH-Glo assay", PROMEGA + "101/nad-nadh-glo-assay-protocol.pdf", "8-10"),
+  ("rosglo", "Promega ROS-Glo H2O2 assay, cell-based", PROMEGA + "101/ros-glo-h2o2-assay-protocol.pdf", "7-8"),
+  ("gr", "Cayman glutathione reductase assay kit", CAYMAN + "703202.pdf", "5-6"),
+  ("ldl_uptake", "Cayman LDL uptake cell-based assay kit", CAYMAN + "10011125.pdf", "4-5"),
+  ("netosis", "Cayman NETosis assay kit, elastase activity", CAYMAN + "601010.pdf", "9"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
-  "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8,
+  "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
 }
 
 
