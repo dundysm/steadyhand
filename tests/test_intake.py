@@ -454,5 +454,8 @@ def test_only_the_ot2_guide_says_it_holds_two_pipettes():
   from steadyhand.intake import guide_for
 
   assert "holds two pipettes" in guide_for("opentrons-ot2")
+  # its 300 uL pipette only has 200 uL tips: the guide has to say what the planner will do
+  assert "1 to 20 uL, 20 to 200 uL and 100 to 1000 uL" in guide_for("opentrons-ot2")
+  assert "no mix is over 200 uL" in guide_for("opentrons-ot2")
   assert "holds two pipettes" not in guide_for("opentrons-flex")
   assert "holds two pipettes" not in guide_for()

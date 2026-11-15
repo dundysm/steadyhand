@@ -343,6 +343,11 @@ def _fit(pipette: Pipette, volumes: Sequence[float], mixes: Sequence[float], one
   return _Fit(pipette, capacity, rack, draws + len(mixes))
 
 
+def reaches(profile: Profile) -> List[Tuple[float, float]]:
+  """What one stroke of each size of single-channel pipette moves: from its least to what its largest tip holds."""
+  return [(p.low, min(p.high, max(capacity for capacity, _ in p.tips))) for p in profile.pipettes if p.channels == 1]
+
+
 def _reach(wells: Sequence[Any], rows: Dict[str, int]) -> Optional[str]:
   """Where an 8-channel pipette goes to reach these eight wells at once, or None when it cannot.
 
@@ -684,10 +689,19 @@ def plan(
     notes.append("the deck is tight, so each pipette uses one size of tip")
   if best is None and work:
     wanted = sorted({min(by, key=lambda n: by[n].draws) for by in fits.values()})
+    # Say what ties the file to each pipette, so the writer knows which step to change.
+    only: Dict[str, str] = {}
+    for tip, by in fits.items():
+      if len(by) == 1:
+        volumes, mixes, step = work[tip]
+        does = f"mixes {max(mixes):g} uL" if mixes else f"moves {min(volumes):g} uL"
+        only.setdefault(next(iter(by)), f"steps[{step}] {does}")
+    why = "; ".join(f"only {name} does what {only[name]}" for name in sorted(only))
     problems.append(
       Problem(
         "steps",
-        f"the volumes here need {len(wanted)} pipettes ({', '.join(wanted)}) and the {profile.title} holds two",
+        f"the volumes here need {len(wanted)} pipettes ({', '.join(wanted)}) and the {profile.title} holds two"
+        + (f": {why}" if why else ""),
       )
     )
     return failed()

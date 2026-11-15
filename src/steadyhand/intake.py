@@ -282,10 +282,10 @@ _MIX_COUNT = """  mix once for each mix volume the liquid holds, at most 10 time
 # The OT-2 holds two of its three sizes of pipette. A transfer is split over as many draws as it
 # takes, so any two sizes move any volume; a mix is one stroke, so its volume picks the pipette.
 _OT2_PIPETTES = """
-- This robot holds two pipettes, out of three sizes: 1 to 20 uL, 20 to 300 uL and 100 to
-  1000 uL. A transfer of any volume is split over several draws, but a mix is one stroke of
-  one pipette. So when anything in the file is under 20 uL, no mix is over 300 uL: mix
-  300 uL, more times, and say so in `notes`."""
+- This robot holds two pipettes, out of %(count)s sizes: %(sizes)s. A transfer of any volume
+  is split over several draws, but a mix is one stroke of one pipette. So when anything in
+  the file is under %(second)g uL, no mix is over %(limit)g uL: mix %(limit)g uL, more times, and
+  say so in `notes`."""
 
 
 def guide_for(robot: str = "") -> str:
@@ -305,7 +305,17 @@ def guide_for(robot: str = "") -> str:
     ("name: One wash of column 1\n", f"name: One wash of column 1\nrobot: {robot}\n"),
   ]
   if robot == "opentrons-ot2":
-    swaps.append((_MIX_COUNT, _MIX_COUNT + _OT2_PIPETTES))
+    from .opentrons_robots import OT2, reaches
+
+    sizes = sorted(reaches(OT2))  # taken from the planner's own table, so the two cannot drift apart
+    words = {2: "two", 3: "three", 4: "four"}
+    said = _OT2_PIPETTES % {
+      "count": words.get(len(sizes), str(len(sizes))),
+      "sizes": ", ".join(f"{low:g} to {high:g} uL" for low, high in sizes[:-1]) + f" and {sizes[-1][0]:g} to {sizes[-1][1]:g} uL",
+      "second": sizes[1][0],
+      "limit": sizes[1][1],
+    }
+    swaps.append((_MIX_COUNT, _MIX_COUNT + said))
   for old, new in swaps:
     if old not in text:
       raise ValueError(f"the guide no longer contains {old!r}")

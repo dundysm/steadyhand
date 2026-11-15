@@ -137,10 +137,16 @@ MANUALS_11 = [
   ("cyp3a4", "Cayman CYP3A4 induction reporter assay kit", CAYMAN + "600270.pdf", "5-6"),
   ("glutathione_cell", "Cayman glutathione cell-based detection kit", CAYMAN + "600360.pdf", "6"),
 ]
+# Two more reporter kits, for the OT-2 only, after its guide was corrected: the eleventh set showed
+# the note on its two pipettes gave a range the planner does not have.
+MANUALS_12 = [
+  ("ep2", "Cayman EP2 receptor (rat) reporter assay kit", CAYMAN + "600340.pdf", "4-5"),
+  ("ox1r", "Cayman orexin 1 receptor reporter assay kit", CAYMAN + "600240.pdf", "4-5"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
-  "heldout10": MANUALS_10, "heldout11": MANUALS_11,
+  "heldout10": MANUALS_10, "heldout11": MANUALS_11, "heldout12": MANUALS_12,
 }
 
 

@@ -893,3 +893,32 @@ def test_a_removal_split_into_small_draws_is_judged_like_one_draw_of_the_whole_a
   assert result.ok, result.report()
   assert any(issue.kind == "ends_in_air" for issue in result.liquid)
   assert not any(issue.kind == "air" for issue in result.liquid)
+
+
+THREE_PIPETTES = """
+steadyhand: 0.1
+robot: opentrons-ot2
+name: a small volume, a small mix and a large mix
+labware:
+  plate: {type: nest_96_wellplate_2ml_deep}
+  small: {type: corning_96_wellplate_360ul_flat}
+liquids:
+  stock: {in: plate/A1, volume: 100 uL}
+  buffer: {in: plate/A2, volume: 1500 uL}
+steps:
+  - transfer: {from: plate/A2, to: plate/A3, volume: 499 uL}
+  - transfer: {from: plate/A1, to: plate/A3, volume: 1 uL}
+  - mix: {wells: plate/A3, volume: 250 uL, times: 3}
+  - transfer: {from: plate/A3, to: small/A1, volume: 60 uL, mix_after: {times: 3, volume: 25 uL}}
+"""
+
+
+def test_a_file_that_needs_three_pipettes_is_told_which_step_ties_it_to_each():
+  planned = ot.plan(check(loads(THREE_PIPETTES)), ot.OT2)
+  assert not planned.ok
+  message = planned.problems[0].message
+  assert "need 3 pipettes" in message
+  assert "only p1000_single_gen2 does what steps[2] mixes 250 uL" in message
+  assert "only p20_single_gen2 does what steps[1] moves 1 uL" in message
+  fixed = ot.plan(check(loads(THREE_PIPETTES.replace("volume: 250 uL, times: 3", "volume: 200 uL, times: 4"))), ot.OT2)
+  assert fixed.ok, [p.message for p in fixed.problems]
