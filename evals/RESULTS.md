@@ -56,6 +56,13 @@ Claude Opus 5.5 agents: the Flex with nothing decided, the Hamilton with
 - The Hamilton agent reported three breaks of the brief's rules: one `prompt` piped through
   `tail`, and reading back its own reply twice. It read no file of the repository.
 
+**After the write-up** the guide was told the two things it had left out: how much a text says
+to make or have ready ("prepare 3 ml per well", a recipe for a litre) is not the amount on the
+deck, and a pause is under 200 characters. The two Flex drafts they had cost, drafted again by a
+new agent (not an outside test), both pass at the first attempt. The BioVision one shows what
+the new default costs on a 12-well plate: 8 wells from A1 down each column are A1:C2 and A3:B3,
+which one range cannot say, so every step is written twice.
+
 **What this does not show.** Staining kits are one kind of protocol: wash, fix, wash, stain. Two
 of the five are near twins. On the Hamilton, 24 samples in triplicate on plates of 6 to 24 wells
 means three to seven plates and hundreds of tips; those runs pass, one with a tip reload, but nobody
