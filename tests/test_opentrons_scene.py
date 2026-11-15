@@ -183,7 +183,7 @@ def test_the_same_volumes_as_opentrons_own_maths_for_every_labware_offered():
         expected = theirs.find_volume_inner_well_geometry(target_height=top * part, well_geometry=model)
         assert abs(mine - expected) <= 1e-9 * max(1.0, expected), (load_name, part)
         compared += 1
-  assert compared >= 250 and sorted(set(left_out)) == ["usascientific_12_reservoir_22ml"]
+  assert compared >= 250 and sorted(set(left_out)) == ["nest_24_wellplate_10.4ml", "usascientific_12_reservoir_22ml"]
 
 
 def test_a_film_of_liquid_in_a_tapered_reservoir_is_a_sure_failure_not_a_maybe():

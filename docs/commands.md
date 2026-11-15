@@ -110,7 +110,7 @@ volume, and every command takes the same time on screen. It is 2D; for 3D open `
 - **Tip in the liquid.** The liquid is followed through every step. An aspirate that starts with
   the tip above the liquid, or any aspirate or dispense with the tip above the rim of the well,
   fails the run. On a Hamilton deck this is trusted in flat-bottom wells, where the liquid
-  height is known, and in the three plates and reservoirs Opentrons also ships, whose inside
+  height is known, and in the seven plates and reservoirs Opentrons also ships, whose inside
   shape is taken from Opentrons' definition when the `opentrons` package is installed. In other
   round- and V-bottom wells it is reported as possible and does not fail.
   On an Opentrons deck the height comes from the inside shape of the well, which Opentrons'

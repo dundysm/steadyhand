@@ -40,8 +40,9 @@ Claude Opus 5.5 agents: the Flex with nothing decided, and the Hamilton with
   plate with 500 uL wells, because steadyhand's list for the Flex has no 24-well plate, where
   the manual asks for a 24-well plate or a chamber slide to put under a microscope; it says so in
   its notes. The Hamilton annexin draft takes supernatant off a pellet from 2 mm up in a
-  V-bottom plate that lists no out-of-reach amount, and with `volume: all` the rehearsal counts
-  the well as empty after, where a real well keeps what lies below the tip. And the WST-1 drafts write the two
+  V-bottom plate that lists no out-of-reach amount, and with `volume: all` the accounting counts
+  the well as empty after, where a real well keeps what lies below the tip; the rehearsal
+  says so, as aspirates that end with the liquid below the tip. And the WST-1 drafts write the two
   one-minute shakes as pipette mixes in wells with cells, as the rule on short shaking says.
 - The Flex drafts are converted and run on the OT-2 as well; every draft here passes
   `steadyhand rehearse`, and the Flex and OT-2 ones Opentrons' simulator too.

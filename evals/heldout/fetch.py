@@ -151,11 +151,16 @@ MANUALS_13 = [
   ("cell_staining", "Cayman cell-based immunofluorescence staining kit", CAYMAN + "600060.pdf", "4"),
   ("wst1", "Cayman WST-1 cell proliferation assay kit", CAYMAN + "10008883.pdf", "3"),
 ]
+# A fourteenth set of one, for plates with fewer than eight rows on an Opentrons deck: a manual whose
+# microscopy protocol is written for a 24-well plate (0.40.0).
+MANUALS_14 = [
+  ("oxldl_uptake", "Cayman oxidized LDL uptake assay kit, flow cytometry and fluorescence microscopy", CAYMAN + "601180.pdf", "5"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
   "heldout10": MANUALS_10, "heldout11": MANUALS_11, "heldout12": MANUALS_12,
-  "heldout13": MANUALS_13,
+  "heldout13": MANUALS_13, "heldout14": MANUALS_14,
 }
 
 

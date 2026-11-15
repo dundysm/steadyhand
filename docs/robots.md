@@ -29,10 +29,11 @@ Plates go in the first free slots, tip racks after them; waste reservoirs, tip r
 work as on the Hamilton.
 
 **Labware.** A protocol file may name a plate or reservoir by its Opentrons load name
-(`corning_96_wellplate_360ul_flat`) when Opentrons' software is installed. Three plates are known
+(`corning_96_wellplate_360ul_flat`) when Opentrons' software is installed. Seven are known
 to be the same product in both libraries, and a file that uses only those plans for all three
-robots: the Corning 96-well 360 uL flat plate and the NEST 1-well 195 mL and 12-well 15 mL
-reservoirs. A test compares every well position of each pair. Any other PyLabRobot plate is
+robots: the Corning 96-well 360 uL flat plate, the Corning Costar 6-, 12-, 24- and 48-well plates,
+and the NEST 1-well 195 mL and 12-well 15 mL reservoirs. A test compares every well position of
+each pair. Plates with fewer than eight rows are worked one well at a time. Any other PyLabRobot plate is
 refused for an Opentrons robot, by name.
 
 **Simulating.** `pip install 'steadyhand[opentrons]'` brings Opentrons' software. Its simulator
@@ -71,7 +72,7 @@ this way, at the price of 14 tip reloads and 3 waste stops on a Flex: it runs, b
 stand by it.
 
 **Drafting for them.** `steadyhand draft notes.txt --robot opentrons-flex -o protocol.yaml` offers
-the model the 46 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
+the model the 51 plates and reservoirs Opentrons ships that can stand in a slot on their own, and
 has it write the `robot:` line. On the 31 intake notes, 28 go from text to a protocol that
 passes the physics replay and Opentrons' simulator on the Flex with no hand edits, 27 of them at
 the first attempt, and 26 of those also pass on the OT-2 with only the robot line changed. The

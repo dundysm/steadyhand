@@ -120,12 +120,17 @@ PROFILES = {profile.name: profile for profile in (FLEX, OT2)}
 # ---------------------------------------------------------------- labware
 
 # PyLabRobot plate -> (the same product in Opentrons' library, uL a well holds there).
-# Only pairs whose wells sit in the same places are listed; tests/test_opentrons.py compares them.
+# Only pairs whose wells sit in the same places, to a third of a millimetre, are listed;
+# tests/test_opentrons.py compares them.
 TWINS: Dict[str, Tuple[str, float]] = {
   "nest_1_troughplate_195000uL_Vb": ("nest_1_reservoir_195ml", 195_000.0),
   "nest_12_troughplate_15000uL_Vb": ("nest_12_reservoir_15ml", 15_000.0),
   "Cor_96_wellplate_360ul_Fb": ("corning_96_wellplate_360ul_flat", 360.0),
   "cor_96_wellplate_360uL_Fb": ("corning_96_wellplate_360ul_flat", 360.0),
+  "Cor_Cos_6_wellplate_16800ul_Fb": ("corning_6_wellplate_16.8ml_flat", 16_800.0),
+  "Cor_Cos_12_wellplate_6900ul_Fb": ("corning_12_wellplate_6.9ml_flat", 6_900.0),
+  "Cor_Cos_24_wellplate_3470ul_Fb": ("corning_24_wellplate_3.4ml_flat", 3_400.0),
+  "Cor_Cos_48_wellplate_1620ul_Fb": ("corning_48_wellplate_1.6ml_flat", 1_600.0),
 }
 
 _SHIPPED: Dict[str, Optional[Dict[str, Any]]] = {}
@@ -162,7 +167,10 @@ def shipped_labware(load_name: str) -> Optional[Dict[str, Any]]:
       sizes = {len(column) for column in columns}
       holds = body.get("metadata", {}).get("displayCategory") in ("wellPlate", "reservoir")
       alone = not any(word in load_name for word in _NOT_ALONE)
-      if holds and alone and kind != "irregular" and len(sizes) == 1:
+      # "irregular" is any spacing but that of a 96- or 384-well plate. Plates with fewer than
+      # eight rows (6, 12, 24 and 48 wells) are worked one well at a time, so their spacing is free.
+      regular = kind != "irregular" or max(sizes, default=8) < 8
+      if holds and alone and regular and len(sizes) == 1:
         order = [well for column in columns for well in column]
         _SHIPPED[load_name] = {
           "rows": sizes.pop(),
@@ -298,8 +306,10 @@ class OpentronsPlan:
       )
     followed = [a.height for a in self.actions if a.height]
     if followed:
+      low, high = f"{min(followed):g}", f"{max(followed):g}"
       lines.append(
-        f"  draws at a height of their own: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
+        f"  draws at a height of their own: {len(followed)}, "
+        f"the tip {low if low == high else f'{low} to {high}'} mm above the well floor"
       )
     eight = any(len(a.wells) == 8 for a in self.actions)
     lines.append(
