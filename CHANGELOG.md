@@ -3,6 +3,18 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.39.0 (2026-11-15)
+
+**take all of it**
+
+a transfer to waste can now say `volume: all`; steadyhand works out what each well holds when the step comes, so nobody (and no model) does the arithmetic for a removal; a well that holds nothing by then is reported with the step named
+
+- format: `volume: all` on a transfer `to: waste`; refused for liquid that is moved on
+- guide: removals are written with it; drawn from the surface over cells or a pellet, else from 0.5 mm
+- measured on a thirteenth set (4 cayman manuals that empty wells again and again): 8 of 8 drafts reach a rehearsed protocol at the first attempt on the Flex and the Hamilton; all 46 removals use `volume: all`
+- totals: 140 of 166 drafts from 82 manuals stand as rehearsed programs with no hand edits
+- caveat: `all` is what the model of the well holds, not a sensed level; 4 manuals from one maker; details in evals/RESULTS.md
+
 ## 0.38.0 (2026-11-15)
 
 **drafting for the OT-2's two pipettes, and cells put in a new medium**
