@@ -49,6 +49,9 @@ and the Flex drafts pass Opentrons' simulator. Read in full against the pages:
   single-channel pipette for one control well, so emptying that well is split into 20 uL draws, and
   the last of them starts above what is left and fails as "draws air". Taken in one draw, as on the
   Flex, the same removal is only noted as leaving a little behind. The two should be judged alike.
+  **Fixed in 0.37.1:** a draw to waste that finds the liquid already below the tip, straight after
+  another draw to waste from the same well, is noted like the single draw; that draft now passes
+  on the OT-2, four of the five.
 
 **The rule on the manual it came from** (not an outside test): `ldl_uptake` drafted again on both
 robots. Both drafts now take 100 uL of medium off before the LDL solution goes on.

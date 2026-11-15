@@ -615,10 +615,14 @@ def liquid_issues(
       thrown_away[s.index] = is_waste(next_dispense.get(s.channel, ""))
       put_back[s.index] = next_dispense.get(s.channel, "") == s.resource
 
+  # wells whose last move was a draw that is thrown away: a removal still going on
+  emptying: Dict[str, bool] = {}
   issues: List[LiquidIssue] = []
   for s in acting:
     if s.carried is not None:
       carry(held, *s.carried)
+      for name in s.carried:
+        emptying.pop(name, None)
       continue
     container = containers[s.resource]
     floor, rim = cavity_floor_z(container), bounds(container)[1][2]
@@ -641,7 +645,13 @@ def liquid_issues(
       surface = floor + liquid_height(container, before)
       after = floor + liquid_height(container, max(0.0, before - volume))
       if end > surface - LIQUID_TOLERANCE:
-        issue("air", end - surface, sure)
+        if thrown_away[s.index] and emptying.get(s.resource) and before > 0.0:
+          # A removal split over several draws: the one before took the liquid down to where
+          # the tip stops, and this one finds the rest under it. One draw of the whole amount
+          # ends the same way and is noted, not failed; so is this.
+          issue("ends_in_air", end - after, sure)
+        else:
+          issue("air", end - surface, sure)
       elif end > after + LIQUID_TOLERANCE:
         if thrown_away[s.index]:
           issue("ends_in_air", end - after, sure)
@@ -651,4 +661,5 @@ def liquid_issues(
           # Under a hundredth of the draw is less than a pipette can be held to: said, not failed.
           issue("short" if air > SHORT_ALLOWED * volume else "nearly_all", end - after, sure, air)
     held[s.resource] = before - volume if s.kind == "aspirate" else before + volume
+    emptying[s.resource] = s.kind == "aspirate" and thrown_away.get(s.index, False)
   return issues

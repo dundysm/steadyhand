@@ -858,3 +858,37 @@ def test_on_the_flex_the_gripper_can_carry_the_plate_and_nowhere_else(capsys, tm
   path.write_text(BEADS % ("opentrons-ot2", "nest_96_wellplate_2ml_deep"), encoding="utf-8")
   assert main(["plan", str(path), "--gripper"]) != 0
   assert "--gripper is for the Opentrons Flex" in capsys.readouterr().out
+
+
+EMPTYING = """
+steadyhand: 0.1
+robot: opentrons-ot2
+name: empty a column and one well beside it
+labware:
+  plate: {type: corning_96_wellplate_360ul_flat}
+  src: {type: opentrons_96_wellplate_200ul_pcr_full_skirt}
+liquids:
+  medium: {in: plate/A1:H1, volume: 100 uL}
+  control: {in: plate/A2, volume: 100 uL}
+  dye: {in: src/A1, volume: 30 uL}
+steps:
+  - transfer: {from: src/A1, to: plate/A2, volume: 2 uL}
+  - transfer: {from: plate/A1:H1, to: waste, volume: 100 uL, draw_from: surface}
+  - transfer: {from: plate/A2, to: waste, volume: 102 uL, draw_from: surface}
+"""
+
+
+@needs_opentrons
+def test_a_removal_split_into_small_draws_is_judged_like_one_draw_of_the_whole_amount():
+  import asyncio
+
+  from steadyhand.opentrons_scene import rehearse_plan
+
+  planned = ot.plan(check(loads(EMPTYING)), ot.OT2)
+  assert planned.ok, [p.message for p in planned.problems]
+  single = [a for a in planned.actions if a.kind == "aspirate" and a.labware == "plate" and a.well == "A2"]
+  assert len(single) > 1, "the one well is emptied by the 20 uL pipette, in parts"
+  result = asyncio.run(rehearse_plan(planned))
+  assert result.ok, result.report()
+  assert any(issue.kind == "ends_in_air" for issue in result.liquid)
+  assert not any(issue.kind == "air" for issue in result.liquid)
