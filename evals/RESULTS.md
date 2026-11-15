@@ -3,9 +3,66 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 and 14 Nov 2026 with Claude models. Sections two to ten are the only tests on text the guide
+All runs are on 13 and 14 Nov 2026 with Claude models. The first section and sections three to eleven are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## The rules the agents kept tripping on, and a ninth set (0.36.0)
+
+Across the last runs the agents named the same clashes again and again. The guide now says each
+thing once, and was committed before the ninth set was read by a model: shaking and timed mixing
+are one rule (a short shake mixes what was just added, so it is a pipette mix, also as the last
+step; a long one is an incubation); a liquid no trough holds is split into named parts over as
+few of the largest troughs as hold it; every time the plate goes on the magnet it gets the
+text's wait or 2 min, and a draw there that empties a well goes down to 0.5 mm; a premix the
+writer makes is not made by the robot; warming to room temperature happens before the run; a
+samples file that is not shown gets the columns `well` and `concentration`; how many samples fit
+a plate is not a number of samples; a well that was emptied still counts as holding what it held.
+
+**The set.** `MANUALS_9` in [evals/heldout/fetch.py](heldout/fetch.py): five manuals not used
+before (Promega NAD/NADH-Glo and ROS-Glo, Cayman glutathione reductase, LDL uptake and the NETosis
+elastase assay). Two new Claude Opus 5.5 agents: Flex with nothing decided, Hamilton with
+`24 samples. Every sample in triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol, first attempt | 5 of 5 | 5 of 5 |
+| of those, do what the manual asks | 4 | 4 |
+
+All ten pass `steadyhand rehearse`; the Flex drafts also pass Opentrons' simulator on the Flex and
+on the OT-2. Read in full against the pages:
+
+- **Two passes that are wrong, and say so.** The LDL uptake manual says to *replace* the culture
+  medium with the LDL solution. It gives no volume for the medium, the guide says wells the text
+  gives no volume for are treated as empty, and so both drafts add the solution on top of whatever
+  is in the wells and write in `notes` that the removal was left out. A person reading the notes
+  would catch it; the rehearsal cannot. The rule is wrong for wells the text empties.
+- The other eight match their pages in every volume and well.
+- **The new rules on text they were not written from.** "Gently and briefly shake the plate to
+  mix" (NAD/NADH-Glo) and "shake for a few seconds to mix" (glutathione reductase) are the last
+  step, and all four drafts end on a pipette mix. Reagents to be made "immediately before use"
+  or "just before use" (both Promega kits, three in the LDL kit) each get a pause that says what
+  to make.
+- In flat wells the LDL drafts take off the 66 uL a tip can reach of each 100 uL wash, so a third
+  of every wash is carried into the next. They say so. A person would tilt the plate.
+
+**The rules on the notes they came from** (not an outside test): six notes drafted again on both
+robots, twelve drafts, eleven at the first attempt (one ELISA draft set a mix larger than its
+well and fixed it in a second round). All four bead-cleanup drafts wait 2 min each time on the
+magnet and draw at 0.5 mm from the first reply; the three shake-then-read notes end on a pipette
+mix on both robots; both ELISA drafts split the wash buffer into three parts in three of the
+largest trough; both qPCR drafts start from the premix. All twelve pass `rehearse`, the Flex ones
+Opentrons' simulator too.
+
+**What the agents found unclear:** wells that hold an unknown volume the text then removes (the
+fault above); whether "as many wells as a sample gets" means one well or the replicate count;
+whether "wash" and "incubate with" include taking off what was there; a volume range (75 to
+100 uL), which the range rule covers only for times; a recipe table per number of wells; and, on
+the ELISA note, "size comes first" against "no larger plate than the kind the text describes".
+
+**Caveats.** Five manuals, one run each, one agent per robot, every case of a run in one
+conversation. One agent piped a prompt once before running it plainly. I read the drafts; nobody
+who runs these kits has. Nothing has run on a robot.
 
 ## The 31 notes the guide grew up on, drafted again after eight sets of changes (0.35.0)
 
