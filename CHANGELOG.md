@@ -3,6 +3,18 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.36.0 (2026-11-15)
+
+**the rules the drafting kept tripping on, said once each**
+
+shaking and timed mixing are one rule now: a short shake is a pipette mix, also as the last step, and a long one is an incubation; a liquid no trough holds is split into named parts; every time on the magnet gets its wait, and a draw that empties a well goes down to 0.5 mm; a premix you make yourself is not made by the robot; warming to room temperature happens before the run; measured on a ninth set of five fresh manuals: ten of ten drafts rehearse at the first attempt, eight match their pages, and two add to wells the manual says to empty first (they say so in their notes; that rule is next); details in evals/RESULTS.md
+
+## 0.35.0 (2026-11-15)
+
+**a new front page, colour in the terminal, and the first 31 notes drafted again**
+
+the readme is now a front page: a logo, an animation of a rehearsal, a picture of the pipeline, what each robot gets and what was measured; the long sections moved to their own pages under docs; `check`, `plan` and `rehearse` colour their verdicts in a terminal (not in pipes, and NO_COLOR turns it off); a changelog, a contributing guide and issue forms; the 31 notes the guide was first tuned on were drafted again after eight sets of changes: 28 of 31 reach a rehearsed program on both robots, as at 0.26; details in evals/RESULTS.md
+
 ## 0.34.0 (2026-11-14)
 
 **glass only where plastic will not do, and a text that cannot work is handed back**

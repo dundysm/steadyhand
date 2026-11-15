@@ -51,8 +51,11 @@ RULES
   none for a liquid the steps draw from, supply about 20% more than they use, plus what the
   LABWARE list says is out of reach in that well, because a tip cannot reach the last of a
   shallow liquid. Where the list does not say, add at least 10 uL in a plate well or 2 mL in a
-  trough or reservoir. When it gives none for what is already in wells the steps add
-  to or empty, treat those wells as empty and say so in `notes`.
+  trough or reservoir. When it gives none for what is already in wells the steps only add
+  to, treat those wells as empty and say so in `notes`. When the text takes off or replaces
+  what is already in the wells (old medium, a supernatant), do not treat them as empty: declare
+  it there at a conventional volume (100 uL in a 96-well plate), list that under `chose`, and
+  write the removal.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
   the labware, choose one whose wells are big enough for the largest volume any well reaches;
   a well may be filled to what the list says it holds, not beyond. Among those, prefer the
@@ -87,7 +90,7 @@ RULES
 - A timed step the plate only has to sit through at room temperature (also where the text
   gives it as a temperature from 20 to 25 C) becomes a `wait` of that
   length; a timed action on something else (vortex the reagent 30 s before use) is left
-  out. For "at least" a time, use that time; for a range (10-15 min), the shorter; for
+  out. For "at least" a time, use that time; for a range of times (10-15 min), the shorter, and for a range of volumes (75-100 uL), the larger; for
   "overnight", 16 h. A wait asked for only in words ("a few minutes", "wait a bit") gets a
   `wait` of a conventional length that you choose and record in `chose`. A step that mentions
   no waiting gets no wait.
@@ -148,7 +151,7 @@ RULES
   the text offers two ways of doing: the way it gives first.
 - Wells the text asks for or recommends beside the samples (blanks, background wells,
   controls) are included and never dropped to make room; when the text gives no count for
-  them, give them as many wells as a sample gets and say so in `chose`. When they do not fit one plate with the samples and replicates asked
+  them, give each of them as many replicate wells as one sample gets and say so in `chose`. When they do not fit one plate with the samples and replicates asked
   for, put them on a second plate of the same type and say so in `chose`.
 - Text under THE PERSON ADDS, after the text to work from, is the person's own decisions.
   They settle what the text leaves open and replace the defaults above. Where they go against
