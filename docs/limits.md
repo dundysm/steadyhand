@@ -3,11 +3,12 @@
 # What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. Ten sets from outside, on the protocol pages of 71 manufacturers'
+  model one turn at a time. Twelve sets from outside, on the protocol pages of 78 manufacturers'
   manuals read straight from the PDFs, each with the guide frozen beforehand and changed only
-  after the write-up. Of 146 drafts for the three robots, 121 stand as rehearsed programs with
+  after the write-up. Of 158 drafts for the three robots, 132 stand as rehearsed programs with
   no hand edits; 11 are refused for a reason that is true (spin-plate kits, and bead kits
-  before there was a magnet); 5 were handed back to a person; 3 passed while adding to wells the manual says, or means, to empty
+  before there was a magnet); 5 were handed back to a person; 1 was still refused after three rounds, because a note in the OT-2's guide gave a pipette a
+  range it does not have (corrected in 0.38.0); 3 passed while adding to wells the manual says, or means, to empty
   first, and said so in their notes; 5 passed by overfilling a plate
   the Hamilton's labware list overstated, fixed in 0.30.1; 1 crashed steadyhand, fixed.
 - **A draft you can run without reading it.** A pass means the file runs, not that it does what

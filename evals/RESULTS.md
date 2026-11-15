@@ -3,9 +3,70 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 and 14 Nov 2026 with Claude models. The first two sections and sections four to twelve are the only tests on text the guide
+All runs are on 13 and 14 Nov 2026 with Claude models. The first three sections and sections five to thirteen are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## An eleventh set for the Hamilton and the OT-2, a wrong note of mine, and two manuals more (0.38.0)
+
+Two changes went in before this set was read by a model. The rule on emptied wells was widened:
+cells put "in" a new medium have the old one taken off first, also where the text does not say so.
+And the OT-2's guide was told the robot holds two pipettes, so that drafts stop needing three.
+
+**The set.** `MANUALS_11` in [evals/heldout/fetch.py](heldout/fetch.py): five Cayman manuals not
+used before, cell assays again (cholesterol uptake, NAD/NADH in cells, a SEAP reporter gene assay,
+a CYP3A4 induction reporter, glutathione detection). Two new Claude Opus 5.5 agents: the OT-2 with
+nothing decided, which is the first outside drafting for the OT-2 beyond bead kits, and the
+Hamilton with `24 samples. Every sample in triplicate wells.`
+
+| | OT-2, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol | 4 of 5 | 5 of 5 |
+| at the first attempt | 2 | 4 |
+| Still failing after three rounds | 1 | 0 |
+
+- **The failure is mine.** The note I wrote for the OT-2 said its middle pipette moves 20 to
+  300 uL. The planner gives it 200 uL tips, so one stroke is at most 200 uL. The CYP3A4 draft
+  followed the note, mixed 250 uL, was told three times that "the volumes here need 3 pipettes"
+  with no word on which step, and ran out of rounds. A reporter kit from the tenth set, drafted
+  again here, got through only in its third round by changing several things at once.
+- **The widened rule held on fresh text.** The cholesterol uptake manual says to treat the cells
+  "in 100 uL serum-free culture medium" and never says to take the old medium off. Both drafts
+  take it off first and list the 100 uL they assumed under `chose`. The glucose uptake manual
+  from the tenth set, drafted again, now does the same on both robots (not an outside test).
+- Read against the pages, the nine drafts that pass do what the manual asks, with two things a
+  reader should know. Both cholesterol drafts take the readout the manual gives first, flow
+  cytometry, and move the cells to a V-bottom plate by pipette, which works for cells in
+  suspension and not for cells stuck to the plate. And where a plate lists no out-of-reach
+  amount, the Hamilton drafts take old medium off from 2 mm up and leave a tenth of it behind,
+  as the rule for a pellet says; they say so.
+- The other second and third rounds were the model's own slips, caught by the rehearsal: a
+  white plate the tips collided with, a mix larger than the well held, a transfer that would
+  have carried air.
+
+**After the correction.** The note now takes its ranges from the planner's own table, and the
+refusal names the step that ties the file to each pipette ("only p1000_single_gen2 does what
+steps[9] mixes 250 uL"). That was committed, and `MANUALS_12` registered, before any of this:
+
+| OT-2, a new agent | |
+|---|---|
+| Two more reporter kits not used before (EP2, orexin 1), first attempt | 2 of 2 |
+| The two that had needed three pipettes, drafted again (not an outside test) | 2 of 2, first attempt |
+
+All four make their 1:500 or 1:1,000 dilution with a 200 uL mix, five strokes. Read against the
+pages, the two new drafts do what the manuals ask. Every draft that passes here passes
+`steadyhand rehearse`, and the OT-2 ones Opentrons' simulator too.
+
+**What the agents found unclear:** how "8 samples" and recommended triplicates combine; "the
+way given first" when the first way is a 6-well plate the list does not have, or a readout the
+plate does not suit; how much to take when all of a well's liquid should come off and some is
+out of reach; whether a kit's "dilute 1:1,000" is for the robot; repeated samplings the text
+recommends (24, 48 and 72 h); a manual that prints the assay before the stimulation.
+
+**Caveats.** Seven manuals from one maker, one run each, one agent per robot per run, every case
+of a run in one conversation; one agent said a later case was probably helped by an earlier
+one's feedback. The two-manual set is small and both are close relatives of kits already
+drafted. I read the drafts; nobody who runs these kits has. Nothing has run on a robot.
 
 ## Wells the text empties, tried on five cell assays (0.37.0)
 
