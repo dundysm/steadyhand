@@ -553,7 +553,8 @@ def test_a_draft_for_an_opentrons_robot_is_offered_opentrons_labware_and_example
     guide = guide_for(profile.name)
     assert "Cor_96" not in guide and "troughplate" not in guide
     assert f"robot: {profile.name}   (required, exactly this)" in guide
-    assert len(guide.splitlines()) == len(GUIDE.splitlines()) + 3  # one robot line in the sections and in each example
+    # one robot line in the sections and in each example; the OT-2 is also told it holds two pipettes
+    assert len(guide.splitlines()) == len(GUIDE.splitlines()) + 3 + (4 if profile is ot.OT2 else 0)
     offered = labware_catalogue(profile.name)
     assert messages_for("text", None, profile.name)[0]["content"] == guide + "\nLABWARE\n" + offered + "\n"
     first = guide.split("EXAMPLE 1")[1].split("\n", 1)[1].split("\nEXAMPLE 2")[0]
