@@ -3,6 +3,18 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.40.0 (2026-11-15)
+
+**small plates on an Opentrons deck**
+
+6-, 12-, 24- and 48-well plates can now stand on a Flex or an OT-2; they were left out because Opentrons marks their spacing as irregular, but they are pipetted one well at a time, where spacing does not matter
+
+- opentrons: five plates with fewer than eight rows are on the list (51 plates and reservoirs now)
+- the four corning costar plates are the same product as the Hamilton's, so one file that names them plans for all three robots; a test compares every well
+- measured on a fourteenth set of one (oxidized LDL uptake, microscopy protocol on a 24-well plate): passes at the first attempt on the Flex, the OT-2 and the Hamilton; the apoptosis kit drafted again for the Opentrons robots now uses a 24-well plate, not a 96-well one
+- totals: 143 of 169 drafts from 83 manuals stand as rehearsed programs with no hand edits; 208 tests
+- caveat: one manual; 6-, 12- and 48-well plates were only run from a hand-written file; details in evals/RESULTS.md
+
 ## 0.39.0 (2026-11-15)
 
 **take all of it**
