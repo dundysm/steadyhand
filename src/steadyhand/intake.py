@@ -47,7 +47,9 @@ RULES
   from, add to or mix, with the wells it starts in and the volume in each. Leave out liquid
   that no step touches: declaring it is an error.
   Use the volume the text gives. An amount given only as enough for some number of uses
-  ("enough for 25 preps"), with no volume, is not a volume the text gives. When it gives
+  ("enough for 25 preps"), with no volume, is not a volume the text gives; nor is how much
+  the text says to make or have ready (a recipe for 1 L, "prepare 3 mL per well", "makes
+  10 mL"), which is for the person at the bench. When it gives
   none for a liquid the steps draw from, supply about 20% more than they use, plus what the
   LABWARE list says is out of reach in that well, because a tip cannot reach the last of a
   shallow liquid. Where the list does not say, add at least 10 uL in a plate well or 2 mL in a
@@ -239,7 +241,7 @@ STEPS
     Needs the `samples` section, and the samples declared under `liquids` like any other
     liquid. mix is optional.
 - wait: {duration: <time>}
-- pause: <one sentence: what a person does by hand while the run is stopped>
+- pause: <one sentence, under 200 characters: what a person does by hand while the run is stopped>
 - magnet: {plate: <labware>, state: on|off}
     The magnet under that plate goes on or off. One plate in a run can have a magnet.
 
@@ -683,7 +685,7 @@ _REHEARSAL_HINT = (
   "\nA rehearsal problem is about the robot, not the file's form. Liquid too shallow to reach is fixed "
   "by starting with more of a liquid whose amount the text leaves open, or by labware with narrower wells; "
   "say which in `notes`. An amount the text gives only as enough for some number of uses, with no volume, "
-  "is left open: you may supply more of it."
+  "or as how much to make or have ready, is left open: you may supply more of it."
 )
 
 
