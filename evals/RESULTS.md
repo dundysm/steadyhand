@@ -3,9 +3,58 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 to 15 Nov 2026 with Claude models. The first four sections and sections six to fourteen are the only tests on text the guide
+All runs are on 13 to 15 Nov 2026 with Claude models. The first five sections and sections seven to fifteen are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## Plates with fewer than eight rows on an Opentrons deck, and a set of one (0.40.0)
+
+The thirteenth set showed a gap in the list, not in the guide: the Flex draft of the apoptosis
+kit used a 96-well plate where the manual asks for a 24-well plate, because steadyhand offered
+the Opentrons robots no plate with fewer than 96 wells. Opentrons marks the spacing of its 6-,
+12-, 24- and 48-well plates "irregular", and the list left every such plate out. They are worked
+one well at a time, where spacing does not matter, so five of them are in now. The four Corning
+Costar ones are the same product as the Hamilton's, to a third of a millimetre, so one file that
+names them plans for all three robots. That was committed before the manual below was read by a
+model.
+
+**The set.** `MANUALS_14` in [evals/heldout/fetch.py](heldout/fetch.py): one Cayman manual not
+used before (oxidized LDL uptake), whose microscopy protocol is written for a 24-well plate. Of
+some 90 manuals searched for one, it is the only one not used before that pipettes in such a
+plate. Three
+new Claude Opus 5.5 agents, one per robot; each was told `The fluorescence microscopy protocol.`,
+since the manual gives flow cytometry first, and the Hamilton also
+`24 samples. Every sample in triplicate wells.`
+
+| | Flex | OT-2 | Hamilton |
+|---|---|---|---|
+| Oxidized LDL uptake, first attempt | pass | pass | pass |
+| on a 24-well plate | yes | yes | yes, three of them |
+| Apoptosis kit from the thirteenth set, drafted again (not an outside test) | pass, 24-well plate | pass, 24-well plate | not redone |
+
+- Read against the page, the three drafts do what the manual asks: the labelled LDL at 1:50 into
+  the 500 uL in each well, a pause for the hours at 37 C, the medium off from the surface with
+  `volume: all`, 500 uL of Hoechst solution. All three took 1:50 as 10.2 uL and the shorter
+  time, 4 h, and say so.
+- Two things a reader should know. The last step, 15 min at 37 C in the dark, comes after the
+  last pipetting and is in the notes only. And the Hamilton draft needs 36 mL of Hoechst
+  solution and 0.9 mL of labelled LDL for its 72 wells, where the kit is sold for one plate; that
+  follows from the sentence I gave it, and no check knows what a kit holds.
+- Both Opentrons drafts pass `steadyhand rehearse` and Opentrons' simulator; the Flex draft
+  with only its robot line changed passes on the OT-2 too.
+
+**What this does not show.** One manual, and a short protocol. The plates are in and a model
+picks them when the text names them; that is all. Nothing here was run on 6-, 12- or 48-well
+plates beyond a hand-written file for each on the Flex. The deep 24-well plate
+(`nest_24_wellplate_10.4ml`) has wells whose inside shape steadyhand does not model, so its
+liquid height is an estimate, as for one reservoir already on the list.
+
+**What the agents found unclear:** "8 samples, in column 1" assumes a 96-well plate, where a
+24-well column has four wells (both Opentrons agents put 8 samples in duplicate in A1:D4);
+whether "duplicate or triplicate" falls under "the way given first"; whether "500 uL per well"
+in a note on the vessel is the volume already in the wells; an in-well dilution given as a ratio
+(10 uL or 10.2 uL); a step worded "to use X as an inhibitor" and not "optional"; one step
+cannot name wells on two plates.
 
 ## A thirteenth set, and "take all of it" as one word (0.39.0)
 
