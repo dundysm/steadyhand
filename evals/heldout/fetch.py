@@ -120,9 +120,18 @@ MANUALS_9 = [
   ("ldl_uptake", "Cayman LDL uptake cell-based assay kit", CAYMAN + "10011125.pdf", "4-5"),
   ("netosis", "Cayman NETosis assay kit, elastase activity", CAYMAN + "601010.pdf", "9"),
 ]
+# A tenth set, all assays on cells in a plate, after the rule for wells the text empties (after 0.36.0).
+MANUALS_10 = [
+  ("mtt_cayman", "Cayman MTT cell proliferation assay kit", CAYMAN + "10009365.pdf", "3"),
+  ("glucose_uptake", "Cayman glucose uptake cell-based assay kit", CAYMAN + "600470.pdf", "4"),
+  ("jc1", "Cayman JC-1 mitochondrial membrane potential assay kit, plate reader", CAYMAN + "10009172.pdf", "5"),
+  ("ros_dhe", "Cayman ROS detection cell-based assay kit (DHE), adherent cells", CAYMAN + "601290.pdf", "5"),
+  ("mc4r", "Cayman melanocortin-4 receptor reporter assay kit", CAYMAN + "600190.pdf", "5-6"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
+  "heldout10": MANUALS_10,
 }
 
 
