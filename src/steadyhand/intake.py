@@ -56,8 +56,9 @@ RULES
   what is already in the wells (old medium, a supernatant), or puts the cells "in" a new
   medium or buffer (treat in glucose-free medium, in serum-free medium), do not treat them as
   empty: the old liquid comes off first, also where the text does not say so; declare
-  it there at a conventional volume (100 uL in a 96-well plate), list that under `chose`, and
-  write the removal.
+  it there at the volume per well the text gives for that plate, else at a conventional
+  volume (100 uL in a 96-well plate, 500 uL in a 24-well, 1 mL in a 12-well, 2 mL in a
+  6-well), list that under `chose`, and write the removal.
 - Taking everything off a well (old medium, a supernatant, a wash) is `to: waste` with
   `volume: all`. Do not work the amount out and do not take off what is out of reach: the tip
   takes what it can and the rehearsal says how much stays behind. Draw from the `surface`
@@ -149,12 +150,17 @@ RULES
   starts), choose the most conventional option and record that choice as one sentence under
   `chose`. Every choice you made that the text did not state must appear there, so that a
   person can see what was decided for them; `notes` is for what you left out or could not
-  write the way the text has it.
+  write the way the text has it. A volume you work out from a ratio the text gives is such a
+  choice: a dilution of 1:50 in the well is one part in 50 of what the well then holds.
 - Kit manuals leave the same things open. Decide them this way, each listed under `chose`:
   the number of samples, when the text gives none: 8, in column 1 (how many samples fit a
-  plate, or a layout shown in a figure, is not a number of samples); a text that holds several
-  protocols: the first complete one; a step the text marks as optional: leave it out; a step
-  the text offers two ways of doing: the way it gives first.
+  plate, or a layout shown in a figure, is not a number of samples), and on a plate with fewer
+  than eight rows 8 with their replicates, from A1 down each column in turn, or as many as
+  the plate holds where 8 do not fit; a text that holds several
+  protocols: the first complete one; a step the text marks as optional: leave it out; a
+  choice the text leaves between two (a step done two ways, "in duplicate or triplicate",
+  "a 24-well plate or a chamber slide"): the one it gives first, or the next where the first
+  cannot be written here.
 - Wells the text asks for or recommends beside the samples (blanks, background wells,
   controls) are included and never dropped to make room; when the text gives no count for
   them, give each of them as many replicate wells as one sample gets and say so in `chose`. When they do not fit one plate with the samples and replicates asked

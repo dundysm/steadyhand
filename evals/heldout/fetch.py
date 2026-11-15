@@ -156,11 +156,20 @@ MANUALS_13 = [
 MANUALS_14 = [
   ("oxldl_uptake", "Cayman oxidized LDL uptake assay kit, flow cytometry and fluorescence microscopy", CAYMAN + "601180.pdf", "5"),
 ]
+# A fifteenth set, for plates with fewer than eight rows: five staining kits from five makers, written
+# for 6-, 12- and 24-well plates (0.41.0).
+MANUALS_15 = [
+  ("sagal_cayman", "Cayman senescence-associated beta-galactosidase staining kit, 12-well plate", CAYMAN + "602010.pdf", "4-6"),
+  ("oil_red_o", "Cosmo Bio lipid assay kit (Oil Red O), 24-well plate", "https://cosmobiousa.com/content/document/cosmo-bio-ltd/pmc-ak09f-cos_lipid-assay-kit_datasheet.pdf", "1"),
+  ("sagal_cbl", "Cell Biolabs cellular senescence assay kit (SA-beta-gal staining), 35 mm wells", "https://www.cellbiolabs.com/sites/default/files/520894CF-3048-812A-2EBE544F97DF1280.pdf", "3-4"),
+  ("bgal_abcam", "Abcam beta galactosidase assay kit (senescence), 24-well plate", "https://content.abcam.com/content/dam/abcam/product/documents/228/ab228562/Beta-Galactosidase-Assay-protocol-book-v3b-ab228562%20(website).pdf", "7-9"),
+  ("senescence_bv", "BioVision senescence detection kit, 12-well plate", "https://store.genprice.com/content/biovision/datasheet/K320.pdf", "1"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
   "heldout10": MANUALS_10, "heldout11": MANUALS_11, "heldout12": MANUALS_12,
-  "heldout13": MANUALS_13, "heldout14": MANUALS_14,
+  "heldout13": MANUALS_13, "heldout14": MANUALS_14, "heldout15": MANUALS_15,
 }
 
 
