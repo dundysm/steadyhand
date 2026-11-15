@@ -3,9 +3,53 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 and 14 Nov 2026 with Claude models. The first three sections and sections five to thirteen are the only tests on text the guide
+All runs are on 13 to 15 Nov 2026 with Claude models. The first four sections and sections six to fourteen are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## A thirteenth set, and "take all of it" as one word (0.39.0)
+
+What the agents asked about most in the last sets was how much to take when a well is to be
+emptied: the amount put in, less what the tip cannot reach, less what earlier steps took. So the
+format got a word for it. A transfer `to: waste` may say `volume: all`, and the check works the
+amount out from what each well holds when the step comes; a well that holds nothing by then is a
+problem with the step named. The guide says to write removals this way and to stop working the
+amount out. Both were committed before this set was read by a model.
+
+**The set.** `MANUALS_13` in [evals/heldout/fetch.py](heldout/fetch.py): four Cayman manuals not
+used before, picked for wells that are emptied again and again (annexin V staining, apoptosis
+staining of adherent cells, cell staining with antibodies, a WST-1 proliferation assay). Two new
+Claude Opus 5.5 agents: the Flex with nothing decided, and the Hamilton with
+`24 samples. Every sample in triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol | 4 of 4 | 4 of 4 |
+| at the first attempt | 4 | 4 |
+| Removals to waste written with `volume: all` | 20 of 20 | 26 of 26 |
+
+- No draft worked a removal out by hand, and none was sent back for one. In the sets before,
+  how much to take was the question the agents raised most, and a removal that would have
+  carried air was one of the reasons for a second round.
+- Three drafts from earlier sets were done again and are not outside tests: glucose uptake on
+  both robots and the CYP3A4 reporter on the Hamilton. All three pass at the first attempt, with
+  14 more removals, all `volume: all`.
+- Read against the pages, the eight drafts do what the manuals ask: the volumes, the waits and
+  the order match, and both antibody staining drafts keep all fifteen removals of their
+  manual in order. Three things a reader should know. The Flex apoptosis draft uses a 96-well
+  plate with 500 uL wells, because steadyhand's list for the Flex has no 24-well plate, where
+  the manual asks for a 24-well plate or a chamber slide to put under a microscope; it says so in
+  its notes. The Hamilton annexin draft takes supernatant off a pellet from 2 mm up in a
+  V-bottom plate that lists no out-of-reach amount, and with `volume: all` the rehearsal counts
+  the well as empty after, where a real well keeps what lies below the tip. And the WST-1 drafts write the two
+  one-minute shakes as pipette mixes in wells with cells, as the rule on short shaking says.
+- The Flex drafts are converted and run on the OT-2 as well; every draft here passes
+  `steadyhand rehearse`, and the Flex and OT-2 ones Opentrons' simulator too.
+
+**What this does not show.** Four manuals from one maker, chosen because they empty wells, so
+this says the new word is used and holds, and little about kits of other kinds. `all` is
+the amount the model of the well holds, not a sensed level: where the well really holds more
+than was declared, some stays behind, and where it holds less, the tip draws air at the end.
 
 ## An eleventh set for the Hamilton and the OT-2, a wrong note of mine, and two manuals more (0.38.0)
 
