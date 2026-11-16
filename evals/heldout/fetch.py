@@ -193,8 +193,10 @@ MANUALS_18 = [
   ("phytase", "Thermo Fisher EnzChek Ultra phytase assay kit", "https://assets.thermofisher.com/TFS-Assets/LSG/manuals/mp33701.pdf", "3-5"),
   ("phosphatase", "Thermo Fisher EnzChek phosphatase assay kit", "https://assets.thermofisher.com/TFS-Assets/LSG/manuals/mp12020.pdf", "2"),
   ("tac_cbl", "Cell Biolabs OxiSelect total antioxidant capacity assay kit", "https://www.cellbiolabs.com/sites/default/files/STA-360-total-antioxidant-capacity-assay-kit.pdf", "4-6"),
-  ("lactate_bv", "BioVision lactate colorimetric/fluorometric assay kit", "https://store.genprice.com/content/biovision/datasheet/K607.pdf", "1"),
-  ("adp_atp_bv", "BioVision ADP/ATP ratio assay kit", "https://store.genprice.com/content/biovision/datasheet/K354.pdf", "1"),
+  # Both BioVision sheets were first registered with page 1 only, which stops in the middle of the
+  # protocol, and the second under a wrong name (adp_atp_bv); the ten drafts made from that are void.
+  ("lactate_bv", "BioVision lactate colorimetric/fluorometric assay kit", "https://store.genprice.com/content/biovision/datasheet/K607.pdf", "1-2"),
+  ("atp_bv", "BioVision ATP colorimetric/fluorometric assay kit", "https://store.genprice.com/content/biovision/datasheet/K354.pdf", "1-2"),
   ("gpx_sc", "ScienCell glutathione peroxidase assay", "https://sciencellonline.com/PS/8238.pdf", "1-2"),
   ("calcium_sc", "ScienCell calcium assay", "https://sciencellonline.com/PS/8128.pdf", "2-3"),
 ]
