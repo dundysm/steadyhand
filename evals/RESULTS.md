@@ -54,6 +54,14 @@ with nothing decided, the Hamilton with `24 samples. Every sample in triplicate 
 - Both agents reported breaks of the brief: a `prompt` piped through `tail` or `sed`, and reading
   back or comparing their own replies. Neither read a file of the repository.
 
+**After the write-up** the feedback was changed: a rehearsal problem names the step of the file
+it is about, and where the liquid is thrown away it offers a lower draw with a height to try.
+The Hamilton's refusal says when the plates and troughs alone fill the deck. The alkaline
+phosphatase kit, drafted again by two new agents (not an outside test), passes on both robots in
+the second round: each changed the one step the feedback named to `draw_from: 0.5 mm`. Both
+agents then said the general hint still spoke only of more liquid or narrower wells; it now
+says a lower draw, where offered, is the fix.
+
 **What this does not show.** Half the drafts did not pass, and the Hamilton column says more
 about "24 samples in triplicate" on plates of 6 to 24 wells than about the format. Staining kits
 again, three makers.

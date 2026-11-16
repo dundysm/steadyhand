@@ -711,7 +711,8 @@ def for_a_person(problem: Any) -> bool:
 _REHEARSAL_HINT = (
   "\nA rehearsal problem is about the robot, not the file's form. Liquid too shallow to reach is fixed "
   "by starting with more of a liquid whose amount the text leaves open, or by labware with narrower wells; "
-  "say which in `notes`. An amount the text gives only as enough for some number of uses, with no volume, "
+  "say which in `notes`. Where a problem offers a lower draw for liquid that is thrown away, that is the fix, "
+  "even over cells: change that one step and say so in `notes`. An amount the text gives only as enough for some number of uses, with no volume, "
   "or as how much to make or have ready, is left open: you may supply more of it."
 )
 
