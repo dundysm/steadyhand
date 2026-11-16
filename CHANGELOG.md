@@ -3,6 +3,20 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.42.0 (2026-11-16)
+
+**one step over several ranges or plates**
+
+wherever a protocol asks for wells it now takes a list of wells and ranges, in the order written: `[plate_1/A1:D6, plate_2/A1:D2]`; a wash of three plates is one step, and 8 wells of a 12-well plate are one line
+
+- format: lists of wells for liquids, transfers and mixes; no well twice in a list; a dilution series still starts from one range
+- examples: `cell_staining.yaml`, fixing and staining cells on two 24-well plates; plans for all three robots
+- intake: a rehearsal problem names the step of the file it is about, and for liquid that is thrown away it offers a lower draw height; the Hamilton's deck refusal says when the plates alone fill the deck
+- measured on a sixteenth set (four staining kits from ScienCell, Cosmo Bio and Wako): 4 of 8 drafts reach a rehearsed protocol (Flex 3 of 4, Hamilton 1 of 4); every draft that needed a list wrote one step over it
+- the four handed back: two because 72 wells on 6- and 24-well plates do not fit a STARlet deck (my test sentence, not the format), two because a 1 mm layer of stain could not be taken off from the surface and the feedback did not say how; with the new feedback that kit passes on both robots in the second round
+- totals: 154 of 187 drafts from 92 manuals stand as rehearsed programs with no hand edits; 215 tests
+- details and caveats in evals/RESULTS.md
+
 ## 0.41.0 (2026-11-15)
 
 **defaults for small plates, measured on five staining kits**
