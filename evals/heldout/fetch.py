@@ -186,11 +186,23 @@ MANUALS_17 = [
   ("il6_elisa", "Cayman interleukin-6 (mouse) ELISA kit", CAYMAN + "583371.pdf", "7-9"),
   ("cox_inhibitor", "Cayman COX (human) inhibitor screening assay kit", CAYMAN + "701230.pdf", "6-12"),
 ]
+# An eighteenth set, as wide as the seventeenth and from five makers: eight biochemical and cell assays
+# that none of the tuned notes is about, drafted five ways (0.44.0).
+MANUALS_18 = [
+  ("gsh_glo", "Promega GSH-Glo glutathione assay", "https://www.promega.com/-/media/files/resources/protocols/technical-bulletins/101/gsh-glo-glutathione-assay-protocol.pdf", "7-10"),
+  ("phytase", "Thermo Fisher EnzChek Ultra phytase assay kit", "https://assets.thermofisher.com/TFS-Assets/LSG/manuals/mp33701.pdf", "3-5"),
+  ("phosphatase", "Thermo Fisher EnzChek phosphatase assay kit", "https://assets.thermofisher.com/TFS-Assets/LSG/manuals/mp12020.pdf", "2"),
+  ("tac_cbl", "Cell Biolabs OxiSelect total antioxidant capacity assay kit", "https://www.cellbiolabs.com/sites/default/files/STA-360-total-antioxidant-capacity-assay-kit.pdf", "4-6"),
+  ("lactate_bv", "BioVision lactate colorimetric/fluorometric assay kit", "https://store.genprice.com/content/biovision/datasheet/K607.pdf", "1"),
+  ("adp_atp_bv", "BioVision ADP/ATP ratio assay kit", "https://store.genprice.com/content/biovision/datasheet/K354.pdf", "1"),
+  ("gpx_sc", "ScienCell glutathione peroxidase assay", "https://sciencellonline.com/PS/8238.pdf", "1-2"),
+  ("calcium_sc", "ScienCell calcium assay", "https://sciencellonline.com/PS/8128.pdf", "2-3"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
   "heldout10": MANUALS_10, "heldout11": MANUALS_11, "heldout12": MANUALS_12,
-  "heldout13": MANUALS_13, "heldout14": MANUALS_14, "heldout15": MANUALS_15, "heldout16": MANUALS_16, "heldout17": MANUALS_17,
+  "heldout13": MANUALS_13, "heldout14": MANUALS_14, "heldout15": MANUALS_15, "heldout16": MANUALS_16, "heldout17": MANUALS_17, "heldout18": MANUALS_18,
 }
 
 

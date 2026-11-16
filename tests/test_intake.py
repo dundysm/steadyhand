@@ -442,6 +442,9 @@ def test_the_guide_covers_plates_with_fewer_than_eight_rows():
   assert "are a list of wells and\n  ranges, taken in the order written: [plate_1/A1:D6, plate_2/A1:D6, plate_3/A1:B2]" in GUIDE
   assert "procedures that follow one another in one\n  assay" in GUIDE and "is passed over." in GUIDE
   assert "A timed incubation at that temperature is a\n  pause all the same, however short." in GUIDE
+  assert "is made by a person before the run and starts on the deck ready to use" in GUIDE
+  assert "A standard series and dilutions of the samples are the robot's" in GUIDE
+  assert '"freshly prepared", "do not store"' in GUIDE and "or before the first one once the assay has begun" in GUIDE
 
 
 def test_the_guide_says_how_much_each_deck_holds_and_the_planners_agree():

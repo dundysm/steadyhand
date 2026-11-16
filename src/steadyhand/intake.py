@@ -105,6 +105,11 @@ RULES
   after the last addition, 3 times, and say so in `notes`. A mix the text says its writer
   makes beforehand ("I combine", "made up", "premixed") starts on the deck as one liquid: the
   robot neither makes nor mixes it.
+- In a kit manual, what the reagent preparation makes (a buffer diluted from its concentrate,
+  a vial reconstituted, an antibody, enzyme or dye brought to working strength, a staining or
+  working solution) is made by a person before the run and starts on the deck ready to use:
+  say so once in `notes`. A standard series and dilutions of the samples are the robot's,
+  wherever the text describes them, and so is whatever the numbered steps of the assay make.
 - Leave out what a pipetting robot cannot do and the run can go on without (vortexing a
   reagent, sealing, covering, storage) and say so in `notes`, one sentence each. What comes
   after the last pipetting step (a final incubation, reading the plate) is left out the same way,
@@ -125,7 +130,8 @@ RULES
   meanwhile ("incubate 30 min with shaking"): no mix, a `wait` of that length at room
   temperature or a `pause` when heated, left out like any incubation when nothing is pipetted
   afterwards.
-- A step between two pipetting steps that does not happen on the deck becomes a `pause` that
+- A step between two pipetting steps, or before the first one once the assay has begun, that
+  does not happen on the deck becomes a `pause` that
   says what the person does, with the temperature and the time when the text gives them: heat
   or cold (1 h at 95 C, 30 min at 37 C, overnight at 4 C), a spin, a freeze and thaw, a read
   before the next addition. A wait in its place would be a run that does not do what the text
@@ -135,11 +141,12 @@ RULES
   say in `notes` that the deck is not heated. A timed incubation at that temperature is a
   pause all the same, however short.
 - A reagent the text says to prepare shortly before it is used ("within 5 minutes of use",
-  "immediately before use", "just before adding") is declared as a liquid in its well like any
+  "immediately before use", "just before adding", "freshly prepared", "do not store", to be
+  used within an hour or two of making) is declared as a liquid in its well like any
   other, and a `pause` before the step that first draws from it tells the person to prepare it
   now and put it in that well. That is the one hand step that may fill a well: the file already
   counts the liquid as there. A reagent the text only says to prepare the same day, or to keep
-  cold, gets no pause.
+  cold, gets no pause. "Every well" in a text means every well in use.
 - A liquid that is half or more organic solvent (ethanol, methanol, isopropanol, acetonitrile)
   can drip from a tip, and the rehearsal does not show that. Say so once in `notes`, naming
   the liquid.
