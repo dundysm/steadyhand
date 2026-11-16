@@ -3,9 +3,65 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 to 15 Nov 2026 with Claude models. The first six sections and sections eight to sixteen are the only tests on text the guide
+All runs are on 13 to 15 Nov 2026 with Claude models. The first seven sections and sections nine to seventeen are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## A sixteenth set: one step over several ranges or plates (0.42.0)
+
+After the fifteenth set a step still took one rectangle of wells on one plate, so 8 wells of a
+12-well plate were two lines for every step and three plates were three. Now wells may be a
+list of wells and ranges, taken in the order written, wherever wells are asked for (the start of
+a dilution series apart), and the guide says to write one step over the list. Committed before
+this set was read by a model.
+
+**The set.** `MANUALS_16` in [evals/heldout/fetch.py](heldout/fetch.py): four more staining
+kits, from ScienCell (Alizarin Red, 6-well plate), Cosmo Bio (calcified nodules, 24-well; alkaline
+phosphatase, 12-well) and Wako (TRAP and ALP, 24-well). Two new Claude Opus 5.5 agents: the Flex
+with nothing decided, the Hamilton with `24 samples. Every sample in triplicate wells.`
+
+| | Flex, nothing decided | Hamilton, "24 samples, in triplicate" |
+|---|---|---|
+| Reach a rehearsed protocol | 3 of 4 | 1 of 4 |
+| at the first attempt | 3 | 1 |
+| Handed back to a person | 1 | 3 |
+| Drafts that needed a list and wrote one step over it | 1 of 1 | 4 of 4 |
+
+- **Lists were used wherever they applied.** Every Hamilton draft lays its 72 wells over three
+  to twelve plates and writes each step once over all of them (20 to 40 list steps a file); the
+  Flex draft with 8 wells on a 12-well plate writes `[plate/A1:C2, plate/A3:B3]`. No draft wrote
+  a step once for each range.
+- **Two handed back for the deck.** On the Hamilton, 72 wells of a 6-well plate are twelve
+  plates, and 72 wells of a 24-well plate with 2 mL washes are three plates and fourteen troughs.
+  The plates and troughs alone fill a STARlet deck. That follows from the sentence I gave it, and
+  the refusal is true, but its last words ("the planner cannot reload tips") pointed at the wrong
+  thing.
+- **Two handed back for a thin layer, and that one is steadyhand's.** The alkaline phosphatase
+  kit puts 400 uL of stain in a well of a 12-well plate, about 1 mm deep, and then takes it off.
+  From the surface, where the guide says to draw over cells, the tip cannot get under so thin a
+  layer, and the rehearsal says so. A height of 0.5 mm does it and passes; the feedback named
+  neither the step nor that way out, and both agents said they could not tell which step was
+  meant.
+- Read against the pages, the four drafts that pass do what the manuals ask: every wash and its
+  count, the fixing and staining times (the shorter of a range), ice, -20 C and 37 C as pauses,
+  solutions that must be fresh made at a pause. All 56 removals are `volume: all`. Things a reader
+  should know: the Alizarin Red draft is the staining half only (the extraction half is scraping,
+  heating and a centrifuge) and leaves out the gentle shaking; "wash until the buffer is clear"
+  is three washes; the Wako draft takes the ALP stain and leaves the nuclear stain out as
+  optional.
+- The three Flex drafts with only the robot line changed pass on the OT-2 too. Every passing
+  draft passes `steadyhand rehearse`, and the Flex and OT-2 ones Opentrons' simulator.
+- Both agents reported breaks of the brief: a `prompt` piped through `tail` or `sed`, and reading
+  back or comparing their own replies. Neither read a file of the repository.
+
+**What this does not show.** Half the drafts did not pass, and the Hamilton column says more
+about "24 samples in triplicate" on plates of 6 to 24 wells than about the format. Staining kits
+again, three makers.
+
+**What the agents found unclear:** which step a rehearsal problem is about; whether parts A, B
+and C of one assay are several protocols; "when necessary" and "if required" as optional; "should
+not be stored" as a reason for a pause; acetone and plastic; washes with no count; a range of
+temperatures; nothing on how many plates or tips a deck holds.
 
 ## A fifteenth set: five staining kits on 6-, 12- and 24-well plates (0.41.0)
 
