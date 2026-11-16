@@ -447,6 +447,25 @@ def test_the_guide_covers_plates_with_fewer_than_eight_rows():
   assert '"freshly prepared", "do not store"' in GUIDE and "or before the first one once the assay has begun" in GUIDE
 
 
+def test_the_guide_settles_what_the_eighteenth_set_left_open():
+  from steadyhand.intake import GUIDE, guide_for
+
+  for guide in (GUIDE, guide_for("opentrons-flex"), guide_for("opentrons-ot2")):
+    flat = " ".join(guide.split())
+    # A mix a numbered step makes is the robot's, also when the text wants it fresh.
+    assert "is made on the deck at that step, in the text's proportions" in flat
+    assert "made at that step, it is" in flat and "a dried vial that has to be dissolved, is a person's" in flat
+    assert "A reagent that a person makes and not the robot" in flat
+    # A kit's contents are not what stands on the deck.
+    assert "what a kit's list of contents says a vial or bottle holds" in flat and "how many kits it takes" in flat
+    # Wells asked for only under a condition; standards with no count.
+    assert "only under a condition nothing in it settles" in flat and "or for the standards" in flat
+    # A sample range made up to a total, an amount too small to pipette, sample preparation.
+    assert "take half that total" in flat and "less than the smallest volume the robot pipettes" in flat
+    assert "also where the text numbers it as the first step of the assay" in flat
+    assert "DMSO and DMF do not" in flat and "once for each whole mix volume" in flat
+
+
 def test_the_guide_says_how_much_each_deck_holds_and_the_planners_agree():
   import warnings
 

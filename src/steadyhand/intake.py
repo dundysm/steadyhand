@@ -53,7 +53,10 @@ RULES
   Use the volume the text gives. An amount given only as enough for some number of uses
   ("enough for 25 preps"), with no volume, is not a volume the text gives; nor is how much
   the text says to make or have ready (a recipe for 1 L, "prepare 3 mL per well", "makes
-  10 mL"), which is for the person at the bench. When it gives
+  10 mL"), which is for the person at the bench; nor is what a kit's list of contents says
+  a vial or bottle holds, or what a dried reagent is dissolved in, which says what is in the
+  box. Where the run uses more of a reagent than one kit holds, say so in `notes`, and how
+  many kits it takes. When it gives
   none for a liquid the steps draw from, supply about 20% more than they use, plus what the
   LABWARE list says is out of reach in that well, because a tip cannot reach the last of a
   shallow liquid. Where the list does not say, add at least 10 uL in a plate well or 2 mL in a
@@ -109,7 +112,13 @@ RULES
   a vial reconstituted, an antibody, enzyme or dye brought to working strength, a staining or
   working solution) is made by a person before the run and starts on the deck ready to use:
   say so once in `notes`. A standard series and dilutions of the samples are the robot's,
-  wherever the text describes them, and so is whatever the numbered steps of the assay make.
+  wherever the text describes them, and so is whatever the numbered steps of the assay make:
+  a working reagent, reaction mix or master mix that a step of the procedure puts together
+  from liquids is made on the deck at that step, in the text's proportions, for the wells
+  that take it and about 20% more, or more where what is out of reach in its vessel asks for
+  it. That holds also where the text wants it made just before use or used within minutes:
+  made at that step, it is. What has to be weighed out, or a dried vial that has to be
+  dissolved, is a person's wherever the text puts it.
 - Leave out what a pipetting robot cannot do and the run can go on without (vortexing a
   reagent, sealing, covering, storage) and say so in `notes`, one sentence each. What comes
   after the last pipetting step (a final incubation, reading the plate) is left out the same way,
@@ -118,7 +127,10 @@ RULES
 - A timed step the plate only has to sit through at room temperature (also where the text
   gives it as a temperature from 20 to 25 C) becomes a `wait` of that
   length; a timed action on something else (vortex the reagent 30 s before use) is left
-  out. For "at least" a time, use that time; for a range of times (10-15 min), the shorter, and for a range of volumes (75-100 uL), the larger; for
+  out. For "at least" a time, use that time; for a range of times (10-15 min), the shorter, and for a range of volumes (75-100 uL), the larger, save a sample volume given as a
+  range and then made up to a fixed total with buffer (2-50 uL, adjust to 50 uL): take half
+  that total, so that the buffer and whatever else goes in beside the sample still fit, and
+  list it under `chose`; for
   "overnight", 16 h. A wait asked for only in words ("a few minutes", "wait a bit") gets a
   `wait` of a conventional length that you choose and record in `chose`. A step that mentions
   no waiting gets no wait.
@@ -140,16 +152,17 @@ RULES
   not hold (37 C), with no timed incubation to carry the plate to, is pipetted as written;
   say in `notes` that the deck is not heated. A timed incubation at that temperature is a
   pause all the same, however short.
-- A reagent the text says to prepare shortly before it is used ("within 5 minutes of use",
+- A reagent that a person makes and not the robot (see the rule on kit manuals above), and that
+  the text says to prepare shortly before it is used ("within 5 minutes of use",
   "immediately before use", "just before adding", "freshly prepared", "do not store", to be
   used within an hour or two of making) is declared as a liquid in its well like any
   other, and a `pause` before the step that first draws from it tells the person to prepare it
   now and put it in that well. That is the one hand step that may fill a well: the file already
   counts the liquid as there. A reagent the text only says to prepare the same day, or to keep
   cold, gets no pause. "Every well" in a text means every well in use.
-- A liquid that is half or more organic solvent (ethanol, methanol, isopropanol, acetonitrile)
-  can drip from a tip, and the rehearsal does not show that. Say so once in `notes`, naming
-  the liquid.
+- A liquid that is half or more of a solvent that evaporates fast (ethanol, methanol,
+  isopropanol, acetone, acetonitrile) can drip from a tip, and the rehearsal does not show
+  that. Say so once in `notes`, naming the liquid. DMSO and DMF do not, and get no such note.
 - Some texts cannot work on a pipetting robot at all, and a file that pretends otherwise is
   worse than none. List under `needs` what the text cannot do without and the robot cannot
   give: a filter or spin plate that a centrifuge or vacuum drains; glass or solvent-proof
@@ -192,7 +205,10 @@ RULES
   cannot be written here.
 - Wells the text asks for or recommends beside the samples (blanks, background wells,
   controls) are included and never dropped to make room; when the text gives no count for
-  them, give each of them as many replicate wells as one sample gets and say so in `chose`. When they do not fit one plate with the samples and replicates asked
+  them, or for the standards, give each as many replicate wells as one sample gets and say so in `chose`. Wells
+  the text asks for only under a condition nothing in it settles ("for samples with high
+  background", "if you suspect interference") are left out like an optional step: say so in
+  `notes`. When they do not fit one plate with the samples and replicates asked
   for, put them on a second plate of the same type and say so in `chose`.
 - Text under THE PERSON ADDS, after the text to work from, is the person's own decisions.
   They settle what the text leaves open and replace the defaults above. Where they go against
@@ -202,7 +218,7 @@ RULES
   out-of-reach amount is left in it while the tip draws; a mix with
   no count ("mix", "mix briefly", "mix a few times") is a pipette mix of 3 times. When the
   liquid to mix is more than three times the mix volume (a 10 mL stock and a 1000 uL mix),
-  mix once for each mix volume the liquid holds, at most 10 times, and say so in `notes`.
+  mix once for each whole mix volume the liquid holds, at most 10 times, and say so in `notes`.
 - When the text asks for something the format cannot say exactly (such as new tips per
   column), use the nearest stricter option and say so in `notes`.
 - Use `normalize` only when the text asks to bring samples to a common concentration and a
@@ -210,13 +226,20 @@ RULES
   the step with `samples.file: samples.csv`, columns `well` and `concentration`, and say in
   `notes` that the file is needed.
 - Never change an amount the text states. If what the text describes cannot work (a well
-  would overflow, a source would run dry), write it as stated and say so in `notes`. Do not
+  would overflow, a source would run dry), write it as stated and say so in `notes`. One
+  case is worked around: an amount that comes to less than the smallest volume the robot
+  pipettes (0.3 uL of a standard). Dilute that liquid on the deck first, tenfold or as far
+  as it takes, in what the text dilutes it with, pipette the larger volume that holds the
+  same amount, and list it under `chose`. Do not
   choose a larger plate than the kind the text describes to make its volumes fit: a text whose
   own plate cannot hold what it puts in it cannot work as written, and that is for a person.
 - Seeding cells and growing them before the day of the assay, and bringing reagents or plates
   to room temperature before the first pipetting step, happen before the run, also when the
   text gives a time: start from the plate as it stands when the assay begins, and say so in
-  `notes`.
+  `notes`. So does preparing the samples before they go on the plate (lysing, homogenizing,
+  clearing or deproteinizing them by a spin or a filter), also where the text numbers it as
+  the first step of the assay; `needs` is for a filter or spin plate the assay itself runs
+  on.
 - When you are told about a problem that only a person can settle (the text itself cannot work,
   a samples file is missing), send the same file again. That ends the drafting and hands the
   problem to them.
@@ -319,7 +342,7 @@ _OPENTRONS_EXAMPLES = (
 )
 
 
-_MIX_COUNT = """  mix once for each mix volume the liquid holds, at most 10 times, and say so in `notes`."""
+_MIX_COUNT = """  mix once for each whole mix volume the liquid holds, at most 10 times, and say so in `notes`."""
 # The OT-2 holds two of its three sizes of pipette. A transfer is split over as many draws as it
 # takes, so any two sizes move any volume; a mix is one stroke, so its volume picks the pipette.
 _OT2_PIPETTES = """
