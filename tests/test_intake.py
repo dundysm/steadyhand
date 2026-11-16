@@ -442,6 +442,40 @@ def test_the_guide_covers_plates_with_fewer_than_eight_rows():
   assert "are a list of wells and\n  ranges, taken in the order written: [plate_1/A1:D6, plate_2/A1:D6, plate_3/A1:B2]" in GUIDE
 
 
+def test_the_guide_says_how_much_each_deck_holds_and_the_planners_agree():
+  import warnings
+
+  from steadyhand import opentrons_robots as ot
+  from steadyhand import planner
+  from steadyhand.intake import GUIDE, guide_for
+  from steadyhand.protocol import check, loads
+
+  hamilton = planner.SITES * (planner.DECK_RAILS // planner.CARRIER_RAILS - 1) - 1
+  assert f"- The deck holds {hamilton} plates and troughs beside the tips and the waste." in GUIDE
+  assert "write the file for as many whole\n  plates as fit" in GUIDE
+  for robot, profile in (("opentrons-flex", ot.FLEX), ("opentrons-ot2", ot.OT2)):
+    assert f"- The deck holds {len(profile.slots) - 2} plates and reservoirs beside the tips and the waste." in guide_for(robot)
+
+  def file_with(count):  # that many pieces of labware, every one used, and liquid thrown away
+    plates = "".join(f"  plate_{n}: {{type: Cor_96_wellplate_360ul_Fb}}\n" for n in range(1, count))
+    wells = ", ".join(f"plate_{n}/A1:H1" for n in range(1, count))
+    return (
+      f"steadyhand: 0.1\nname: a full deck\nlabware:\n{plates}  trough: {{type: nest_1_troughplate_195000uL_Vb}}\n"
+      f"liquids:\n  buffer: {{in: trough/A1, volume: 100 mL}}\nsteps:\n"
+      f"  - transfer: {{from: trough/A1, to: [{wells}], volume: 20 uL}}\n"
+      f"  - transfer: {{from: [{wells}], to: waste, volume: all}}\n"
+    )
+
+  with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    assert planner.plan(check(loads(file_with(hamilton)))).ok
+    assert not planner.plan(check(loads(file_with(hamilton + 1)))).ok
+    if ot.opentrons_installed():
+      for profile in (ot.FLEX, ot.OT2):
+        assert ot.plan(check(loads(file_with(len(profile.slots) - 2))), profile).ok
+        assert not ot.plan(check(loads(file_with(len(profile.slots) - 1))), profile).ok
+
+
 def test_what_the_person_decides_is_sent_after_the_text_and_the_guide_says_it_outranks_the_defaults():
   from steadyhand.intake import GUIDE, draft, messages_for
 

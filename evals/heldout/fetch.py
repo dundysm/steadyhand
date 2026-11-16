@@ -173,11 +173,24 @@ MANUALS_16 = [
   ("alp_cosmo", "Cosmo Bio alkaline phosphatase staining kit, 12-well plate", "https://cosmobiousa.com/content/document/cosmo-bio-ltd/pmc-ak20-cos_alkaline-phosphatase-staining-kit_datasheet.pdf", "1"),
   ("trap_alp_wako", "Wako TRAP/ALP stain kit, cultured cells in a 24-well plate", "https://labchem-wako.fujifilm.com/sc/07/294-67001.pdf", "2-3"),
 ]
+# A seventeenth set, the widest: eight Cayman manuals of different kinds (cell-based staining and
+# fluorescence, a TR-FRET binding assay, a transcription factor assay, an enzyme activity assay, a
+# click-chemistry assay, a sandwich ELISA, an inhibitor screen), drafted five ways (0.43.0).
+MANUALS_17 = [
+  ("adipogenesis", "Cayman adipogenesis assay kit", CAYMAN + "10006908.pdf", "5-6"),
+  ("lipid_droplets", "Cayman lipid droplets fluorescence assay kit", CAYMAN + "500001.pdf", "5-6"),
+  ("brd4_trfret", "Cayman BRD4 bromodomain 1 TR-FRET assay kit", CAYMAN + "600520.pdf", "7-9"),
+  ("nrf2_tf", "Cayman Nrf2 transcription factor assay kit", CAYMAN + "600590.pdf", "8-12"),
+  ("elastase", "Cayman neutrophil elastase activity assay kit", CAYMAN + "600610.pdf", "7"),
+  ("protein_synthesis", "Cayman protein synthesis assay kit", CAYMAN + "601100.pdf", "4-6"),
+  ("il6_elisa", "Cayman interleukin-6 (mouse) ELISA kit", CAYMAN + "583371.pdf", "7-9"),
+  ("cox_inhibitor", "Cayman COX (human) inhibitor screening assay kit", CAYMAN + "701230.pdf", "6-12"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
   "heldout10": MANUALS_10, "heldout11": MANUALS_11, "heldout12": MANUALS_12,
-  "heldout13": MANUALS_13, "heldout14": MANUALS_14, "heldout15": MANUALS_15, "heldout16": MANUALS_16,
+  "heldout13": MANUALS_13, "heldout14": MANUALS_14, "heldout15": MANUALS_15, "heldout16": MANUALS_16, "heldout17": MANUALS_17,
 }
 
 

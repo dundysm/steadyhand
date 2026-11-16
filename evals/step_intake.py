@@ -8,7 +8,8 @@ Set STEADYHAND_EVAL_ROBOT to draft for another robot, such as opentrons-flex. As
 stops it is sent back to the model like any other problem.
 
 The messages, the checking and the limit of three rounds are the ones `steadyhand.intake.draft` uses.
-State is kept in evals/out/agents/CASE/, or evals/out/agents-ROBOT/CASE/ for a named robot.
+State is kept in evals/out/agents/CASE/, or evals/out/agents-ROBOT/CASE/ for a named robot;
+STEADYHAND_EVAL_TAG adds a suffix to that folder, so two runs of one case on one robot stay apart.
 """
 
 import json
@@ -24,13 +25,14 @@ ROBOT = os.environ.get("STEADYHAND_EVAL_ROBOT", "")
 
 
 def state_of(case: str):
-  folder = HERE / "out" / (f"agents-{ROBOT}" if ROBOT else "agents") / case
+  tag = os.environ.get("STEADYHAND_EVAL_TAG", "")
+  folder = HERE / "out" / ((f"agents-{ROBOT}" if ROBOT else "agents") + (f"-{tag}" if tag else "")) / case
   folder.mkdir(parents=True, exist_ok=True)
   path = folder / "state.json"
   if path.exists():
     return folder, json.loads(path.read_text(encoding="utf-8"))
   # a case is a note in evals/intake or evals/acceptance, or manual pages fetched by evals/heldout/fetch.py
-  places = (HERE / "intake", HERE / "acceptance", HERE / "out" / "heldout", HERE / "out" / "heldout2", HERE / "out" / "heldout3", HERE / "out" / "heldout4", HERE / "out" / "heldout5", HERE / "out" / "heldout6", HERE / "out" / "heldout7", HERE / "out" / "heldout8", HERE / "out" / "heldout9", HERE / "out" / "heldout10", HERE / "out" / "heldout11", HERE / "out" / "heldout12", HERE / "out" / "heldout13", HERE / "out" / "heldout14", HERE / "out" / "heldout15", HERE / "out" / "heldout16")
+  places = (HERE / "intake", HERE / "acceptance", HERE / "out" / "heldout", HERE / "out" / "heldout2", HERE / "out" / "heldout3", HERE / "out" / "heldout4", HERE / "out" / "heldout5", HERE / "out" / "heldout6", HERE / "out" / "heldout7", HERE / "out" / "heldout8", HERE / "out" / "heldout9", HERE / "out" / "heldout10", HERE / "out" / "heldout11", HERE / "out" / "heldout12", HERE / "out" / "heldout13", HERE / "out" / "heldout14", HERE / "out" / "heldout15", HERE / "out" / "heldout16", HERE / "out" / "heldout17")
   note = next(path for path in (place / f"{case}.txt" for place in places) if path.exists())
   source = note.read_text(encoding="utf-8")
   table = note.with_suffix(".csv")  # a samples file beside the note is offered with it

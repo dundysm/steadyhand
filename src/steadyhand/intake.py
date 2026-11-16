@@ -80,12 +80,20 @@ RULES
   reach whose well holds the liquid, counting one the list gives no amount for as 2 mL; when the text fixes that liquid's
   volume, what is left after use has to cover the amount out of reach, so choose a trough
   where it does;
-  liquids "in their own troughs" may each take one well of the same multi-well trough. A liquid
+  separate liquids, also ones the text has "in their own troughs", may each take one well of
+  the same multi-well trough. A liquid
   that fits no trough well in the list is split: take as few troughs of the largest kind as
   hold it with the out-of-reach amount in each, declare each part as its own liquid (`wash_1`,
   `wash_2`), use one part up before drawing from the next, and say so in `chose`; only the
   liquid that does not fit moves, the others stay where they fit. The list does not give a plate's colour: for a black or white
   plate that no name in the list offers, choose by shape and volume and say so in `chose`.
+- The deck holds 19 plates and troughs beside the tips and the waste. Count the labware
+  before you write: where a file would go over, first put liquids in fewer troughs (several
+  in the wells of one multi-well trough, or one larger trough), which comes before the trough
+  with the least out of reach. If the plates the samples need still do not fit, do not drop
+  samples and do not write a file that cannot be planned: write the file for as many whole
+  plates as fit, and say in `notes` that the same file is run again for the rest of the
+  samples, and how many runs that makes in all.
 - To throw liquid away, transfer it `to: waste`. Waste is not labware: do not declare it.
 - There are no loops. Write a repeated action out as repeated steps.
 - Do not invent steps the text does not describe. The one exception: a liquid the robot makes
@@ -306,6 +314,11 @@ _OT2_PIPETTES = """
   say so in `notes`."""
 
 
+# How many plates and troughs a file may name: on the Hamilton, the sites of every carrier but one,
+# which is for tips, less the trough the planner adds for waste. tests/test_intake.py checks the number.
+_DECK_HOLDS = "- The deck holds 19 plates and troughs beside the tips and the waste."
+
+
 def guide_for(robot: str = "") -> str:
   """The guide a model is given: the Hamilton's as it stands, or one that names an Opentrons robot.
 
@@ -322,8 +335,12 @@ def guide_for(robot: str = "") -> str:
     ),
     ("name: One wash of column 1\n", f"name: One wash of column 1\nrobot: {robot}\n"),
   ]
+  from .opentrons_robots import FLEX, OT2
+
+  holds = len((OT2 if robot == "opentrons-ot2" else FLEX).slots) - 2  # a slot for the waste and one for tips
+  swaps.append((_DECK_HOLDS, f"- The deck holds {holds} plates and reservoirs beside the tips and the waste."))
   if robot == "opentrons-ot2":
-    from .opentrons_robots import OT2, reaches
+    from .opentrons_robots import reaches
 
     sizes = sorted(reaches(OT2))  # taken from the planner's own table, so the two cannot drift apart
     words = {2: "two", 3: "three", 4: "four"}
