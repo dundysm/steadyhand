@@ -49,7 +49,7 @@ in one list. The one exception is the `start` of a `serial_dilution`, which is o
 
 | Step | Fields | Expands to |
 | --- | --- | --- |
-| `transfer` | `from`, `to`, `volume`; optional `tips`, `mix_after`, `draw_from` | One source to many wells, many to one, or pairs of equal count. With `to: waste`, `volume: all` takes whatever each well holds when the step comes |
+| `transfer` | `from`, `to`, `volume`; optional `tips`, `mix_after`, `draw_from` | One source to many wells, many to one, or pairs of equal count. With `to: waste`, `volume: all` takes whatever each well holds when the step comes, and passes over a well that holds nothing as long as another well of the step holds some |
 | `mix` | `wells`, `volume`, `times` | One mix per well |
 | `serial_dilution` | `start`, `steps`, `direction`, `volume`; optional `mix`, `discard`, `tips` | For each start well, a chain of transfers in that direction, then a discard |
 | `normalize` | `from`, `to`, `diluent`, `target`, `final_volume`; optional `mix` | Diluent first, then each sample, with volumes worked out from the samples table |

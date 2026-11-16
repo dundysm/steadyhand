@@ -766,6 +766,7 @@ class Check:
   tips: int
   wait_seconds: float = 0.0
   wasted: float = 0.0
+  empty_wells: int = 0  # wells a `volume: all` step named that held nothing when it came, and were passed over
   _liquid_of: Dict[Well, str] = field(default_factory=dict, repr=False)
 
   @property
@@ -797,6 +798,8 @@ class Check:
       lines.append(f"  {name}: uses {volume:g} uL of {each * len(wells):g} uL supplied")
     if self.wasted:
       lines.append(f"  discarded: {self.wasted:g} uL")
+    if self.empty_wells:
+      lines.append(f"  wells passed over when emptying, because they held nothing: {self.empty_wells}")
     for note in self.protocol.notes:
       lines.append(f"  note: {note}")
     for choice in self.protocol.chose:
@@ -938,6 +941,8 @@ def check(protocol: Protocol) -> Check:
   drawn: Dict[Well, float] = {}
   wasted = 0.0
   waiting = 0.0
+  some_left: Dict[int, bool] = {}  # step -> does any well it empties hold liquid when it comes
+  passed_over: List[int] = []  # moves that would have emptied a well that holds nothing
   for at, move in enumerate(moves):
     where = f"steps[{move.step}]"
     if move.kind == "wait":
@@ -947,8 +952,19 @@ def check(protocol: Protocol) -> Check:
     if move.volume == ALL:  # everything the well holds by now
       there = round(volumes.get(move.source, 0.0), 4)
       if there <= EPS:
-        problems.append(Problem(where, f"takes all of {move.source}, which holds nothing at that point"))
+        # A step over many wells may name some that got nothing since they were last emptied (a
+        # blank that skips a reagent): those are passed over. A step with nothing to take is a mistake.
+        if move.step not in some_left:  # no well of this step has given anything yet: will a later one?
+          some_left[move.step] = any(
+            other.step == move.step and other.source is not None and volumes.get(other.source, 0.0) > EPS
+            for other in moves[at:]
+          )
+        if some_left[move.step]:
+          passed_over.append(at)
+        else:
+          problems.append(Problem(where, f"takes all of {move.source}, which holds nothing at that point"))
         continue
+      some_left[move.step] = True
       move = moves[at] = replace(move, volume=there)
     if move.volume < protocol.min_volume - EPS:
       what = f"{move.source} to {move.destination}" if move.kind == "transfer" else f"mixing {move.source}"
@@ -981,6 +997,9 @@ def check(protocol: Protocol) -> Check:
       )
     volumes[move.destination] = after
 
+  empty_wells = len(passed_over)
+  for at in reversed(passed_over):
+    del moves[at]
   problems += _carried_back(protocol, moves)
 
   # A liquid no step touches is in the file for nothing, or a step meant for it points elsewhere.
@@ -1005,5 +1024,6 @@ def check(protocol: Protocol) -> Check:
     tips=tips,
     wait_seconds=waiting,
     wasted=wasted,
+    empty_wells=empty_wells,
     _liquid_of=liquid_of,
   )

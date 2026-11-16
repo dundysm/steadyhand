@@ -441,3 +441,17 @@ def test_a_serial_dilution_starts_from_one_range():
   text = (Path(__file__).parent.parent / "examples" / "serial_dilution.yaml").read_text()
   found = problems_of(text.replace("start: plate/A1:H1", "start: [plate/A1:D1, plate/E1:H1]"))
   assert found == ["steps[1].serial_dilution.start: a dilution series starts from one well or one range, not a list"]
+
+
+def test_emptying_a_range_passes_over_the_wells_that_hold_nothing():
+  text = EMPTIED.replace(
+    "  - transfer: {from: cells/A2, to: waste, volume: all}\n",
+    "  - transfer: {from: cells/A1:H2, to: waste, volume: all}\n",
+  )
+  assert text != EMPTIED
+  checked = check(loads(text))  # column 1 was emptied by the step before; only A2 still holds liquid
+  assert checked.ok, [p.message for p in checked.problems]
+  assert checked.empty_wells == 15 and "wells passed over when emptying, because they held nothing: 15" in checked.report()
+  assert [m.volume for m in checked.moves] == [100.0] * 8 + [110.0] and not checked.volumes
+  last = text.replace("from: cells/A1:H2, to: waste", "from: [cells/A2, cells/A1:H1], to: waste")  # the empty wells come last
+  assert check(loads(last)).ok and check(loads(last)).empty_wells == 8

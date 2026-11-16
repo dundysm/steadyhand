@@ -440,6 +440,8 @@ def test_the_guide_covers_plates_with_fewer_than_eight_rows():
   assert "a dilution of 1:50 in the well is one part in 50 of what the well then holds" in GUIDE
   assert '"prepare 3 mL per well"' in GUIDE and "one sentence, under 200 characters" in GUIDE
   assert "are a list of wells and\n  ranges, taken in the order written: [plate_1/A1:D6, plate_2/A1:D6, plate_3/A1:B2]" in GUIDE
+  assert "procedures that follow one another in one\n  assay" in GUIDE and "is passed over." in GUIDE
+  assert "A timed incubation at that temperature is a\n  pause all the same, however short." in GUIDE
 
 
 def test_the_guide_says_how_much_each_deck_holds_and_the_planners_agree():

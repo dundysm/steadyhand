@@ -68,7 +68,9 @@ RULES
 - Taking everything off a well (old medium, a supernatant, a wash) is `to: waste` with
   `volume: all`. Do not work the amount out and do not take off what is out of reach: the tip
   takes what it can and the rehearsal says how much stays behind. Draw from the `surface`
-  where cells, a pellet or what has settled must stay, else from `0.5 mm`.
+  where cells, a pellet or what has settled must stay, else from `0.5 mm`. Such a step may
+  name all the wells in use: one that holds nothing when the step comes (a blank that was
+  left out of the last addition) is passed over.
 - Labware types must come from the LABWARE list, spelled exactly. When the text does not name
   the labware, choose one whose wells are big enough for the largest volume any well reaches;
   a well may be filled to what the list says it holds, not beyond. Among those, prefer the
@@ -128,8 +130,10 @@ RULES
   or cold (1 h at 95 C, 30 min at 37 C, overnight at 4 C), a spin, a freeze and thaw, a read
   before the next addition. A wait in its place would be a run that does not do what the text
   asks. The wells must hold the same afterwards: a hand step that fills or empties wells is
-  not a pause. An assay the text says is performed at a temperature the deck does not hold
-  (37 C) is pipetted as written; say in `notes` that the deck is not heated.
+  not a pause. A text that only says the whole assay is performed at a temperature the deck does
+  not hold (37 C), with no timed incubation to carry the plate to, is pipetted as written;
+  say in `notes` that the deck is not heated. A timed incubation at that temperature is a
+  pause all the same, however short.
 - A reagent the text says to prepare shortly before it is used ("within 5 minutes of use",
   "immediately before use", "just before adding") is declared as a liquid in its well like any
   other, and a `pause` before the step that first draws from it tells the person to prepare it
@@ -170,8 +174,12 @@ RULES
   the number of samples, when the text gives none: 8, in column 1 (how many samples fit a
   plate, or a layout shown in a figure, is not a number of samples), and on a plate with fewer
   than eight rows 8 with their replicates, from A1 down each column in turn, or as many as
-  the plate holds where 8 do not fit; a text that holds several
-  protocols: the first complete one; a step the text marks as optional: leave it out; a
+  the plate holds where 8 do not fit; a text that offers several
+  protocols for the same job (plate reader or flow cytometry): the first complete one, or
+  the next where the first cannot be written here; procedures that follow one another in one
+  assay (a reaction and the ELISA that reads it, treating cells and then staining them) are
+  one protocol, written in full and in order, save that growing, differentiating or treating
+  cells over days happens before the run, which starts from the plate as it then stands; a step the text marks as optional: leave it out; a
   choice the text leaves between two (a step done two ways, "in duplicate or triplicate",
   "a 24-well plate or a chamber slide"): the one it gives first, or the next where the first
   cannot be written here.
