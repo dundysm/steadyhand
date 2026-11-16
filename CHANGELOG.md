@@ -3,6 +3,20 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.43.0 (2026-11-16)
+
+**eight manuals drafted five ways**
+
+the widest test so far: eight kit manuals of different kinds, each drafted for the Flex, the OT-2 and the Hamilton with nothing decided, and for the Hamilton and the Flex with 24 samples in triplicate; forty drafts, by five agents at once
+
+- result: all 40 reach a rehearsed protocol, 34 at the first attempt; 31 do the manual's assay; 9 did only its first half, because a rule of the guide cut two assays in two
+- guide: alternatives (plate reader or flow cytometry) take the first; stages of one assay (a reaction and the ELISA that reads it) are written in full; culture over days happens before the run; a timed incubation at 37 C is a pause, however short
+- guide: how much a deck holds (19 plates and troughs on the Hamilton, 9 on an Opentrons deck, each checked against its planner); when the samples need more, the file is written for as many whole plates as fit and says how many runs that makes
+- check: a step that empties a range passes over wells that hold nothing, as long as another well of the step holds some; that one case cost six second rounds
+- after the fixes, the three kits they touched were drafted again all five ways (not an outside test): 15 of 15 pass at the first attempt, and all write the whole assay
+- totals: 194 of 227 drafts from 100 manuals stand as rehearsed programs with no hand edits; 217 tests
+- caveats: one maker; five agents agreeing is one reading of one text, not five tests; nobody who has run these kits has read the drafts; details in evals/RESULTS.md
+
 ## 0.42.0 (2026-11-16)
 
 **one step over several ranges or plates**
