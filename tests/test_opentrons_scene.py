@@ -246,7 +246,8 @@ def test_a_draft_that_passes_the_check_but_not_the_rehearsal_is_sent_back_with_t
   # The first message is what it always was; only the feedback is new.
   assert sent[0] == messages_for("18 uL of master mix into column 1.", None, "opentrons-flex")
   told = sent[1][-1]["content"]
-  assert "- rehearsal: in trough/A1 the tip stops up to" in told and "draws air" in told
+  assert "- rehearsal: at steps[0], in trough/A1 the tip stops up to" in told and "draws air" in told
+  assert "thrown away can go lower" not in told  # that liquid is moved on, so the advice for waste is left out
   assert "starting with more of a liquid whose amount the text leaves open" in told
   assert "That well needs about 240 uL left in it for a tip to stay under the surface" in told
   assert "with no volume, or as how much to make or have ready, is left open" in told

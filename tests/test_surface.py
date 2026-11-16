@@ -176,3 +176,30 @@ def test_on_an_opentrons_robot_a_lower_tip_takes_38_of_40_microlitres(profile):
   simulated = ot.simulate(script, profile)
   if simulated.ran:
     assert simulated.ok, simulated.report()
+
+
+SHALLOW = """
+steadyhand: 0.1
+name: a thin layer of stain off a wide well
+labware:
+  plate:  {type: Cor_Cos_12_wellplate_6900ul_Fb}
+  trough: {type: nest_12_troughplate_15000uL_Vb}
+liquids:
+  stain: {in: trough/A1, volume: 3 mL}
+steps:
+  - transfer: {from: trough/A1, to: plate/A1:C1, volume: 400 uL}
+  - transfer: {from: plate/A1:C1, to: waste, volume: all, draw_from: surface}
+"""
+
+
+@needs_opentrons
+def test_a_layer_too_thin_for_the_surface_is_sent_back_with_its_step_and_a_height_to_try():
+  from steadyhand.intake import rehearsal_problems
+
+  for robot in ("hamilton-starlet", "opentrons-flex"):
+    told = [str(problem) for problem in rehearsal_problems(check(loads(SHALLOW)), robot)]
+    assert len(told) == 1 and told[0].startswith("rehearsal: at steps[1], in plate/A1 and 2 more wells the tip only just")
+    assert "A draw that is thrown away can go lower instead: give that step draw_from with a height" in told[0]
+    assert "such as 0.5 mm, and no less than 0.2 mm" in told[0]
+    lower = SHALLOW.replace("volume: all, draw_from: surface", "volume: all, draw_from: 0.5 mm")
+    assert rehearsal_problems(check(loads(lower)), robot) == []

@@ -667,12 +667,19 @@ def plan(checked: Check, choices: Optional[Choices] = None) -> Plan:
         rails += CARRIER_RAILS
     if rails - 1 > DECK_RAILS:
       tip_carriers = sum(1 for p in placements if p.carrier_type == TIP_CARRIER)
+      plate_carriers = len(placements) - tip_carriers
+      # Tips are reloaded during a run when there is a site for one rack of each kind; here there is not.
+      why = (
+        f"The {len(plates)} plates and troughs alone take {plate_carriers * CARRIER_RAILS} rails and leave no room "
+        "for tips, so the run needs fewer of them"
+        if plate_carriers * CARRIER_RAILS + CARRIER_RAILS > DECK_RAILS
+        else "Too few sites are left for one rack of each kind of tip, so tips cannot be reloaded during the run"
+      )
       problems.append(
         Problem(
           "labware",
           f"{tip_carriers} tip carriers ({len(tip_racks)} racks for {sum(used.values())} tips) and "
-          f"{len(placements) - tip_carriers} plate carriers need {rails - 1} rails; a STARlet deck has {DECK_RAILS}. "
-          "The planner cannot reload tips during a run",
+          f"{plate_carriers} plate carriers need {rails - 1} rails; a STARlet deck has {DECK_RAILS}. {why}",
         )
       )
 

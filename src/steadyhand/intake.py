@@ -484,22 +484,44 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
   for issue in result.liquid_failures:
     labware = issue.resource.rpartition("_well_")[0] or issue.resource
     groups.setdefault((issue.kind, labware, issue.mixing), []).append(issue)
+  # A recorded step carries the number of the pipetting command it came from, and that command the
+  # step of the file it was planned for: so a problem can name the step to change.
+  from .protocol import LOWEST_DRAW, WASTE, Transfer
+
+  pipetting = [c for c in getattr(planned, "commands", None) or planned.actions if c.kind in _PIPETTING]
+  written = checked.protocol.steps
+
+  def steps_of(issues: list) -> List[int]:
+    try:
+      return sorted({pipetting[steps[issue.step].command - 1].step for issue in issues})
+    except (IndexError, AttributeError):  # a plan that does not line up is not worth a wrong step number
+      return []
+
   for (kind, labware, mixing), issues in groups.items():
     wells = sorted({issue.resource.rpartition("_well_")[2] for issue in issues})
     stood = " (while it stands on the magnet)" if labware.startswith("onmagnet_") else ""
     labware = labware[len("onmagnet_"):] if stood else labware
-    where = f"{labware}/{wells[0]}" + (f" and {len(wells) - 1} more wells" if len(wells) > 1 else "") + stood
+    at = [n for n in steps_of(issues) if 0 <= n < len(written)]
+    named = ("at " + ", ".join(f"steps[{n}]" for n in at[:4]) + (" and more" if len(at) > 4 else "") + ", ") if at else ""
+    where = named + f"in {labware}/{wells[0]}" + (f" and {len(wells) - 1} more wells" if len(wells) > 1 else "") + stood
+    thrown = bool(at) and all(isinstance(written[n], Transfer) and written[n].destination == [WASTE] for n in at)
     gap = max(issue.gap for issue in issues)
     stops = max(issue.height for issue in issues) or planned.pipetting_height  # where the tip was for these draws
     if kind == "air":
       cover = _volume_to_cover(deck.get_resource(issues[0].resource), stops)
       needs = f". That well needs about {cover:g} uL left in it for a tip to stay under the surface" if cover else ""
       reach = f"stops up to {gap:g} mm above the liquid" if gap > 0 else "only just touches the liquid"
+      lower = (
+        f". A draw that is thrown away can go lower instead: give that step draw_from with a height under the "
+        f"liquid, such as {max(LOWEST_DRAW, round((stops - gap) / 2, 1)):g} mm, and no less than {LOWEST_DRAW:g} mm"
+        if thrown and stops - gap > LOWEST_DRAW * 2
+        else ""
+      )
       problems.append(
         Problem(
           "rehearsal",
-          f"in {where} the tip {reach} and draws air. A tip stops "
-          f"{stops:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}",
+          f"{where} the tip {reach} and draws air. A tip stops "
+          f"{stops:g} mm above the floor of a well, so the liquid there is too shallow to reach{needs}{lower}",
         )
       )
     elif kind == "short" and mixing:
@@ -508,14 +530,12 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
       problems.append(
         Problem(
           "rehearsal",
-          f"in {where} a mix draws the liquid below the tip, so up to {short:g} uL of each stroke is air. "
+          f"{where} a mix draws the liquid below the tip, so up to {short:g} uL of each stroke is air. "
           f"A tip stops {stops:g} mm above the floor of a well. Mix a smaller volume there"
           + (f": leave about {cover:g} uL in the well while the tip is drawing" if cover else ""),
         )
       )
     elif kind == "short":
-      from .protocol import LOWEST_DRAW
-
       cover = _volume_to_cover(deck.get_resource(issues[0].resource), stops)
       short = max(issue.short for issue in issues)
       needs = f" That well needs about {cover:g} uL left in it after the draw." if cover else ""
@@ -528,13 +548,16 @@ def rehearsal_problems(checked: Check, robot: str = "") -> List[Problem]:
       problems.append(
         Problem(
           "rehearsal",
-          f"in {where} a draw takes the liquid below the tip, so up to {short:g} uL of what it moves on is air. "
+          f"{where} a draw takes the liquid below the tip, so up to {short:g} uL of what it moves on is air. "
           f"A tip stops {stops:g} mm above the floor of a well and cannot reach what is under it.{needs}{lower}",
         )
       )
     else:
-      problems.append(Problem("rehearsal", f"in {where} the tip is {gap:g} mm above the rim of the well"))
+      problems.append(Problem("rehearsal", f"{where} the tip is {gap:g} mm above the rim of the well"))
   return problems
+
+
+_PIPETTING = ("pick_up", "aspirate", "dispense", "discard", "drop")  # the commands a recording backend numbers
 
 
 MAX_SOURCE = 60_000  # characters; a whole kit manual is more than a model needs and reads worse
