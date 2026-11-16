@@ -3,9 +3,87 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 to 15 Nov 2026 with Claude models. The first eight sections and sections ten to eighteen are the only tests on text the guide
+All runs are on 13 to 16 Nov 2026 with Claude models. The first nine sections and sections eleven to nineteen are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## An eighteenth set, from five makers: eight manuals drafted five ways (0.44.0)
+
+Set 17 was all from one maker. This one is eight manuals from five (Promega, Thermo Fisher,
+Cell Biolabs, BioVision, ScienCell), each drafted the same five ways as set 17: Flex, OT-2 and
+Hamilton with nothing decided, Hamilton and Flex with `24 samples. Every sample in triplicate
+wells.` Forty drafts, by five new Claude Opus 5.5 agents working at once. Before it, the guide
+was told who makes what in a kit manual: what the reagent preparation makes is a person's,
+before the run; standards, sample dilutions and whatever the numbered steps make are the
+robot's. That was committed first (eb98ac6).
+
+**A mistake of mine in the set.** I registered the two BioVision sheets with page 1 only. The
+protocol of each runs on to page 2, and I had one under a wrong name (an ADP/ATP ratio kit; it
+is the ATP colorimetric kit, K354). The ten drafts made from the cut text are void and not
+counted. I registered both pages, and five more new agents drafted those two manuals again
+from the whole text, the guide unchanged. The six other manuals were drafted once.
+
+**The set.** `MANUALS_18` in [evals/heldout/fetch.py](heldout/fetch.py): GSH-Glo glutathione
+(Promega), EnzChek Ultra phytase and EnzChek phosphatase (Thermo Fisher), total antioxidant
+capacity (Cell Biolabs), lactate and ATP colorimetric (BioVision), glutathione peroxidase on a
+48-well plate and calcium (ScienCell).
+
+| | Flex | OT-2 | Hamilton | Hamilton, 24 x 3 | Flex, 24 x 3 |
+|---|---|---|---|---|---|
+| Reach a rehearsed protocol | 8 of 8 | 8 of 8 | 8 of 8 | 8 of 8 | 6 of 8 |
+| at the first attempt | 8 | 8 | 8 | 8 | 5 |
+| Handed back to a person | 0 | 0 | 0 | 0 | 2 |
+
+- **38 of 40 pass, 37 at the first attempt.** The one second round lowered a mix over cells
+  from 70 to 60 uL. The two that do not pass are the lactate and ATP kits for 24 samples in
+  triplicate on a Flex: the agent gave every sample well a background well, 162 wells with the
+  standards, declared the kit's own 200 uL of probe, and the check found the probe run dry. It
+  sent the same file again and the harness handed it to a person. That is a true finding, a
+  100-assay kit does not fill 162 wells, but it comes from two things the guide leaves open
+  (below).
+- **The 38 do the manual's assay.** For all 40 I compared step kinds, volumes, counts and times
+  across the five agents and against the pages; I read the steps of 11 drafts line by line
+  (three phosphatase, two antioxidant, two glutathione, and one each of calcium, peroxidase,
+  phytase and ATP). Every volume I checked is the page's: 5 uL of standard and 95 uL of working reagent for
+  calcium; 50 and 50 uL for the phosphatase and phytase reactions, with Table 2's seven parts
+  where the robot makes the phytase mixture; the antioxidant kit's 2 mM uric acid from 100 uL
+  in 2.9 mL, its tube series, 20, 180, 50 and 50 uL, with a pause to read the plate before the
+  copper; the peroxidase kit's 80, 640 and 80 uL on a 48-well plate, the mixture in the page's
+  360 : 80 : 100 : 100 : 0.5; the glutathione kit's 1:100 and twofold series, medium taken off
+  the cells, 100 uL, 30 min, 100 uL; the BioVision reaction mixes of 46 + 2 + 2 and
+  44 + 2 + 2 + 2 per well.
+- **The new rule split the agents in three manuals of eight.** Where a numbered step of the
+  assay makes a working reagent and the text also wants it fresh, the rule on numbered steps
+  says robot and the rule on fresh reagents says a pause for a person. Calcium: the robot made
+  the working reagent in three drafts, a person before the run in two. Phosphatase ("just prior
+  to performing the assay"): robot in two, a pause in three. Phytase ("use within 5 minutes"):
+  robot in three, a pause in two. Both readings do the assay. Where the rule was plain the five
+  agreed: all five made the peroxidase mixture and the BioVision reaction mixes on the deck,
+  and all five left the glutathione kit's 1X reagent to a person at a pause.
+- **Things the guide leaves open, as the agents met them.** Wells a text asks for under a
+  condition ("for samples having high background"): three agents wrote them for every sample,
+  one left them out, one wrote them and ran dry. A kit's contents list: some agents declared
+  the vial sizes as the volumes on the deck, some declared what the run uses and 20%. A sample
+  volume given as "2-50 uL, adjust to 50 uL with buffer": by "for a range, the larger" all
+  ten BioVision drafts put 50 uL of sample in the well, so the buffer step vanishes and a
+  spiked well holds 53 or 54 uL before the mix. A person who runs these kits would likely use
+  less sample; the file says what it did in `chose`. A spike of 300 pmol is 0.3 uL of the 1 mM
+  standard, under what a pipette delivers: the three agents that wrote spikes each diluted the
+  standard tenfold on the deck and pipetted 3 uL, and said so.
+- Other things a reader should know. No text gives a dilution for the phosphatase samples or
+  the phytase standards' steps; the drafts chose tenfold and say so. The antioxidant kit's five
+  minutes on a shaker is a wait on a deck that does not shake, and the notes say that. The
+  Hamilton draft of the lactate kit for 24 samples in triplicate declares more probe than one
+  kit holds and says the person may need a second vial.
+- Over the 40: 5 removals, all `volume: all`; 51 steps take a list of ranges; 28 pauses. No draft named more
+  labware than its deck holds (the most was 8).
+- Every one of the 38 passes `steadyhand rehearse` on its robot, and the Opentrons ones
+  Opentrons' simulator. Of the 14 Flex drafts that stand, 9 pass on the OT-2 with only the
+  robot line changed; the planner refuses the other 5 because their volumes need three
+  pipettes and an OT-2 holds two.
+- Breaks of the brief, in the second run: none reported. Three agents read a prompt the tool
+  had cut short from the tool's saved copy of it, which the brief allows; one reply carries
+  YAML comments. For the first run I kept no list, so none is given here.
 
 ## A seventeenth set, the widest: eight manuals drafted five ways (0.43.0)
 
