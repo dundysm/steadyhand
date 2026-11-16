@@ -85,6 +85,28 @@ capacity (Cell Biolabs), lactate and ATP colorimetric (BioVision), glutathione p
   had cut short from the tool's saved copy of it, which the brief allows; one reply carries
   YAML comments. For the first run I kept no list, so none is given here.
 
+**After the write-up** the guide was changed in eight places. A working reagent, reaction mix
+or master mix that a numbered step makes from liquids is the robot's, made at that step, also
+where the text wants it fresh; what is weighed or dissolved from a dried vial stays a
+person's. A kit's list of contents is not what stands on the deck, and a run that needs more
+than one kit says how many. Wells asked for only under a condition are left out and noted.
+Standards with no count get a sample's count. A sample volume given as a range and made up to
+a total is half the total. An amount too small to pipette is diluted on the deck first. Sample
+preparation is before the run, also where it is numbered as step 1. DMSO and DMF get no drip
+note. The five manuals these touch (calcium, phosphatase, phytase, lactate, ATP) were drafted
+again all five ways by five new agents (25 drafts, not an outside test): all 25 pass at the
+first attempt, in the harness and with `steadyhand rehearse`. In all five drafts of each, the
+robot now makes the working reagent or reaction mixture; the phytase drafts stop once for a
+person to dissolve the dye. The BioVision drafts put 25 uL of sample and 25 uL of buffer in a
+well, leave the background wells out and say so, and keep the spiked wells at 50 uL. The two
+that were handed back now pass and say the run takes three kits. Still open, from the agents:
+no rule gives a dilution factor where a text says only "dilute the samples" (every draft chose
+tenfold and said so) or a starting strength for the phytase standard; with 24 samples in
+triplicate the phytase mixture goes into some 235 wells, which takes longer than the five
+minutes the text allows, and both such drafts say that in their notes; and whether kits are
+counted by what a run uses or by what it has standing on the deck. One agent ran a small
+script to print repeated lines, which the brief does not allow.
+
 ## A seventeenth set, the widest: eight manuals drafted five ways (0.43.0)
 
 The last three sets were staining kits. This one is eight manuals of different kinds, and each
