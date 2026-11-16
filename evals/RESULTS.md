@@ -61,6 +61,18 @@ transcription factor assay, and a COX inhibitor screen whose readout is a second
   writing it again with the file tool, one left an unsubmitted draft beside the one it sent.
   None read a file of the repository.
 
+**After the write-up** three things were changed. The guide now tells alternatives (plate
+reader or flow cytometry: take the first) from stages of one assay (a reaction and the ELISA
+that reads it, treatment and then staining: write them all, with culture over days before the
+run). A step that empties a range passes over wells that hold nothing, so long as one of them
+holds something. And a timed incubation at 37 C is a pause, however short. The three kits these
+touched were drafted again all five ways by five new agents (15 drafts, not an outside test):
+all 15 pass at the first attempt. All five adipogenesis drafts now write the staining, and all
+five COX drafts write the reactions and the ELISA, with every 37 C step a pause. One of them, for
+24 samples on a Flex, is the first use of the new deck rule: three ELISA plates and two wash
+troughs do not fit nine places, so the file runs 12 samples and says it is run twice. Two
+drafts write "let the wells dry completely" as a 30 min wait, a time the manual does not give.
+
 **What this does not show.** One maker. Eight manuals, so the 40 drafts are not 40 independent
 tests: where five agents agree, they agree on a reading of one text. Nobody who has run these
 kits has read the drafts.

@@ -10,7 +10,9 @@
   before there was a magnet); 12 were handed back to a person; 1 was still refused after three rounds, because a note in the OT-2's guide gave a pipette a
   range it does not have (corrected in 0.38.0); 3 passed while adding to wells the manual says, or means, to empty
   first, and said so in their notes; 5 passed by overfilling a plate
-  the Hamilton's labware list overstated, fixed in 0.30.1; 1 crashed steadyhand, fixed.
+  the Hamilton's labware list overstated, fixed in 0.30.1; 1 crashed steadyhand, fixed. Of those that
+  stand, 9 in the seventeenth set wrote only the first of an assay's two procedures, by a rule of
+  the guide that was changed in 0.43.0.
 - **A draft you can run without reading it.** A pass means the file runs, not that it does what
   the manual asks, so the drafts were read against their pages. In the second set every serious
   fault passed rehearsal: heat and cold written as waits on the deck, a bead cleanup with no
