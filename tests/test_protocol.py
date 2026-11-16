@@ -395,3 +395,49 @@ def test_volume_all_of_an_empty_well_is_a_problem():
   twice = EMPTIED + "  - transfer: {from: cells/A2, to: waste, volume: all}\n"
   checked = check(loads(twice))
   assert [p.message for p in checked.problems] == ["takes all of cells/A2, which holds nothing at that point"]
+
+
+LISTS = """
+steadyhand: 0.1
+name: Wells that are not one rectangle
+labware:
+  plate_1: {type: Cor_Cos_12_wellplate_6900ul_Fb}
+  plate_2: {type: Cor_Cos_12_wellplate_6900ul_Fb}
+  trough:  {type: nest_1_troughplate_195000uL_Vb}
+liquids:
+  medium: {in: [plate_1/A1:C2, plate_1/A3:B3, plate_2/A1], volume: 1 mL}
+  pbs:    {in: trough/A1, volume: 30 mL}
+steps:
+  - transfer: {from: [plate_1/A1:C2, plate_1/A3:B3, plate_2/A1], to: waste, volume: all}
+  - transfer: {from: trough/A1, to: [plate_1/A1:C2, plate_1/A3:B3, plate_2/A1], volume: 1 mL}
+  - mix: {wells: [plate_2/A1, plate_1/A1], volume: 300 uL, times: 2}
+"""
+
+
+def test_wells_may_be_a_list_of_ranges_taken_in_the_order_written():
+  protocol = loads(LISTS)
+  sources = [str(well) for well in protocol.steps[0].source]
+  assert sources == [f"plate_1/{w}" for w in ("A1", "B1", "C1", "A2", "B2", "C2", "A3", "B3")] + ["plate_2/A1"]
+  assert [str(well) for well in protocol.steps[2].wells] == ["plate_2/A1", "plate_1/A1"]
+  checked = check(protocol)
+  assert checked.ok, [p.message for p in checked.problems]
+  assert [m.volume for m in checked.moves[:9]] == [1000.0] * 9
+  assert checked.volumes[Well("plate_2", "A1")] == 1000.0
+
+
+def test_a_list_of_wells_names_no_well_twice_and_says_which_item_is_wrong():
+  assert problems_of(LISTS.replace("in: [plate_1/A1:C2, plate_1/A3:B3,", "in: [plate_1/A1:C2, plate_1/A2:B3,")) == [
+    "liquids.medium.in: names plate_1/A2, plate_1/B2 more than once"
+  ]
+  assert problems_of(LISTS.replace("wells: [plate_2/A1, plate_1/A1]", "wells: [plate_2/A1, plate_1/D1]")) == [
+    "steps[2].mix.wells[1]: plate_1 (Cor_Cos_12_wellplate_6900ul_Fb) has no well D1"
+  ]
+  assert "steps[2].mix.wells: expected at least one well or range in the list" in problems_of(
+    LISTS.replace("wells: [plate_2/A1, plate_1/A1]", "wells: []")
+  )
+
+
+def test_a_serial_dilution_starts_from_one_range():
+  text = (Path(__file__).parent.parent / "examples" / "serial_dilution.yaml").read_text()
+  found = problems_of(text.replace("start: plate/A1:H1", "start: [plate/A1:D1, plate/E1:H1]"))
+  assert found == ["steps[1].serial_dilution.start: a dilution series starts from one well or one range, not a list"]

@@ -40,6 +40,11 @@ This is a draft. Nothing here is frozen.
 Wells are written `labware/well`. A range is `plate/A1:H1`, from its top-left well to its
 bottom-right well, read down each column and then across, as PyLabRobot does.
 
+Wherever wells are asked for, a list of wells and ranges will do, taken in the order written:
+`[plate_1/A1:D6, plate_2/A1:D2]`. That covers wells that are not one rectangle and wells on
+several plates, so a wash of three plates is one step and not three. No well may be named twice
+in one list. The one exception is the `start` of a `serial_dilution`, which is one range.
+
 ## Steps
 
 | Step | Fields | Expands to |

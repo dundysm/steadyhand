@@ -268,6 +268,27 @@ class _Reader:
     return value
 
   def wells(self, value: Any, where: str) -> List[Well]:
+    """One well or range, or a list of them taken in the order written."""
+    if not isinstance(value, list):
+      return self.one_range(value, where)
+    before = len(self.problems)
+    found: List[Well] = []
+    for at, item in enumerate(value):
+      found += self.one_range(item, f"{where}[{at}]")
+    if not value:
+      self.fail(where, "expected at least one well or range in the list")
+    twice = sorted({f"{well.labware}/{well.well}" for well in found if found.count(well) > 1})
+    if twice:
+      self.fail(where, f"names {', '.join(twice[:3])}{' and others' if len(twice) > 3 else ''} more than once")
+    return found if len(self.problems) == before else []
+
+  def series_start(self, value: Any, where: str) -> List[Well]:
+    if isinstance(value, list):
+      self.fail(where, "a dilution series starts from one well or one range, not a list")
+      return []
+    return self.one_range(value, where)
+
+  def one_range(self, value: Any, where: str) -> List[Well]:
     match = _WELLS.match(value) if isinstance(value, str) else None
     if match is None:
       self.fail(where, f"expected wells such as 'plate/A1' or 'plate/A1:H1', got {value!r}")
@@ -497,7 +518,7 @@ class _Reader:
       if not isinstance(discard, bool):
         self.fail(f"{where}.discard", f"expected true or false, got {discard!r}")
       step = SerialDilution(
-        self.wells(body.get("start"), f"{where}.start") if "start" in body else [],
+        self.series_start(body.get("start"), f"{where}.start") if "start" in body else [],
         (self.count(body.get("steps"), f"{where}.steps") if "steps" in body else None) or 1,
         direction if direction in _DIRECTIONS else "right",
         (self.volume(body.get("volume"), f"{where}.volume") if "volume" in body else None) or 0.0,

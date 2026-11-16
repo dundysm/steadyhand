@@ -43,6 +43,10 @@ RULES
 - Wells are written labware/well, such as plate/A1. A range such as plate/A1:H1 runs from its
   top-left well to its bottom-right well. On a 96-well plate, A1:H1 is column 1 (8 wells) and
   A1:A12 is row A (12 wells).
+  Wells that are not one rectangle, or that lie on several plates, are a list of wells and
+  ranges, taken in the order written: [plate_1/A1:D6, plate_2/A1:D6, plate_3/A1:B2]. Write
+  one step over the list, and one liquid over it, not one for each range. Only the start of
+  a serial_dilution cannot be a list.
 - Declare under `liquids` every liquid in a well before the first step that the steps draw
   from, add to or mix, with the wells it starts in and the volume in each. Leave out liquid
   that no step touches: declaring it is an error.

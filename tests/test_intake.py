@@ -439,6 +439,7 @@ def test_the_guide_covers_plates_with_fewer_than_eight_rows():
   assert "500 uL in a 24-well, 1 mL in a 12-well, 2 mL in a\n  6-well" in GUIDE
   assert "a dilution of 1:50 in the well is one part in 50 of what the well then holds" in GUIDE
   assert '"prepare 3 mL per well"' in GUIDE and "one sentence, under 200 characters" in GUIDE
+  assert "are a list of wells and\n  ranges, taken in the order written: [plate_1/A1:D6, plate_2/A1:D6, plate_3/A1:B2]" in GUIDE
 
 
 def test_what_the_person_decides_is_sent_after_the_text_and_the_guide_says_it_outranks_the_defaults():

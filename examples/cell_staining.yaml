@@ -1,0 +1,29 @@
+steadyhand: 0.1
+name: Fix and stain cells on 24-well plates
+description: >
+  Thirty-two wells of cells, on one full 24-well plate and a third of a second. Medium off, a
+  wash, ten minutes in fixative, two washes, then the stain. Each step names both plates at once.
+labware:
+  plate_1:  {type: Cor_Cos_24_wellplate_3470ul_Fb}
+  plate_2:  {type: Cor_Cos_24_wellplate_3470ul_Fb}
+  pbs:      {type: nest_1_troughplate_195000uL_Vb}
+  reagents: {type: nest_12_troughplate_15000uL_Vb}
+liquids:
+  medium:   {in: [plate_1/A1:D6, plate_2/A1:D2], volume: 500 uL}
+  pbs:      {in: pbs/A1, volume: 60 mL}
+  fixative: {in: reagents/A1, volume: 10 mL}
+  stain:    {in: reagents/A2, volume: 10 mL}
+steps:
+  # the tip stays just under the surface, off the cells, and takes whatever each well holds
+  - transfer: {from: [plate_1/A1:D6, plate_2/A1:D2], to: waste, volume: all, draw_from: surface}
+  - transfer: {from: pbs/A1, to: [plate_1/A1:D6, plate_2/A1:D2], volume: 500 uL}
+  - transfer: {from: [plate_1/A1:D6, plate_2/A1:D2], to: waste, volume: all, draw_from: surface}
+  - transfer: {from: reagents/A1, to: [plate_1/A1:D6, plate_2/A1:D2], volume: 250 uL}
+  - wait: {duration: 10 min}
+  - transfer: {from: [plate_1/A1:D6, plate_2/A1:D2], to: waste, volume: all, draw_from: surface}
+  - transfer: {from: pbs/A1, to: [plate_1/A1:D6, plate_2/A1:D2], volume: 500 uL}
+  - transfer: {from: [plate_1/A1:D6, plate_2/A1:D2], to: waste, volume: all, draw_from: surface}
+  - transfer: {from: pbs/A1, to: [plate_1/A1:D6, plate_2/A1:D2], volume: 500 uL}
+  - transfer: {from: [plate_1/A1:D6, plate_2/A1:D2], to: waste, volume: all, draw_from: surface}
+  - pause: "Make the staining solution now and pour 10 mL into well A2 of the reagent trough."
+  - transfer: {from: reagents/A2, to: [plate_1/A1:D6, plate_2/A1:D2], volume: 250 uL}

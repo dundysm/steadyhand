@@ -141,7 +141,7 @@ def test_on_the_hamilton_a_lower_tip_reaches_what_the_usual_height_leaves():
   planned = plan(check(loads(eluate("0.25 mm"))))
   draws = [c for c in planned.commands if c.kind == "aspirate"]
   assert planned.ok and all(c.heights == (0.25,) * 8 for c in draws)
-  assert "draws at a height of their own: 16, the tip 0.25 to 0.25 mm" in planned.report()
+  assert "draws at a height of their own: 16, the tip 0.25 mm above the well floor" in planned.report()
   result = asyncio.run(rehearse_plan(planned))
   assert result.ok and result.liquid == []
   assert "liquid_height=[0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25])  # the height this step asks for" in emit(planned)

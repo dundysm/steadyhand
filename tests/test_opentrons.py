@@ -12,7 +12,7 @@ from steadyhand import opentrons_robots as ot
 from steadyhand.cli import main
 from steadyhand.planner import emit as hamilton_emit
 from steadyhand.planner import plan as hamilton_plan
-from steadyhand.protocol import ProtocolError, Well, check, loads
+from steadyhand.protocol import ProtocolError, Well, check, load, loads
 from steadyhand.robots import DEFAULT, ROBOTS, choose
 
 EXAMPLES = Path(__file__).resolve().parent.parent / "examples"
@@ -120,6 +120,46 @@ steps:
     assert "mm above the well floor" in planned.report() and " to " not in planned.report().split("the tip ")[1].split(" mm")[0]
   hamilton = hamilton_plan(checked_from(text))  # the same file, on the Hamilton's twin of the plate
   assert hamilton.ok and hamilton.labware["plate"] == "Cor_Cos_24_wellplate_3470ul_Fb"
+
+
+@needs_opentrons
+def test_one_step_over_a_list_of_plates_plans_like_one_step_for_each():
+  head = """
+steadyhand: 0.1
+name: Buffer into a plate and a quarter
+labware:
+  plate_1: {type: Cor_96_wellplate_360ul_Fb}
+  plate_2: {type: Cor_96_wellplate_360ul_Fb}
+  trough:  {type: nest_1_troughplate_195000uL_Vb}
+liquids:
+  buffer: {in: trough/A1, volume: 30 mL}
+steps:
+"""
+  one = head + "  - transfer: {from: trough/A1, to: [plate_1/A1:H12, plate_2/A1:H3], volume: 100 uL, tips: reuse}\n"
+  two = head + (
+    "  - transfer: {from: trough/A1, to: plate_1/A1:H12, volume: 100 uL, tips: reuse}\n"
+    "  - transfer: {from: trough/A1, to: plate_2/A1:H3, volume: 100 uL, tips: reuse}\n"
+  )
+  for plan_for in (hamilton_plan, lambda checked: ot.plan(checked, ot.FLEX), lambda checked: ot.plan(checked, ot.OT2)):
+    listed, apart = plan_for(checked_from(one)), plan_for(checked_from(two))
+    assert listed.ok, listed.problems
+
+    def reached(planned, kind):
+      if hasattr(planned, "commands"):  # the Hamilton's plan
+        return [(c.resource, tuple(c.wells)) for c in planned.commands if c.kind == kind]
+      return [(a.labware, tuple(a.wells)) for a in planned.actions if a.kind == kind]
+
+    assert reached(listed, "dispense") == reached(apart, "dispense")
+    assert max(len(wells) for _, wells in reached(listed, "dispense")) == 8  # whole columns still go eight at a time
+
+
+@needs_opentrons
+def test_the_cell_staining_example_plans_for_all_three_robots():
+  checked = check(load(EXAMPLES / "cell_staining.yaml"))
+  assert checked.ok, checked.report()
+  assert checked.tips == 320 and not checked.problems
+  for planned in (hamilton_plan(checked), ot.plan(checked, ot.FLEX), ot.plan(checked, ot.OT2)):
+    assert planned.ok, planned.problems
 
 
 @needs_opentrons

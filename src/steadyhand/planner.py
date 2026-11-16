@@ -138,8 +138,10 @@ class Plan:
       )
     followed = [h for c in self.commands for h in c.heights]
     if followed:
+      low, high = f"{min(followed):g}", f"{max(followed):g}"
       lines.append(
-        f"  draws at a height of their own: {len(followed)}, the tip {min(followed):g} to {max(followed):g} mm above the well floor"
+        f"  draws at a height of their own: {len(followed)}, "
+        f"the tip {low if low == high else f'{low} to {high}'} mm above the well floor"
       )
     widest = max((len(c.channels) for c in self.commands), default=0)
     lines.append(
