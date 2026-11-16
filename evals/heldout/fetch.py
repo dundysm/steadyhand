@@ -165,11 +165,19 @@ MANUALS_15 = [
   ("bgal_abcam", "Abcam beta galactosidase assay kit (senescence), 24-well plate", "https://content.abcam.com/content/dam/abcam/product/documents/228/ab228562/Beta-Galactosidase-Assay-protocol-book-v3b-ab228562%20(website).pdf", "7-9"),
   ("senescence_bv", "BioVision senescence detection kit, 12-well plate", "https://store.genprice.com/content/biovision/datasheet/K320.pdf", "1"),
 ]
+# A sixteenth set, for steps that name several ranges or plates at once: four more staining kits from
+# three makers, on 6-, 12- and 24-well plates (0.42.0).
+MANUALS_16 = [
+  ("alizarin_sc", "ScienCell Alizarin Red S staining quantification assay, 6-well plate", "https://sciencellonline.com/PS/8678.pdf", "2-3"),
+  ("nodule_cosmo", "Cosmo Bio calcified nodule staining kit, 24-well plate", "https://cosmobiousa.com/content/document/cosmo-bio-ltd/pmc-ak21-cos_calcified-nodule-staining-kit_datasheet.pdf", "1"),
+  ("alp_cosmo", "Cosmo Bio alkaline phosphatase staining kit, 12-well plate", "https://cosmobiousa.com/content/document/cosmo-bio-ltd/pmc-ak20-cos_alkaline-phosphatase-staining-kit_datasheet.pdf", "1"),
+  ("trap_alp_wako", "Wako TRAP/ALP stain kit, cultured cells in a 24-well plate", "https://labchem-wako.fujifilm.com/sc/07/294-67001.pdf", "2-3"),
+]
 SETS = {
   "heldout": MANUALS, "heldout2": MANUALS_2, "heldout3": MANUALS_3, "heldout4": MANUALS_4, "heldout5": MANUALS_5,
   "heldout6": MANUALS_6, "heldout7": MANUALS_7, "heldout8": MANUALS_8, "heldout9": MANUALS_9,
   "heldout10": MANUALS_10, "heldout11": MANUALS_11, "heldout12": MANUALS_12,
-  "heldout13": MANUALS_13, "heldout14": MANUALS_14, "heldout15": MANUALS_15,
+  "heldout13": MANUALS_13, "heldout14": MANUALS_14, "heldout15": MANUALS_15, "heldout16": MANUALS_16,
 }
 
 
