@@ -117,7 +117,7 @@ A dry run that passes says little unless you know what it would have failed on.
 | Measured | Result |
 | --- | --- |
 | Known mistakes planted in a working protocol, and stopped | 24 of 26 on the Hamilton, 18 of 21 on the Flex and on the OT-2 |
-| Drafts from manufacturers' kit manuals that stand as rehearsed programs with no hand edits | 154 of 187, from 92 manuals in sixteen sets |
+| Drafts from manufacturers' kit manuals that stand as rehearsed programs with no hand edits | 194 of 227, from 100 manuals in seventeen sets |
 | Automated tests | 216 |
 | Runs compared with a real robot | none yet |
 

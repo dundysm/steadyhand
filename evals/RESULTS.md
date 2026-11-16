@@ -3,9 +3,73 @@
 The tool was called drybench when every run below was made. The prompts a model sees now differ from
 those runs only in that one word; no run has been repeated under the new name.
 
-All runs are on 13 to 15 Nov 2026 with Claude models. The first seven sections and sections nine to seventeen are the only tests on text the guide
+All runs are on 13 to 15 Nov 2026 with Claude models. The first eight sections and sections ten to eighteen are the only tests on text the guide
 was not tuned on. Of the rest, the latest is the one that counts: the guide and the checks changed
 between runs.
+
+## A seventeenth set, the widest: eight manuals drafted five ways (0.43.0)
+
+The last three sets were staining kits. This one is eight manuals of different kinds, and each
+was drafted five times: for the Flex, the OT-2 and the Hamilton with nothing decided, and for
+the Hamilton and the Flex with `24 samples. Every sample in triplicate wells.` Forty drafts, by
+five new Claude Opus 5.5 agents working at once. Before it, the guide was told how much a deck
+holds (19 plates and troughs on the Hamilton, 9 on an Opentrons deck, each number checked
+against its planner) and what to do when the samples need more; that was committed first.
+
+**The set.** `MANUALS_17` in [evals/heldout/fetch.py](heldout/fetch.py), all from Cayman:
+neutrophil elastase activity, lipid droplets (Nile Red), adipogenesis, protein synthesis (click
+chemistry), a BRD4 TR-FRET binding assay on a 384-well plate, a mouse IL-6 sandwich ELISA, an Nrf2
+transcription factor assay, and a COX inhibitor screen whose readout is a second ELISA.
+
+| | Flex | OT-2 | Hamilton | Hamilton, 24 x 3 | Flex, 24 x 3 |
+|---|---|---|---|---|---|
+| Reach a rehearsed protocol | 8 of 8 | 8 of 8 | 8 of 8 | 8 of 8 | 8 of 8 |
+| at the first attempt | 7 | 7 | 6 | 7 | 7 |
+
+- **All 40 pass, 34 at the first attempt.** The six second rounds have one cause: a step that
+  empties a range of wells where some had been left out of the last addition (background wells
+  that get no stain, blank wells that get no antibody) and so held nothing. Five of the six are
+  the same step of the lipid droplets kit.
+- **The five drafts of each manual agree.** Step for step, the kinds, volumes, counts and times
+  are the same across the five agents for five of the eight manuals, and differ in one choice
+  each in the other three (which protocol, who dilutes an antibody, a wait or a pause at 37 C). That is what I compared against the pages, for all 40; wells and
+  layouts I read in full for the elastase and adipogenesis drafts only.
+- **31 of the 40 do the manual's assay.** Elastase, lipid droplets (a pause for each of six
+  spins), TR-FRET (5, 10 and 5 uL into a 384-well plate), the IL-6 ELISA (standards diluted by
+  the robot, three rounds of four washes), the Nrf2 assay (three rounds of five washes) and
+  protein synthesis match their pages. For protein synthesis four agents took the flow
+  cytometry protocol, which the manual gives first, in a deep-well plate for its tubes; one
+  judged that unwritable and took the plate protocol.
+- **9 do only its first half, and that is the guide's fault.** "A text that holds several
+  protocols: the first complete one" was written for manuals that offer alternatives. Here it
+  cut an assay in two. All five adipogenesis drafts write the week of medium changes, with
+  pauses of three and two days and the media standing on the deck, and stop before the staining
+  that is the assay. Four of the five COX drafts write the enzyme reactions and stop before the
+  ELISA that reads them; the fifth wrote both. Every agent flagged the rule.
+- Other things a reader should know. Two COX drafts write the 10 and 2 minutes at 37 C as waits
+  on a deck that is not heated, and the others as pauses: two rules of the guide pull against
+  each other there. The lipid droplets kit draws 50 uL from a flat plate, which the guide
+  advises against and the manual requires. With 24 samples in triplicate the ELISA on a Flex
+  stops 17 times for fresh tips.
+- All 266 removals are `volume: all`, and 301 steps take a list of ranges. No draft named more
+  labware than its deck holds (the most was 12 on the Hamilton), so the new rule on what to do
+  when the samples do not fit was not used.
+- Every draft passes `steadyhand rehearse` on its robot, and the Opentrons ones Opentrons'
+  simulator; the 16 Flex drafts with only the robot line changed pass on the OT-2 too.
+- Breaks of the brief the agents reported: three piped one `prompt` through `tail` or `sed`, one
+  ran a small script to print repeated lines, one wrote a reply with a shell heredoc before
+  writing it again with the file tool, one left an unsubmitted draft beside the one it sent.
+  None read a file of the repository.
+
+**What this does not show.** One maker. Eight manuals, so the 40 drafts are not 40 independent
+tests: where five agents agree, they agree on a reading of one text. Nobody who has run these
+kits has read the drafts.
+
+**What the agents found unclear:** stages of one assay against "several protocols"; a pause for
+37 C against "pipetted as written"; whether the robot or a person makes a kit's dilutions; what
+"8 samples" means when the samples are treatment groups or concentrations; "every well of the
+plate"; controls a text only allows; a vial's stated contents as a volume; wells that hold
+nothing when a range is emptied.
 
 ## A sixteenth set: one step over several ranges or plates (0.42.0)
 

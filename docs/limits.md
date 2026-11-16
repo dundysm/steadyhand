@@ -3,9 +3,9 @@
 # What it does not do yet
 
 - **A proven intake.** `draft` has been measured only with Claude models, by agents playing the
-  model one turn at a time. Sixteen sets from outside, on the protocol pages of 92 manufacturers'
+  model one turn at a time. Seventeen sets from outside, on the protocol pages of 100 manufacturers'
   manuals read straight from the PDFs, each with the guide frozen beforehand and changed only
-  after the write-up. Of 187 drafts for the three robots, 154 stand as rehearsed programs with
+  after the write-up. Of 227 drafts for the three robots, 194 stand as rehearsed programs with
   no hand edits; 11 are refused for a reason that is true (spin-plate kits, and bead kits
   before there was a magnet); 12 were handed back to a person; 1 was still refused after three rounds, because a note in the OT-2's guide gave a pipette a
   range it does not have (corrected in 0.38.0); 3 passed while adding to wells the manual says, or means, to empty
