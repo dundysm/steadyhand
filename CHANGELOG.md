@@ -3,6 +3,20 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.44.0 (2026-11-16)
+
+**who makes what in a kit manual**
+
+the guide now says who makes a kit's reagents; tested on an eighteenth set from outside: eight manuals from five makers (promega, thermo fisher, cell biolabs, biovision, sciencell), each drafted five ways by five agents at once
+
+- result: 38 of 40 drafts reach a rehearsed protocol, 37 at the first attempt, and the 38 do the manual's assay; 2 were handed back to a person (a 100-assay kit asked to fill 162 wells)
+- guide: what the reagent preparation makes is a person's, before the run; standards, sample dilutions and what the numbered steps make are the robot's
+- guide, after the write-up: a mix a numbered step makes is the robot's also when the text wants it fresh; a kit's contents list is not what stands on the deck, and a run that needs more than one kit says how many; wells asked for only under a condition are left out; a sample range made up to a total is half the total; an amount too small to pipette is diluted on the deck first
+- after the fixes, the five manuals they touched were drafted again all five ways (not an outside test): 25 of 25 pass at the first attempt
+- my mistake in this set: two sheets were registered with one page of two; the ten drafts from the cut text are void and were redone from the whole text
+- totals: 232 of 267 drafts from 108 manuals stand as rehearsed programs with no hand edits; 218 tests
+- caveats: five agents agreeing is one reading of one text, not five tests; nobody who has run these kits has read the drafts; details in evals/RESULTS.md
+
 ## 0.43.0 (2026-11-16)
 
 **eight manuals drafted five ways**
