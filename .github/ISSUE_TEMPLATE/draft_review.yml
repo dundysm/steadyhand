@@ -1,0 +1,45 @@
+name: I read a draft against its manual
+description: For someone who has run the kit. Five questions, about fifteen minutes, no install needed
+labels: [draft-review]
+body:
+  - type: input
+    id: draft
+    attributes:
+      label: Which draft
+      description: A file in examples/drafts, or paste your own below.
+    validations:
+      required: true
+  - type: input
+    id: experience
+    attributes:
+      label: How well you know this kit or assay
+      description: For example "ran it weekly for a year", or "ran similar colorimetric kits".
+    validations:
+      required: true
+  - type: textarea
+    id: assay
+    attributes:
+      label: 1. Is it the manual's assay?
+      description: Every step there, in order, with the manual's volumes and times?
+    validations:
+      required: true
+  - type: textarea
+    id: run
+    attributes:
+      label: 2. Would you run it as written?
+      description: If not, what is the first thing you would change?
+    validations:
+      required: true
+  - type: textarea
+    id: choices
+    attributes:
+      label: 3. Are the choices sensible?
+      description: The `chose` list says what the draft decided where the manual was silent. Which would you have made differently?
+  - type: textarea
+    id: bench
+    attributes:
+      label: 4. What would go wrong on the bench that the file does not show?
+  - type: textarea
+    id: split
+    attributes:
+      label: 5. What did it leave to a person, and is that the right split?

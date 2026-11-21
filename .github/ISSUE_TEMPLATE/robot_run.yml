@@ -1,0 +1,47 @@
+name: I ran it on a real robot
+description: What the rehearsal predicted against what the robot did. The report this project needs most, whether the run went well or not
+labels: [real-robot]
+body:
+  - type: input
+    id: robot
+    attributes:
+      label: Robot, pipettes and software
+      description: For example "Opentrons Flex, 8-channel 1000 uL", the version of the robot's own software, and the output of `steadyhand --version`.
+    validations:
+      required: true
+  - type: textarea
+    id: protocol
+    attributes:
+      label: The protocol file
+      description: Paste it, or say `examples/bench_test.yaml` if you ran the bench test as it stands.
+      render: yaml
+    validations:
+      required: true
+  - type: dropdown
+    id: outcome
+    attributes:
+      label: How did the run go?
+      options:
+        - It ran to the end and did what the replay showed
+        - It ran to the end, with differences from the replay
+        - It stopped or I stopped it
+        - I did not start it, because the deck or the program looked wrong
+    validations:
+      required: true
+  - type: textarea
+    id: differences
+    attributes:
+      label: What differed from the rehearsal
+      description: Anything that touched, a tip that missed the liquid, a pick-up that failed, a stop the rehearsal did not predict, drips, uneven wells. "Nothing" is a useful answer too.
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: What the plate looked like at the end
+      description: For the bench test, was the fade even and the level the same in every well? Plate reader numbers or a photo are welcome.
+  - type: textarea
+    id: report
+    attributes:
+      label: report.txt from steadyhand-out
+      render: text

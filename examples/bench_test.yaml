@@ -1,0 +1,37 @@
+steadyhand: 0.1
+name: Bench test with water and dye
+description: >
+  A first run on a real robot that costs nothing: water and food dye. Dye goes into column 1
+  and is diluted two-fold, eleven times, left to right, so the plate ends as an even fade and
+  every well holds 100 uL. See docs/bench-test.md for what to watch and how to report it.
+
+labware:
+  plate:  {type: Cor_96_wellplate_360ul_Fb}
+  trough: {type: nest_12_troughplate_15000uL_Vb}
+
+liquids:
+  water: {in: trough/A1, volume: 12 mL}
+  dye:   {in: trough/A2, volume: 4 mL}
+
+steps:
+  # Water into every well the dye will be diluted into.
+  - transfer:
+      from: trough/A1
+      to: plate/A2:H12
+      volume: 100 uL
+      tips: reuse          # it only ever touches water and empty wells
+
+  # Dye into column 1.
+  - transfer:
+      from: trough/A2
+      to: plate/A1:H1
+      volume: 200 uL
+
+  # Each of the eight wells in column 1 starts a series that runs to the right.
+  - serial_dilution:
+      start: plate/A1:H1
+      steps: 11
+      direction: right
+      volume: 100 uL
+      mix: {times: 3, volume: 80 uL}
+      discard: true        # throw away the last 100 uL so every well ends equal

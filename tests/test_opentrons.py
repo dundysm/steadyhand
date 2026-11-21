@@ -163,6 +163,24 @@ def test_the_cell_staining_example_plans_for_all_three_robots():
 
 
 @needs_opentrons
+def test_the_bench_test_plans_for_all_three_robots_and_the_drafts_offered_to_a_reader_still_stand():
+  checked = check(load(EXAMPLES / "bench_test.yaml"))
+  assert checked.ok and not checked.problems, checked.report()
+  assert checked.tips == 97 and all(abs(v - 100.0) < 1e-6 for well, v in checked.volumes.items() if well.labware == "plate")
+  for planned in (hamilton_plan(checked), ot.plan(checked, ot.FLEX), ot.plan(checked, ot.OT2)):
+    assert planned.ok, planned.problems
+  drafts = sorted((EXAMPLES / "drafts").glob("*.yaml"))
+  assert [d.stem for d in drafts] == ["antioxidant_capacity", "calcium", "glutathione_cells", "lactate"]
+  index = (EXAMPLES / "drafts" / "README.md").read_text(encoding="utf-8")
+  for draft in drafts:
+    assert f"({draft.name})" in index  # every draft is listed beside its manual
+    checked = check(load(draft))
+    assert checked.ok, (draft.name, checked.report())
+    planned = ot.plan(checked, ot.FLEX)
+    assert planned.ok, (draft.name, planned.problems)
+
+
+@needs_opentrons
 def test_a_plate_with_no_twin_is_refused_by_name_on_either_side():
   flex = planned_from(HEAD.replace("nest_12_troughplate_15000uL_Vb", "Cor_96_wellplate_2mL_Vb").replace("12 mL", "1 mL") + """
   - transfer: {from: trough/A1, to: plate/A2, volume: 100 uL}

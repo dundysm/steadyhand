@@ -1,0 +1,51 @@
+steadyhand: 0.1
+name: GSH-Glo glutathione assay for adherent cells with GSH standard curve
+robot: opentrons-flex
+description: Glutathione standard series in water, medium removed from adherent cells, standards added, then GSH-Glo Reagent 1X and Luciferin Detection Reagent.
+notes:
+  - "Growing and treating the cells with test compounds happens before the run; the run starts from the plate taken from the incubator."
+  - "Reconstituting the Luciferin Detection Reagent and bringing reagents to room temperature are done by a person before the run."
+  - "The 1:100 dilution of the 5 mM glutathione is mixed by pipette 3 times, since the text says only to dilute it."
+  - "Mixing briefly on a plate shaker is written as a pipette mix of 3 times in each well."
+  - "The 15 min incubation after the Luciferin Detection Reagent and the luminescence reading come after the last pipetting step and are left out."
+chose:
+  - "The adherent cell procedure (3.C) was chosen, as the first complete procedure in the text, in a 96-well plate."
+  - "The number of samples is not given; 8 cell wells in column 1 of the assay plate were chosen."
+  - "The text gives no volume for the old culture medium; 100 uL per well was chosen."
+  - "A Corning 96-well flat-bottom plate was chosen by shape and volume, as no white opaque plate is in the list."
+  - "The 1:100 dilution is 5 uL of 5 mM glutathione in 495 uL of water."
+  - "The serial 1:1 dilutions use 100 uL into 100 uL of water, for 7 standards from 50 uM down, plus a water-only 0 standard."
+  - "Each standard is run in triplicate, as in Figure 3, in columns 2 to 4 of the assay plate, one standard per row."
+  - "The standards are made in an Axygen 500 uL V-bottom plate, row A, where the 5 mM glutathione starts in well B1."
+  - "Water, GSH-Glo Reagent 1X and Luciferin Detection Reagent start in wells A1 to A3 of a NEST 12-well 15 mL reservoir."
+  - "Liquid volumes the text does not give are about 20% more than used plus the out-of-reach amount, and 10 uL for the 5 mM glutathione."
+  - "Mix volumes are about two thirds of each well: 330 uL for the 1:100 dilution, 130 uL in the series, 65 uL after the GSH-Glo Reagent and 130 uL after the detection reagent."
+labware:
+  assay:     {type: corning_96_wellplate_360ul_flat}
+  dil:       {type: axygen_96_wellplate_500ul}
+  reservoir: {type: nest_12_reservoir_15ml}
+liquids:
+  old_medium:          {in: assay/A1:H1, volume: 100 uL}
+  glutathione_5mM:     {in: dil/B1, volume: 10 uL}
+  water:               {in: reservoir/A1, volume: 1.7 mL}
+  gsh_glo_reagent:     {in: reservoir/A2, volume: 4.1 mL}
+  luciferin_detection: {in: reservoir/A3, volume: 4.1 mL}
+steps:
+  - transfer: {from: reservoir/A1, to: dil/A1, volume: 495 uL}
+  - transfer: {from: reservoir/A1, to: dil/A2:A8, volume: 100 uL}
+  - transfer: {from: dil/B1, to: dil/A1, volume: 5 uL, mix_after: {times: 3, volume: 330 uL}}
+  - serial_dilution:
+      start: dil/A1
+      steps: 6
+      direction: right
+      volume: 100 uL
+      mix: {times: 3, volume: 130 uL}
+      discard: false
+  - transfer: {from: assay/A1:H1, to: waste, volume: all, draw_from: surface}
+  - transfer: {from: dil/A1:A8, to: assay/A2:H2, volume: 10 uL}
+  - transfer: {from: dil/A1:A8, to: assay/A3:H3, volume: 10 uL}
+  - transfer: {from: dil/A1:A8, to: assay/A4:H4, volume: 10 uL}
+  - pause: Prepare the GSH-Glo Reagent 1X now and put it in reservoir well A2.
+  - transfer: {from: reservoir/A2, to: assay/A1:H4, volume: 100 uL, mix_after: {times: 3, volume: 65 uL}}
+  - wait: {duration: 30 min}
+  - transfer: {from: reservoir/A3, to: assay/A1:H4, volume: 100 uL, mix_after: {times: 3, volume: 130 uL}}

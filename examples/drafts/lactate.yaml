@@ -1,0 +1,58 @@
+steadyhand: 0.1
+name: BioVision lactate colorimetric assay (K607)
+robot: opentrons-flex
+description: Samples and spiked samples made up to 50 uL with Lactate Assay Buffer, a 0-10 nmol/well lactate standard curve made on the deck, then reaction mix made on the deck and 50 uL added to each well with mixing.
+notes:
+  - "The colorimetric assay is written, as the first of the two given; the fluorometric standard dilution and probe amount are left out."
+  - "The Lactate Enzyme Mix is dissolved in Lactate Assay Buffer by a person before the run and starts on the deck ready to use."
+  - "Warming the Lactate Assay Buffer and Lactate Probe to room temperature happens before the run."
+  - "Deproteinizing or spin-filtering samples that contain LDH happens before the run; the samples start on the deck ready to use."
+  - "The suggested pilot experiment with different sample dilutions is left out."
+  - "Sample background control wells are asked for only for samples having high background, which nothing in the text settles, so they are left out."
+  - "The diluted 1 nmol/uL standard and the reaction mix are mixed by pipette 3 times after their last addition, as the text says to mix them well."
+  - "Protecting the plate from light cannot be done by the robot and is left out."
+  - "The 30 min incubation at room temperature and the absorbance read come after the last pipetting step and are left out."
+chose:
+  - "The number of samples is not given, so 8 samples were chosen, in column 1 of the prep plate at 65 uL each."
+  - "The sample volume is given as 2-50 uL made up to 50 uL, so half of the total, 25 uL of sample with 25 uL of Lactate Assay Buffer, was chosen."
+  - "Each sample, spiked sample and standard point gets one well, as the text gives no replicates."
+  - "The recommended spiked samples are included: 25 uL of each sample with 4 nmol of standard (4 uL of 1 nmol/uL) and 21 uL of buffer to make 50 uL."
+  - "Prep work is done in a USA Scientific 2.4 mL deep-well plate: samples in column 1, the 100 nmol/uL standard in A12 at 20 uL, the diluted standard in B12, the enzyme mix in C12 at 75 uL, the probe in D12 at 75 uL and the reaction mix in E12."
+  - "The reaction mix is made for 28 wells, 22 wells plus about 20% and what is out of reach: 1288 uL buffer, 56 uL enzyme mix and 56 uL probe."
+  - "The Lactate Assay Buffer starts at 3.8 mL in one well of a NEST 12-well reservoir, about 20% more than used plus what is out of reach."
+  - "A clear flat-bottom 96-well plate (Corning 360 uL) was chosen, as the text asks for a clear flat-bottom plate."
+  - "On the assay plate the samples go in A1:H1, the spiked samples in A2:H2 and the standards 0 to 10 nmol in A3:F3."
+  - "Mix volumes are about two thirds of what each well holds: 660 uL for the diluted standard, 930 uL for the reaction mix and 65 uL in the assay wells."
+labware:
+  prep:      {type: usascientific_96_wellplate_2.4ml_deep}
+  reservoir: {type: nest_12_reservoir_15ml}
+  assay:     {type: corning_96_wellplate_360ul_flat}
+liquids:
+  sample:            {in: prep/A1:H1, volume: 65 uL}
+  lactate_standard:  {in: prep/A12, volume: 20 uL}
+  enzyme_mix:        {in: prep/C12, volume: 75 uL}
+  lactate_probe:     {in: prep/D12, volume: 75 uL}
+  assay_buffer:      {in: reservoir/A1, volume: 3.8 mL}
+steps:
+  - transfer: {from: prep/A1:H1, to: assay/A1:H1, volume: 25 uL}
+  - transfer: {from: prep/A1:H1, to: assay/A2:H2, volume: 25 uL}
+  - transfer: {from: reservoir/A1, to: assay/A1:H1, volume: 25 uL}
+  - transfer: {from: reservoir/A1, to: prep/B12, volume: 990 uL}
+  - transfer: {from: prep/A12, to: prep/B12, volume: 10 uL, mix_after: {times: 3, volume: 660 uL}}
+  - transfer: {from: prep/B12, to: assay/B3, volume: 2 uL}
+  - transfer: {from: prep/B12, to: assay/C3, volume: 4 uL}
+  - transfer: {from: prep/B12, to: assay/D3, volume: 6 uL}
+  - transfer: {from: prep/B12, to: assay/E3, volume: 8 uL}
+  - transfer: {from: prep/B12, to: assay/F3, volume: 10 uL}
+  - transfer: {from: reservoir/A1, to: assay/A3, volume: 50 uL}
+  - transfer: {from: reservoir/A1, to: assay/B3, volume: 48 uL}
+  - transfer: {from: reservoir/A1, to: assay/C3, volume: 46 uL}
+  - transfer: {from: reservoir/A1, to: assay/D3, volume: 44 uL}
+  - transfer: {from: reservoir/A1, to: assay/E3, volume: 42 uL}
+  - transfer: {from: reservoir/A1, to: assay/F3, volume: 40 uL}
+  - transfer: {from: prep/B12, to: assay/A2:H2, volume: 4 uL}
+  - transfer: {from: reservoir/A1, to: assay/A2:H2, volume: 21 uL}
+  - transfer: {from: reservoir/A1, to: prep/E12, volume: 1288 uL}
+  - transfer: {from: prep/C12, to: prep/E12, volume: 56 uL}
+  - transfer: {from: prep/D12, to: prep/E12, volume: 56 uL, mix_after: {times: 3, volume: 930 uL}}
+  - transfer: {from: prep/E12, to: [assay/A1:H2, assay/A3:F3], volume: 50 uL, mix_after: {times: 3, volume: 65 uL}}

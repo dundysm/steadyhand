@@ -71,6 +71,17 @@ back, below), `scene.xml` (open it with `python -m mujoco.viewer --mjcf steadyha
 a report as text and JSON, and two pictures when the machine can render offscreen. Every command exits with status 1 when
 something is wrong, so it can gate a script or a CI job.
 
+## Help wanted
+
+Everything here is simulation so far, and the drafts have only been read by the project. Three
+things would change that, and each takes under an hour:
+
+| If you | You can | |
+| --- | --- | --- |
+| have an Opentrons Flex, an OT-2 or a Hamilton STARlet | run the water-and-dye bench test and say what the robot did | [docs/bench-test.md](docs/bench-test.md) |
+| have run colorimetric or luminescent plate kits | read one drafted protocol against its manual, five questions | [docs/read-a-draft.md](docs/read-a-draft.md) |
+| have a protocol you want automated | post it, and get back a rehearsed program with what could not be done | [protocol request](https://github.com/dundysm/steadyhand/issues/new?template=protocol_request.yml) |
+
 ## The protocol file
 
 The protocol in the run above is this file:
@@ -118,7 +129,7 @@ A dry run that passes says little unless you know what it would have failed on.
 | --- | --- |
 | Known mistakes planted in a working protocol, and stopped | 24 of 26 on the Hamilton, 18 of 21 on the Flex and on the OT-2 |
 | Drafts from manufacturers' kit manuals that stand as rehearsed programs with no hand edits | 232 of 267, from 108 manuals in eighteen sets |
-| Automated tests | 218 |
+| Automated tests | 219 |
 | Runs compared with a real robot | none yet |
 
 `steadyhand faults` runs the first row yourself; the tables are in [docs/faults.md](docs/faults.md)
@@ -138,6 +149,8 @@ itself, not by someone who runs these kits.
 | [Drafting from text](docs/drafting.md) | Using your own model, what the model is told, and how a draft is fed back |
 | [Rehearsing a PyLabRobot script you already have](docs/pylabrobot.md) | The recording backend, and how the scene is built |
 | [What it does not do yet](docs/limits.md) | Read this before relying on anything here |
+| [A first run on a real robot](docs/bench-test.md) | The water-and-dye bench test, what to watch and how to report it |
+| [Read a draft against its manual](docs/read-a-draft.md) | For someone who has run a kit: four drafts and five questions |
 | [Measurements](evals/RESULTS.md) | Every drafting run, newest first |
 
 <p align="center">

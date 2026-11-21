@@ -1,0 +1,28 @@
+name: Automate this protocol
+description: A protocol you want as a robot program. It is drafted, rehearsed and posted back here, with what could not be done
+labels: [protocol-request]
+body:
+  - type: textarea
+    id: protocol
+    attributes:
+      label: The protocol
+      description: Your own steps as you would write them for a colleague, or a link to the kit manual and the pages. Please do not paste a maker's manual in full.
+    validations:
+      required: true
+  - type: input
+    id: robot
+    attributes:
+      label: Robot
+      description: Opentrons Flex, Opentrons OT-2, Hamilton STARlet, or "none yet".
+    validations:
+      required: true
+  - type: textarea
+    id: decided
+    attributes:
+      label: What you have already decided
+      description: Number of samples, replicates, plates and reservoirs you use, anything the text leaves open. A sentence is enough.
+  - type: textarea
+    id: off_deck
+    attributes:
+      label: What happens off the deck
+      description: A plate reader, heat, a centrifuge, a washer. steadyhand pipettes and holds a plate on a magnet; the rest becomes a pause for a person.

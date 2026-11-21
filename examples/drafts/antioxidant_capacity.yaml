@@ -1,0 +1,57 @@
+steadyhand: 0.1
+name: OxiSelect TAC assay (hydrophilic) with uric acid standard curve
+robot: opentrons-flex
+description: 2 mM uric acid made from the fresh 60 mM stock, a two-fold standard series, then standards and samples in duplicate with Reaction Buffer, Copper Ion Reagent and Stop Solution.
+notes:
+  - "The 1X Reaction Buffer, 1X Copper Ion Reagent and 1X Stop Solution are made by a person before the run and start on the deck ready to use."
+  - "Sample preparation (lysis, centrifugation, dilution at the user's discretion) happens before the run; the run starts from prepared samples."
+  - "The standard tubes are replaced by wells of a deep-well plate."
+  - "The 2 mM uric acid and the first standard are mixed by pipette 3 times after the last addition, since the text says only to prepare them."
+  - "The 5 min incubation on an orbital shaker is written as a 5 min wait, as the deck does not shake."
+  - "The final read at 490 nm comes after the last pipetting step and is left out."
+chose:
+  - "The hydrophilic version was chosen, with deionized water as the standard diluent, as the first one the text gives."
+  - "Standards and samples are assayed in duplicate, the first of duplicate or triplicate."
+  - "The number of samples is not given; 8 samples in column 1 of a sample plate were chosen."
+  - "Standards 1 to 10 are in rows A and B, columns 1 to 10 of the assay plate; samples are in columns 11 and 12."
+  - "A Corning 96-well flat-bottom plate was chosen as the microtiter plate, since wells reach 300 uL."
+  - "The standard tubes are wells A1 to A10 of a NEST 2 mL deep-well plate, and the fresh 60 mM uric acid starts in well B1 of that plate."
+  - "Water, 1X Reaction Buffer, the 2 mM uric acid, Copper Ion Reagent and Stop Solution use wells A1 to A5 of a NEST 12-well 15 mL reservoir."
+  - "Liquid volumes the text does not give are about 20% more than used plus the out-of-reach amount."
+  - "The samples start in a Bio-Rad 96-well PCR plate, since they are drawn down below 50 uL."
+  - "Mix thoroughly after the Reaction Buffer is a pipette mix of 3 times with 130 uL, about two thirds of the 200 uL in each well."
+  - "The 3 mL of 2 mM uric acid is mixed with 1000 uL, the most one tip holds, and each 1 mL standard with 650 uL."
+labware:
+  assay:     {type: corning_96_wellplate_360ul_flat}
+  stds:      {type: nest_96_wellplate_2ml_deep}
+  sample:    {type: biorad_96_wellplate_200ul_pcr}
+  reservoir: {type: nest_12_reservoir_15ml}
+liquids:
+  uric_acid_60mM:   {in: stds/B1, volume: 140 uL}
+  water:            {in: reservoir/A1, volume: 9.8 mL}
+  reaction_buffer:  {in: reservoir/A2, volume: 8.1 mL}
+  copper_reagent:   {in: reservoir/A4, volume: 2.4 mL}
+  stop_solution:    {in: reservoir/A5, volume: 2.4 mL}
+  samples:          {in: sample/A1:H1, volume: 52 uL}
+steps:
+  - transfer: {from: reservoir/A1, to: reservoir/A3, volume: 2900 uL}
+  - pause: Prepare the fresh 60 mM Uric Acid solution in 1N NaOH now and put it in well B1 of the standards plate.
+  - transfer: {from: stds/B1, to: reservoir/A3, volume: 100 uL, mix_after: {times: 3, volume: 1000 uL}}
+  - transfer: {from: reservoir/A1, to: stds/A1:A10, volume: 500 uL}
+  - transfer: {from: reservoir/A3, to: stds/A1, volume: 500 uL, mix_after: {times: 3, volume: 650 uL}}
+  - serial_dilution:
+      start: stds/A1
+      steps: 8
+      direction: right
+      volume: 500 uL
+      mix: {times: 3, volume: 650 uL}
+      discard: false
+  - transfer: {from: stds/A1:A10, to: assay/A1:A10, volume: 20 uL}
+  - transfer: {from: stds/A1:A10, to: assay/B1:B10, volume: 20 uL}
+  - transfer: {from: sample/A1:H1, to: assay/A11:H11, volume: 20 uL}
+  - transfer: {from: sample/A1:H1, to: assay/A12:H12, volume: 20 uL}
+  - transfer: {from: reservoir/A2, to: [assay/A1:B10, assay/A11:H12], volume: 180 uL, mix_after: {times: 3, volume: 130 uL}}
+  - pause: Read the initial absorbance of the plate at 490 nm, then return the plate to the deck.
+  - transfer: {from: reservoir/A4, to: [assay/A1:B10, assay/A11:H12], volume: 50 uL}
+  - wait: {duration: 5 min}
+  - transfer: {from: reservoir/A5, to: [assay/A1:B10, assay/A11:H12], volume: 50 uL}

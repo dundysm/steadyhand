@@ -1,0 +1,54 @@
+steadyhand: 0.1
+name: ScienCell calcium assay (96-well plate)
+robot: opentrons-flex
+description: Calcium standard series made on the deck, standards and samples plated in triplicate, then working reagent made from AMP Buffer and Color Reagent and added to every well.
+notes:
+  - "The eight test tubes for the working standards are replaced by wells A1:A8 of a PCR plate, since the dilution is in water and does not need tubes."
+  - "Preparing the cell lysate, plasma, serum or urine samples (washing, lysing, spinning) happens before the run; the samples start on the deck ready to use."
+  - "The optional dilution of plasma, serum or urine with Sample Buffer is left out."
+  - "The working reagent is mixed by pipette after its last addition, since the text only says to mix the two reagents; at 5.8 mL it is mixed 5 times with 1000 uL."
+  - "The 15 min incubation at room temperature and the absorbance read at 570 nm come after the last pipetting step and are left out."
+chose:
+  - "The standards are made in a Bio-Rad 96-well PCR plate, a V-bottom plate suited to the 20-40 uL volumes."
+  - "The 20 mM calcium standard starts at 55 uL in well H1 of the standards plate, about 20% more than the 40 uL used plus what is out of reach."
+  - "The DI water starts at 175 uL in well H2 of the standards plate, about 20% more than the 140 uL used plus what is out of reach."
+  - "No volume is thrown away from the last standard in tube 7, since the text does not say to."
+  - "Mixing the standards uses 25 uL, about two thirds of the 40 uL in each tube, 3 times."
+  - "The number of samples is not given, so 8 samples were chosen, in column 1 of a V-bottom PCR plate at 25 uL each."
+  - "Samples are measured in triplicate, as many replicates as each standard gets."
+  - "On the assay plate the standards follow the text's layout in A1:C8 and the samples go in columns 9, 10 and 11."
+  - "A clear flat-bottom 96-well plate (Corning 360 uL) was chosen for the absorbance read."
+  - "The working reagent is made for 48 wells plus about 20% and the reservoir's out-of-reach amount: 2900 uL each of AMP Buffer and Color Reagent in one well of a 12-well reservoir."
+  - "AMP Buffer and Color Reagent each start at 3.8 mL in their own well of the 12-well reservoir, about 20% more than used plus what is out of reach."
+labware:
+  standards: {type: biorad_96_wellplate_200ul_pcr}
+  samples:   {type: biorad_96_wellplate_200ul_pcr}
+  reservoir: {type: nest_12_reservoir_15ml}
+  assay:     {type: corning_96_wellplate_360ul_flat}
+liquids:
+  calcium_standard: {in: standards/H1, volume: 55 uL}
+  di_water:         {in: standards/H2, volume: 175 uL}
+  sample:           {in: samples/A1:H1, volume: 25 uL}
+  amp_buffer:       {in: reservoir/A1, volume: 3.8 mL}
+  color_reagent:    {in: reservoir/A2, volume: 3.8 mL}
+steps:
+  - transfer: {from: standards/H2, to: standards/A2:A8, volume: 20 uL, tips: reuse}
+  - transfer: {from: standards/H1, to: standards/A1, volume: 20 uL}
+  - transfer: {from: standards/H1, to: standards/A2, volume: 20 uL, mix_after: {times: 3, volume: 25 uL}}
+  - serial_dilution:
+      start: standards/A2
+      steps: 5
+      direction: right
+      volume: 20 uL
+      mix: {times: 3, volume: 25 uL}
+      discard: false
+  - transfer: {from: standards/A1:A8, to: assay/A1:A8, volume: 5 uL}
+  - transfer: {from: standards/A1:A8, to: assay/B1:B8, volume: 5 uL}
+  - transfer: {from: standards/A1:A8, to: assay/C1:C8, volume: 5 uL}
+  - transfer: {from: samples/A1:H1, to: assay/A9:H9, volume: 5 uL}
+  - transfer: {from: samples/A1:H1, to: assay/A10:H10, volume: 5 uL}
+  - transfer: {from: samples/A1:H1, to: assay/A11:H11, volume: 5 uL}
+  - transfer: {from: reservoir/A1, to: reservoir/A3, volume: 2900 uL}
+  - transfer: {from: reservoir/A2, to: reservoir/A3, volume: 2900 uL}
+  - mix: {wells: reservoir/A3, volume: 1000 uL, times: 5}
+  - transfer: {from: reservoir/A3, to: [assay/A1:C8, assay/A9:H11], volume: 95 uL}
