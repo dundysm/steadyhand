@@ -1,4 +1,4 @@
-[steadyhand](../README.md) · [Commands](commands.md) · [Protocol file](protocol-format.md) · [Robots](robots.md) · [Drafting](drafting.md) · [PyLabRobot](pylabrobot.md) · [Limits](limits.md) · [Measurements](../evals/RESULTS.md)
+[steadyhand](../README.md) · [Commands](commands.md) · [Protocol file](protocol-format.md) · [Robots](robots.md) · [Drafting](drafting.md) · [PyLabRobot](pylabrobot.md) · [Opentrons protocols](opentrons-import.md) · [Limits](limits.md) · [Measurements](../evals/RESULTS.md)
 
 # The commands
 
@@ -102,6 +102,8 @@ It draws the rehearsal's own data with two simplifications: liquid height is in 
 volume, and every command takes the same time on screen. It is 2D; for 3D open `scene.xml`.
 
 ## What `rehearse` checks
+
+`rehearse` also takes an Opentrons protocol that already exists, as a `.py` file: see [Opentrons protocols](opentrons-import.md).
 
 - **Collisions.** Whether a channel or its tip would be driven into the deck, a carrier, a
   plate's floor or the walls between wells, on the way across, down or up.

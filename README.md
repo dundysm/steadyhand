@@ -71,6 +71,21 @@ back, below), `scene.xml` (open it with `python -m mujoco.viewer --mjcf steadyha
 a report as text and JSON, and two pictures when the machine can render offscreen. Every command exits with status 1 when
 something is wrong, so it can gate a script or a CI job.
 
+## Already have an Opentrons protocol?
+
+```bash
+pip install 'steadyhand[opentrons]'
+steadyhand rehearse my_protocol.py
+```
+
+Any Python protocol for a Flex or an OT-2, whoever wrote it. Opentrons' own analysis turns it into
+the commands the robot would be sent; steadyhand follows the liquid through them and replays
+them in the physics scene. It finds what that analysis lets through: a well asked for more than
+it holds, a well filled past its rim, a tip that draws air, a volume below what the pipette
+moves. For wells with no liquid declared it says how much each has to be loaded with. See
+[docs/opentrons-import.md](docs/opentrons-import.md), and try it on
+[a protocol with three such mistakes](examples/opentrons/three_mistakes.py).
+
 ## Help wanted
 
 Everything here is simulation so far, and the drafts have only been read by the project. Three
@@ -129,7 +144,7 @@ A dry run that passes says little unless you know what it would have failed on.
 | --- | --- |
 | Known mistakes planted in a working protocol, and stopped | 24 of 26 on the Hamilton, 18 of 21 on the Flex and on the OT-2 |
 | Drafts from manufacturers' kit manuals that stand as rehearsed programs with no hand edits | 232 of 267, from 108 manuals in eighteen sets |
-| Automated tests | 219 |
+| Automated tests | 228 |
 | Runs compared with a real robot | none yet |
 
 `steadyhand faults` runs the first row yourself; the tables are in [docs/faults.md](docs/faults.md)
@@ -148,6 +163,7 @@ itself, not by someone who runs these kits.
 | [Robots](docs/robots.md) | What differs on the Flex and the OT-2, and what Opentrons' simulator adds |
 | [Drafting from text](docs/drafting.md) | Using your own model, what the model is told, and how a draft is fed back |
 | [Rehearsing a PyLabRobot script you already have](docs/pylabrobot.md) | The recording backend, and how the scene is built |
+| [Rehearsing an Opentrons protocol you already have](docs/opentrons-import.md) | Any Flex or OT-2 Python protocol: what is found, what is assumed, what is not followed yet |
 | [What it does not do yet](docs/limits.md) | Read this before relying on anything here |
 | [A first run on a real robot](docs/bench-test.md) | The water-and-dye bench test, what to watch and how to report it |
 | [Read a draft against its manual](docs/read-a-draft.md) | For someone who has run a kit: four drafts and five questions |

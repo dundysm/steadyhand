@@ -1,4 +1,4 @@
-[steadyhand](../README.md) · [Commands](commands.md) · [Protocol file](protocol-format.md) · [Robots](robots.md) · [Drafting](drafting.md) · [PyLabRobot](pylabrobot.md) · [Limits](limits.md) · [Measurements](../evals/RESULTS.md)
+[steadyhand](../README.md) · [Commands](commands.md) · [Protocol file](protocol-format.md) · [Robots](robots.md) · [Drafting](drafting.md) · [PyLabRobot](pylabrobot.md) · [Opentrons protocols](opentrons-import.md) · [Limits](limits.md) · [Measurements](../evals/RESULTS.md)
 
 # The steadyhand protocol file (draft 0.1)
 

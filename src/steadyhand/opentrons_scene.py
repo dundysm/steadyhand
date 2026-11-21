@@ -113,9 +113,12 @@ def well_height(sections: List[Dict[str, Any]], volume: float) -> float:
   return (low + high) / 2
 
 
-def inside_shapes(load_name: str) -> Dict[str, List[Dict[str, Any]]]:
-  """The inside shape of every well of a labware, by well name, where Opentrons gives one this can work out."""
-  body = _body(load_name)
+def inside_shapes(load_name: str, body: Optional[Dict[str, Any]] = None) -> Dict[str, List[Dict[str, Any]]]:
+  """The inside shape of every well of a labware, by well name, where Opentrons gives one this can work out.
+
+  `body` is the definition itself, for labware Opentrons does not ship or a version other than the newest.
+  """
+  body = body or _body(load_name)
   shapes: Dict[str, List[Dict[str, Any]]] = {}
   for well, spec in body["wells"].items():
     sections = body.get("innerLabwareGeometry", {}).get(spec.get("geometryDefinitionId", ""), {}).get("sections")
@@ -141,15 +144,17 @@ def give_real_shape(plate, load_name: str) -> int:
   return given
 
 
-def labware_resource(load_name: str, name: str):
+def labware_resource(load_name: str, name: str, body: Optional[Dict[str, Any]] = None):
   """A plate, reservoir or tip rack Opentrons ships, as a PyLabRobot resource called `name`.
 
-  Wells are named `<name>_well_<A1>`, as PyLabRobot's own plates name them.
+  Wells are named `<name>_well_<A1>`, as PyLabRobot's own plates name them. `body` is the
+  definition itself, for labware Opentrons does not ship or a version other than the newest.
   """
   from pylabrobot.resources import Coordinate, Plate, Tip, TipRack, TipSpot, Well
   from pylabrobot.resources.well import CrossSectionType, WellBottomType
 
-  body = _body(load_name)
+  given = body
+  body = body or _body(load_name)
   size = body["dimensions"]
   parameters = body["parameters"]
   bottoms = {
@@ -159,7 +164,7 @@ def labware_resource(load_name: str, name: str):
     for group in body.get("groups", [])
     for well in group["wells"]
   }
-  shapes = {} if parameters.get("isTiprack") else inside_shapes(load_name)
+  shapes = {} if parameters.get("isTiprack") else inside_shapes(load_name, given)
   items: Dict[str, Any] = {}
   for column in body["ordering"]:
     for well in column:

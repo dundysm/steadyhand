@@ -1,4 +1,4 @@
-[steadyhand](../README.md) · [Commands](commands.md) · [Protocol file](protocol-format.md) · [Robots](robots.md) · [Drafting](drafting.md) · [PyLabRobot](pylabrobot.md) · [Limits](limits.md) · [Measurements](../evals/RESULTS.md)
+[steadyhand](../README.md) · [Commands](commands.md) · [Protocol file](protocol-format.md) · [Robots](robots.md) · [Drafting](drafting.md) · [PyLabRobot](pylabrobot.md) · [Opentrons protocols](opentrons-import.md) · [Limits](limits.md) · [Measurements](../evals/RESULTS.md)
 
 # What it does not do yet
 
@@ -61,6 +61,12 @@
 - **Other robots.** Three are planned for: a Hamilton STARlet, an Opentrons Flex and an OT-2,
   the last two with the gaps listed under [Robots](robots.md). The physics rehearsal alone works
   on any PyLabRobot deck.
+- **Opentrons protocols you already have.** [Rehearsing one](opentrons-import.md) follows its
+  liquid and replays its pipetting. It stops, and says where, at the first command that moves
+  labware, uses the 96-channel pipette or picks up part of a column of tips. Labware on a module
+  or an adapter is drawn at deck height, and module commands are passed over. It has been run on
+  steadyhand's own programs and on protocols written for its tests, not yet on a library of
+  other people's.
 - **PyLabRobot 1.0.** steadyhand targets the 0.2 line, the current stable release.
 - **Exact shapes.** Round wells are treated as square, tip-rack holes are not modelled, and a
   tip's width is a nominal cone because PyLabRobot stores tip length but not width.

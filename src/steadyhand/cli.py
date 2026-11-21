@@ -227,9 +227,41 @@ def _rehearse_opentrons(planned, args: argparse.Namespace) -> int:
   return 0 if passed else 1
 
 
+def _rehearse_import(args: argparse.Namespace) -> int:
+  """Rehearse an Opentrons protocol that already exists: a Python file, or an analysis of one saved as JSON."""
+  from .opentrons_import import ImportFailed, load, rehearse_imported
+
+  try:
+    imported = load(Path(args.file), [Path(p) for p in args.labware or []])
+  except (ImportFailed, OSError) as error:
+    print("steadyhand import: FAIL")
+    print(f"  {error}")
+    return 1
+  kept, keep = _keeper()
+  try:
+    result = asyncio.run(rehearse_imported(imported, on_sample=None if args.no_render else keep))
+  except Exception as error:  # labware the scene cannot build, or a definition it cannot read
+    print(imported.report())
+    print("steadyhand rehearsal: NOT RUN")
+    print(f"  The deck could not be built: {' '.join(str(error).split())[:300]}")
+    return 1
+  print(imported.report())
+  print(result.report())
+  out = Path(args.out)
+  _write(result, out, kept, not args.no_render, imported.name)
+  with (out / "report.txt").open("w") as report:
+    report.write(imported.report() + "\n" + result.report() + "\n")
+  document = result.to_dict()
+  document["import"] = imported.to_dict()
+  (out / "report.json").write_text(json.dumps(document, indent=2) + "\n")
+  return 0 if imported.ok and result.ok else 1
+
+
 def _rehearse(args: argparse.Namespace) -> int:
   from .planner import RunRefused, emit, rehearse_plan
 
+  if Path(args.file).suffix in (".py", ".json"):
+    return _rehearse_import(args)
   found = _planned(args.file, args.plan, args.robot, getattr(args, "gripper", False))
   if found is None:
     return 1
@@ -397,8 +429,13 @@ def main(argv: Optional[List[str]] = None) -> int:
   rehearse_ = commands.add_parser(
     "rehearse", help="check and plan a protocol, then run the plan through everything that can check it off the robot"
   )
-  rehearse_.add_argument("file", help="a steadyhand protocol file (YAML)")
+  rehearse_.add_argument(
+    "file", help="a steadyhand protocol file (YAML), or an Opentrons protocol you already have (.py, or its analysis as .json)"
+  )
   rehearse_.add_argument("--out", default="steadyhand-out", help="folder for the scene, the report and the script")
+  rehearse_.add_argument(
+    "--labware", action="append", help="for an Opentrons protocol: a custom labware definition, or a folder of them; may be repeated"
+  )
   rehearse_.add_argument("--no-render", action="store_true", help="skip the PNG pictures")
   rehearse_.add_argument("--plan", help="a plan file whose choices replace the planner's own")
   rehearse_.set_defaults(run=_rehearse)

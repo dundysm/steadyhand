@@ -18,3 +18,5 @@ steadyhand rehearse examples/serial_dilution.yaml --robot opentrons-flex
 The fields are described in [docs/protocol-format.md](../docs/protocol-format.md).
 
 [drafts/](drafts/README.md) holds four protocol files a model drafted from kit manuals, unedited, for someone who has run those kits to read.
+
+[opentrons/three_mistakes.py](opentrons/three_mistakes.py) is an Opentrons Flex protocol in Python that Opentrons' analysis accepts and `steadyhand rehearse` fails, for three reasons. See [docs/opentrons-import.md](../docs/opentrons-import.md).
