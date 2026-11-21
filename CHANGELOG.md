@@ -3,6 +3,20 @@
 Releases since 0.26.0, newest first, as their release notes were written. Earlier versions are in the
 commit log, and the measurements behind every claim are in [evals/RESULTS.md](evals/RESULTS.md).
 
+## 0.45.0 (2026-11-21)
+
+**rehearse an opentrons protocol you already have**
+
+`steadyhand rehearse my_protocol.py` now takes any Python protocol for an Opentrons Flex or OT-2, whoever wrote it; opentrons' own analysis turns it into the commands the robot would be sent, and steadyhand follows the liquid through them and replays them in the physics scene
+
+- finds what that analysis lets through: a well asked for more than it holds, a well filled past its rim, a tip that draws air, a volume below what the pipette is specified for
+- wells with no liquid declared are given the least that keeps every draw under the liquid, and the report lists it: the volume to load, not the volume used
+- air gaps are air; what goes into the trash is a removal; custom labware with `--labware`; a saved analysis (.json) is read as it is
+- not followed yet, and said by name: moving labware, the 96-channel pipette, partial tip pick-up; modules are drawn at deck height and their commands passed over
+- `examples/opentrons/three_mistakes.py` passes opentrons' analysis and fails here for three reasons
+- also since 0.44.0: a water-and-dye bench test for a first run on a real robot, four unedited drafts for someone who has run the kits to read, and issue templates for both
+- caveats: run so far on steadyhand's own programs and on protocols written for its tests, not on a library of other people's; nothing has been compared with a real robot; 228 tests
+
 ## 0.44.0 (2026-11-16)
 
 **who makes what in a kit manual**
